@@ -7,7 +7,12 @@ import { ESLint } from "eslint";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
-type ReferenceKind = "dynamic-import" | "import" | "re-export" | "require";
+type ReferenceKind =
+  | "dynamic-import"
+  | "import"
+  | "import-type"
+  | "re-export"
+  | "require";
 
 type ModuleReference = {
   readonly kind: ReferenceKind;
@@ -60,7 +65,7 @@ function extractModuleReferences(sourceText: string, filePath: string) {
   );
   const references: ModuleReference[] = [];
 
-  const addReference = (kind: ReferenceKind, node: ts.Expression | undefined) => {
+  const addReference = (kind: ReferenceKind, node: ts.Node | undefined) => {
     if (node && ts.isStringLiteralLike(node)) {
       references.push({ kind, specifier: node.text });
     }
@@ -71,6 +76,11 @@ function extractModuleReferences(sourceText: string, filePath: string) {
       addReference("import", node.moduleSpecifier);
     } else if (ts.isExportDeclaration(node)) {
       addReference("re-export", node.moduleSpecifier);
+    } else if (
+      ts.isImportTypeNode(node) &&
+      ts.isLiteralTypeNode(node.argument)
+    ) {
+      addReference("import-type", node.argument.literal);
     } else if (ts.isCallExpression(node)) {
       const [argument] = node.arguments;
 
@@ -218,6 +228,11 @@ const allowedExamples = [
     filePath: syntheticPath("features", "alpha", "service.ts"),
     source: 'import { publicApi } from "@/features/beta";',
   },
+  {
+    name: "Feature import type reads another Feature public root",
+    filePath: syntheticPath("features", "alpha", "service.ts"),
+    source: 'type PublicApi = import("@/features/beta").PublicApi;',
+  },
 ] as const;
 
 const rejectedExamples = [
@@ -278,6 +293,13 @@ const rejectedExamples = [
     kind: "require",
   },
   {
+    name: "Domain import type of React",
+    filePath: syntheticPath("domain", "projects", "service.ts"),
+    source: 'type ReactType = import("react").ReactType;',
+    specifier: "react",
+    kind: "import-type",
+  },
+  {
     name: "Feature alias import of another Feature internal file",
     filePath: syntheticPath("features", "alpha", "service.ts"),
     source: 'import { secret } from "@/features/beta/internal/secret";',
@@ -285,11 +307,26 @@ const rejectedExamples = [
     kind: "import",
   },
   {
+    name: "Feature alias import type of another Feature internal file",
+    filePath: syntheticPath("features", "alpha", "service.ts"),
+    source:
+      'type Secret = import("@/features/beta/internal/secret").Secret;',
+    specifier: "@/features/beta/internal/secret",
+    kind: "import-type",
+  },
+  {
     name: "Feature relative import of another Feature internal file",
     filePath: syntheticPath("features", "alpha", "service.ts"),
     source: 'import { secret } from "../beta/internal/secret";',
     specifier: "../beta/internal/secret",
     kind: "import",
+  },
+  {
+    name: "Feature relative import type of another Feature internal file",
+    filePath: syntheticPath("features", "alpha", "service.ts"),
+    source: 'type Secret = import("../beta/internal/secret").Secret;',
+    specifier: "../beta/internal/secret",
+    kind: "import-type",
   },
   {
     name: "Feature re-export of another Feature internal file",
