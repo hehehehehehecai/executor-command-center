@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 type ReferenceKind =
   | "dynamic-import"
   | "import"
+  | "import-equals"
   | "import-type"
   | "re-export"
   | "require";
@@ -76,6 +77,11 @@ function extractModuleReferences(sourceText: string, filePath: string) {
       addReference("import", node.moduleSpecifier);
     } else if (ts.isExportDeclaration(node)) {
       addReference("re-export", node.moduleSpecifier);
+    } else if (
+      ts.isImportEqualsDeclaration(node) &&
+      ts.isExternalModuleReference(node.moduleReference)
+    ) {
+      addReference("import-equals", node.moduleReference.expression);
     } else if (
       ts.isImportTypeNode(node) &&
       ts.isLiteralTypeNode(node.argument)
@@ -233,6 +239,26 @@ const allowedExamples = [
     filePath: syntheticPath("features", "alpha", "service.ts"),
     source: 'type PublicApi = import("@/features/beta").PublicApi;',
   },
+  {
+    name: "Domain import equals reads its own pure TypeScript module",
+    filePath: syntheticPath("domain", "projects", "service.ts"),
+    source: 'import ProjectId = require("./project-id");',
+  },
+  {
+    name: "Feature import equals reads its own internal module relatively",
+    filePath: syntheticPath("features", "alpha", "service.ts"),
+    source: 'import Local = require("./internal/local");',
+  },
+  {
+    name: "Feature import equals reads another Feature public root",
+    filePath: syntheticPath("features", "alpha", "service.ts"),
+    source: 'import PublicApi = require("@/features/beta");',
+  },
+  {
+    name: "TypeScript internal import alias has no module specifier",
+    filePath: syntheticPath("features", "alpha", "service.ts"),
+    source: "import Alias = Namespace.Member;",
+  },
 ] as const;
 
 const rejectedExamples = [
@@ -300,6 +326,20 @@ const rejectedExamples = [
     kind: "import-type",
   },
   {
+    name: "Domain import equals of React",
+    filePath: syntheticPath("domain", "projects", "service.ts"),
+    source: 'import React = require("react");',
+    specifier: "react",
+    kind: "import-equals",
+  },
+  {
+    name: "Domain export import equals of next/server",
+    filePath: syntheticPath("domain", "projects", "service.ts"),
+    source: 'export import NextServer = require("next/server");',
+    specifier: "next/server",
+    kind: "import-equals",
+  },
+  {
     name: "Feature alias import of another Feature internal file",
     filePath: syntheticPath("features", "alpha", "service.ts"),
     source: 'import { secret } from "@/features/beta/internal/secret";',
@@ -315,6 +355,22 @@ const rejectedExamples = [
     kind: "import-type",
   },
   {
+    name: "Feature import equals alias of another Feature internal file",
+    filePath: syntheticPath("features", "alpha", "service.ts"),
+    source:
+      'import Secret = require("@/features/beta/internal/secret");',
+    specifier: "@/features/beta/internal/secret",
+    kind: "import-equals",
+  },
+  {
+    name: "Feature import equals alias of its own internal file",
+    filePath: syntheticPath("features", "alpha", "service.ts"),
+    source:
+      'import Local = require("@/features/alpha/internal/local");',
+    specifier: "@/features/alpha/internal/local",
+    kind: "import-equals",
+  },
+  {
     name: "Feature relative import of another Feature internal file",
     filePath: syntheticPath("features", "alpha", "service.ts"),
     source: 'import { secret } from "../beta/internal/secret";',
@@ -327,6 +383,13 @@ const rejectedExamples = [
     source: 'type Secret = import("../beta/internal/secret").Secret;',
     specifier: "../beta/internal/secret",
     kind: "import-type",
+  },
+  {
+    name: "Feature import equals relative path to another Feature internal file",
+    filePath: syntheticPath("features", "alpha", "service.ts"),
+    source: 'import Secret = require("../beta/internal/secret");',
+    specifier: "../beta/internal/secret",
+    kind: "import-equals",
   },
   {
     name: "Feature re-export of another Feature internal file",

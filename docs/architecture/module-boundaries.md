@@ -61,13 +61,14 @@ ID、Route 和 Order 是稳定契约：三者分别唯一，Registry 顺序与�
 
 ## Domain 纯 TypeScript 边界
 
-`src/domain/**` 不得导入 React、Next.js、Supabase、Octokit、Inngest 或 AI SDK。限制覆盖静态 import、`export ... from`、动态 `import()` 和 `require()`。
+`src/domain/**` 不得导入 React、Next.js、Supabase、Octokit、Inngest 或 AI SDK。Vitest AST 扫描覆盖静态 import、`export ... from`、动态 `import()`、`require()`、`ImportTypeNode` 和引用外部模块的 `ImportEqualsDeclaration`。
 
 允许：
 
 ```ts
 import { ProjectId } from "./project-id";
 import type { DomainContract } from "@/shared/contracts";
+import ProjectIdAlias = require("./project-id");
 ```
 
 禁止：
@@ -78,6 +79,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 const provider = await import("@ai-sdk/openai");
 const Octokit = require("octokit");
+type ReactType = import("react").ReactType;
+import ReactAlias = require("react");
 ```
 
 ## Feature public root 与 internal 边界
@@ -90,6 +93,7 @@ Feature 根目录语义是 `src/features/<feature-name>/`。跨 Feature 只能�
 import { localValue } from "./internal/local-value";
 import type { SharedContract } from "@/shared/contracts";
 import { publicApi } from "@/features/flight-log";
+import PublicApiAlias = require("@/features/flight-log");
 ```
 
 禁止：
@@ -99,9 +103,10 @@ import { secret } from "@/features/flight-log/internal/secret";
 import { secret } from "../flight-log/internal/secret";
 export { secret } from "@/features/flight-log/internal/secret";
 const secret = await import("@/features/flight-log/internal/secret");
+import SecretAlias = require("@/features/flight-log/internal/secret");
 ```
 
-自身内部文件也不应通过 `@/features/<current-feature>/...` 导入；使用相对路径可以清楚地区分内部实现与公共 API。
+自身内部文件也不应通过 `@/features/<current-feature>/...` 导入；使用相对路径可以清楚地区分内部实现与公共 API。`ImportEqualsDeclaration` 同样必须遵守 public root 与 internal 规则，不能作为绕过方式。
 
 ## 自动化执行范围
 
@@ -111,9 +116,12 @@ const secret = await import("@/features/flight-log/internal/secret");
 - 对 `src/features/**/*.{ts,tsx,js,jsx,mts,cts}`，`no-restricted-imports` 禁止 `@/features/*/**` 内部别名，同时允许 `@/features/<feature-name>` 公开根入口。
 - 继续保留 Next.js Core Web Vitals、Next.js TypeScript 和零 warning 要求。
 
+这里仅描述现有 `no-restricted-imports` 配置的实际覆盖，不宣称 ESLint 能独立识别所有 TypeScript 特殊模块语法。`ImportTypeNode` 与 `ImportEqualsDeclaration` 的确定性覆盖由下方 Vitest AST 扫描提供。
+
 ### Vitest 架构扫描已强制
 
-- 使用 TypeScript Compiler API 从 AST 提取静态 import、re-export、动态 `import()` 和 `require()` 的字符串 module specifier。
+- 使用 TypeScript Compiler API 从 AST 提取 `ImportDeclaration`、`ExportDeclaration`、动态 `import()` CallExpression、`require()` CallExpression、`ImportTypeNode`，以及 `ImportEqualsDeclaration + ExternalModuleReference` 的字符串 module specifier。
+- `type ReactType = import("react").ReactType` 与 `import ReactAlias = require("react")` 在 Domain 中都会被 AST 扫描拒绝；非 `ExternalModuleReference` 的 TypeScript 内部别名不会生成 module specifier。
 - 递归扫描现有 `src/domain` 与 `src/features`；目录不存在时允许空扫描，但合成规则测试仍执行。
 - 识别 importer 所属 Feature、Feature 别名和跨 Feature 相对路径。
 - 每个违规包含文件、specifier、引用类型和原因。
