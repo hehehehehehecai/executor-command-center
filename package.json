@@ -20,7 +20,7 @@
     "test:integration:app": "vitest run --config vitest.integration.config.ts",
     "test:integration:db": "supabase test db --local",
     "test:integration": "pnpm run test:integration:app && pnpm run test:integration:db",
-    "test:e2e": "playwright test"
+    "test:e2e": "node scripts/run-e2e.mjs"
   },
   "dependencies": {
     "next": "16.2.10",
