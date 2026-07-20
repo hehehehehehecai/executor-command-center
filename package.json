@@ -10,8 +10,17 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:integration": "vitest run --config vitest.integration.config.ts --passWithNoTests",
-    "test:e2e": "playwright test"
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset --local",
+    "db:test": "supabase test db --local",
+    "db:lint": "supabase db lint --local --level error --fail-on error",
+    "db:types": "node scripts/generate-database-types.mjs",
+    "db:types:check": "node scripts/generate-database-types.mjs --check",
+    "test:integration:app": "vitest run --config vitest.integration.config.ts",
+    "test:integration:db": "supabase test db --local",
+    "test:integration": "pnpm run test:integration:app && pnpm run test:integration:db",
+    "test:e2e": "node scripts/run-e2e.mjs"
   },
   "dependencies": {
     "next": "16.2.10",
@@ -30,6 +39,7 @@
     "eslint": "9.39.5",
     "eslint-config-next": "16.2.10",
     "jsdom": "29.1.1",
+    "supabase": "2.109.1",
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3",
     "vitest": "4.1.10"

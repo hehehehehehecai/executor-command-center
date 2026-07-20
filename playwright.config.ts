@@ -1,5 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const lifecycleScriptOwnsWebServer =
+  process.env.E2E_LIFECYCLE_MANAGED_SERVER === "1";
+
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
@@ -17,10 +20,12 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
-  webServer: {
-    command: "pnpm dev",
-    url: "http://127.0.0.1:3000",
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  webServer: lifecycleScriptOwnsWebServer
+    ? undefined
+    : {
+        command: "pnpm dev",
+        url: "http://127.0.0.1:3000",
+        reuseExistingServer: !process.env.CI,
+        timeout: 120_000,
+      },
 });
