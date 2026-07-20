@@ -1,0 +1,140 @@
+import { z } from "zod";
+import { toEnvironmentValidationError } from "./environment-error";
+import {
+  addPublicEnvironmentGroupIssues,
+  optionalEnvironmentString,
+  publicEnvironmentShape,
+} from "./public-environment";
+
+export { environmentContractId } from "./environment-error";
+
+export const approvedEnvironmentVariableNames = [
+  "NEXT_PUBLIC_SUPABASE_URL",
+  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "GITHUB_APP_ID",
+  "GITHUB_APP_PRIVATE_KEY",
+  "GITHUB_WEBHOOK_SECRET",
+  "INNGEST_EVENT_KEY",
+  "INNGEST_SIGNING_KEY",
+  "DEEPSEEK_API_KEY",
+] as const;
+
+export const serverEnvironmentVariableNames = [
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "GITHUB_APP_ID",
+  "GITHUB_APP_PRIVATE_KEY",
+  "GITHUB_WEBHOOK_SECRET",
+  "INNGEST_EVENT_KEY",
+  "INNGEST_SIGNING_KEY",
+  "DEEPSEEK_API_KEY",
+] as const;
+
+type ApprovedEnvironmentVariable =
+  (typeof approvedEnvironmentVariableNames)[number];
+
+const privateKey = z.string().superRefine((value, context) => {
+  const begin = value.match(
+    /^-----BEGIN ((?:RSA |EC |OPENSSH )?PRIVATE KEY)-----/,
+  );
+  const end = value.match(
+    /-----END ((?:RSA |EC |OPENSSH )?PRIVATE KEY)-----$/,
+  );
+
+  if (!begin || !end || begin[1] !== end[1]) {
+    context.addIssue({
+      code: "custom",
+      message: "invalid_private_key_pem_boundary",
+    });
+  }
+});
+
+const environmentShape = {
+  ...publicEnvironmentShape,
+  SUPABASE_SERVICE_ROLE_KEY: optionalEnvironmentString(z.string()),
+  GITHUB_APP_ID: optionalEnvironmentString(z.string().regex(/^\d+$/)),
+  GITHUB_APP_PRIVATE_KEY: optionalEnvironmentString(privateKey),
+  GITHUB_WEBHOOK_SECRET: optionalEnvironmentString(z.string()),
+  INNGEST_EVENT_KEY: optionalEnvironmentString(z.string()),
+  INNGEST_SIGNING_KEY: optionalEnvironmentString(z.string()),
+  DEEPSEEK_API_KEY: optionalEnvironmentString(z.string()),
+};
+
+function addMissingGroupIssues(
+  environment: Partial<Record<ApprovedEnvironmentVariable, string>>,
+  context: z.RefinementCtx,
+  variableNames: readonly ApprovedEnvironmentVariable[],
+  message: string,
+) {
+  const presentCount = variableNames.filter(
+    (variableName) => environment[variableName] !== undefined,
+  ).length;
+
+  if (presentCount === 0 || presentCount === variableNames.length) {
+    return;
+  }
+
+  for (const variableName of variableNames) {
+    if (environment[variableName] === undefined) {
+      context.addIssue({
+        code: "custom",
+        path: [variableName],
+        message,
+      });
+    }
+  }
+}
+
+export const environmentSchema = z
+  .object(environmentShape)
+  .superRefine((environment, context) => {
+    addPublicEnvironmentGroupIssues(environment, context);
+
+    const publicSupabaseVariables = [
+      "NEXT_PUBLIC_SUPABASE_URL",
+      "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    ] as const;
+
+    if (environment.SUPABASE_SERVICE_ROLE_KEY !== undefined) {
+      for (const variableName of publicSupabaseVariables) {
+        if (environment[variableName] === undefined) {
+          context.addIssue({
+            code: "custom",
+            path: [variableName],
+            message: "service_role_requires_supabase_public_group",
+          });
+        }
+      }
+    }
+
+    addMissingGroupIssues(
+      environment,
+      context,
+      [
+        "GITHUB_APP_ID",
+        "GITHUB_APP_PRIVATE_KEY",
+        "GITHUB_WEBHOOK_SECRET",
+      ],
+      "incomplete_github_app_group",
+    );
+    addMissingGroupIssues(
+      environment,
+      context,
+      ["INNGEST_EVENT_KEY", "INNGEST_SIGNING_KEY"],
+      "incomplete_inngest_group",
+    );
+  });
+
+export type EnvironmentConfiguration = z.infer<typeof environmentSchema>;
+
+export function parseEnvironment(
+  source: Readonly<Record<string, string | undefined>>,
+): EnvironmentConfiguration {
+  const result = environmentSchema.safeParse(source);
+
+  if (!result.success) {
+    throw toEnvironmentValidationError(result.error);
+  }
+
+  return result.data;
+}

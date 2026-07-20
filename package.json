@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "env:check": "vitest run src/shared/configuration/environment-validation.ci.test.ts",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset --local",
@@ -17,15 +18,18 @@
     "db:lint": "supabase db lint --local --level error --fail-on error",
     "db:types": "node scripts/generate-database-types.mjs",
     "db:types:check": "node scripts/generate-database-types.mjs --check",
+    "db:drift:check": "node scripts/check-database-drift.mjs",
     "test:integration:app": "vitest run --config vitest.integration.config.ts",
     "test:integration:db": "supabase test db --local",
     "test:integration": "pnpm run test:integration:app && pnpm run test:integration:db",
-    "test:e2e": "node scripts/run-e2e.mjs"
+    "test:e2e": "node scripts/run-e2e.mjs",
+    "test:e2e:preview": "node scripts/run-preview-e2e.mjs"
   },
   "dependencies": {
     "next": "16.2.10",
     "react": "19.2.7",
-    "react-dom": "19.2.7"
+    "react-dom": "19.2.7",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@playwright/test": "1.61.1",
