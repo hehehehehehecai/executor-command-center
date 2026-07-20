@@ -2,8 +2,6 @@
 -- contract_version: database-baseline.v1
 -- purpose: local migration-first rebuild sentinel
 
-create extension if not exists pgtap with schema extensions;
-
 create schema if not exists app_private;
 
 comment on schema app_private is

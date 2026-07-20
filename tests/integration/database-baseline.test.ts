@@ -12,6 +12,13 @@ const projectRoot = path.resolve(
 );
 const migrationsDirectory = path.join(projectRoot, "supabase", "migrations");
 const seedPath = path.join(projectRoot, "supabase", "seed.sql");
+const pgtapTestPath = path.join(
+  projectRoot,
+  "supabase",
+  "tests",
+  "0001_database_baseline_test.sql",
+);
+const packageJsonPath = path.join(projectRoot, "package.json");
 const typesPath = path.join(
   projectRoot,
   "src",
@@ -37,6 +44,60 @@ describe("database baseline artifacts", () => {
 
     expect(migration).toContain("-- logical_migration_id: 0001");
     expect(migration).toContain("-- contract_version: database-baseline.v1");
+  });
+
+  it("does not persist pgTAP in the baseline migration", () => {
+    const migration = readFileSync(
+      path.join(migrationsDirectory, migrationNames[0]),
+      "utf8",
+    );
+
+    expect(migration).not.toMatch(
+      /\bcreate\s+extension\s+(?:if\s+not\s+exists\s+)?pgtap\b/i,
+    );
+  });
+
+  it("creates pgTAP inside the test transaction and rolls it back", () => {
+    const pgtapTest = readFileSync(pgtapTestPath, "utf8").toLowerCase();
+    const beginIndex = pgtapTest.indexOf("begin;");
+    const createExtensionIndex = pgtapTest.indexOf(
+      "create extension if not exists pgtap with schema extensions;",
+    );
+    const finishIndex = pgtapTest.indexOf("select * from finish();");
+    const rollbackIndex = pgtapTest.lastIndexOf("rollback;");
+
+    expect([
+      beginIndex,
+      createExtensionIndex,
+      finishIndex,
+      rollbackIndex,
+    ]).not.toContain(-1);
+    expect(beginIndex).toBeLessThan(createExtensionIndex);
+    expect(createExtensionIndex).toBeLessThan(finishIndex);
+    expect(finishIndex).toBeLessThan(rollbackIndex);
+    expect(pgtapTest.trimEnd().endsWith("rollback;")).toBe(true);
+  });
+
+  it("defines the exact full-database lint command", () => {
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
+      scripts?: Record<string, string>;
+    };
+
+    expect(packageJson.scripts?.["db:lint"]).toBe(
+      "supabase db lint --local --level error --fail-on error",
+    );
+  });
+
+  it("does not weaken the database lint gate", () => {
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
+      scripts?: Record<string, string>;
+    };
+    const dbLint = packageJson.scripts?.["db:lint"];
+
+    expect(dbLint).toBeTypeOf("string");
+    expect(dbLint).not.toMatch(/--schema\b|allowlist/i);
+    expect(dbLint).not.toMatch(/\||\b(?:grep|findstr|select-string)\b/i);
+    expect(dbLint).not.toMatch(/(?:^|[;&])\s*exit\s+0\b|\|\|\s*true\b/i);
   });
 
   it("keeps seed.sql free of DDL", () => {

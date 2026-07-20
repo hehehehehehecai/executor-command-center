@@ -69,6 +69,8 @@ pnpm run db:test
 
 pgTAP 验证 `app_private.database_baseline` 的 Schema、字段、主键、Seed 固定值、权限边界和幂等性。
 
+pgTAP 只在测试文件的单个事务中按 `begin`、`create extension`、断言、`finish`、`rollback` 的顺序存在。baseline Migration 不持久安装 pgTAP，事务回滚后 `pg_extension` 中不得残留 pgTAP。
+
 ## 运行完整 Integration
 
 Local Supabase 必须保持运行：
@@ -98,11 +100,11 @@ pnpm run db:types:check
 ## 检查 Schema Drift
 
 ```powershell
-pnpm exec supabase db lint --local --level error --fail-on error --schema public,app_private
+pnpm run db:lint
 pnpm exec supabase db diff --local --schema public,app_private
 ```
 
-项目 Schema 范围的 `db lint` 必须没有 error，`db diff` 必须不产生未提交 DDL。省略 `--schema` 会同时检查 Supabase 自带的 `extensions` Schema，可能输出 pgTAP 扩展内部兼容性诊断；这些诊断不得冒充项目 Schema 错误，也不得通过删除测试扩展来掩盖。若项目范围 diff 非空，应查明 Migration、Seed 或手工 Schema 漂移来源，不得直接复制 diff 掩盖原因。
+正式 `db:lint` 门禁使用 Supabase CLI 默认的全库范围，必须返回 0 条诊断且以退出码 0 结束。不得为该门禁增加 `--schema`、Schema 排除、allowlist、输出过滤或吞掉退出码的逻辑。pgTAP 只由测试事务临时创建并随 `rollback` 消失，因此运行 pgTAP 前后都必须满足同一全库 lint 门禁。`db diff` 仍只比较 `public,app_private` 的项目 Contract；若 diff 非空，应查明 Migration、Seed 或手工 Schema 漂移来源，不得直接复制 diff 掩盖原因。
 
 ## 停止服务
 
@@ -139,7 +141,7 @@ pnpm run db:start
 pnpm run db:reset
 pnpm test:integration
 pnpm run db:types:check
-pnpm exec supabase db lint --local --level error --fail-on error --schema public,app_private
+pnpm run db:lint
 pnpm exec supabase db diff --local --schema public,app_private
 ```
 
