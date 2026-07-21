@@ -126,7 +126,14 @@ describe("Dependabot contract", () => {
   });
 });
 
-describe("vercel-preview.v1 runner", () => {
+describe("vercel-preview.v1.1 runner", () => {
+  test("binds the remote Preview assertions to the revised Contract version", () => {
+    const previewSpec = readProjectFile("tests/e2e-preview/preview.spec.ts");
+
+    expect(previewSpec).toContain("vercel-preview.v1.1");
+    expect(previewSpec).not.toMatch(/vercel-preview\.v1(?!\.1)/);
+  });
+
   test("rejects a missing Preview URL", () => {
     const environment = { ...process.env };
     delete environment.PREVIEW_BASE_URL;

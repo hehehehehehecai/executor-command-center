@@ -16,7 +16,7 @@ test("verifies the unauthenticated fictional Preview without external integratio
   baseURL,
 }) => {
   if (!baseURL) {
-    throw new Error("PREVIEW_BASE_URL is required by vercel-preview.v1");
+    throw new Error("PREVIEW_BASE_URL is required by vercel-preview.v1.1");
   }
 
   const previewOrigin = new URL(baseURL).origin;
