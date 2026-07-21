@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality-gate:
+    name: quality-gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+        with:
+          version: 11.5.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22.22.3
+          cache: pnpm
+
+      - name: Install dependencies from the lockfile
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium and system dependencies
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Validate environment contract
+        run: pnpm env:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Run unit tests
+        run: pnpm test
+
+      - name: Start local Supabase
+        run: pnpm db:start
+
+      - name: Reset local database
+        run: pnpm db:reset
+
+      - name: Lint all database schemas before pgTAP
+        run: pnpm db:lint
+
+      - name: Run pgTAP database tests
+        run: pnpm db:test
+
+      - name: Lint all database schemas after pgTAP
+        run: pnpm db:lint
+
+      - name: Run the complete integration command
+        run: pnpm test:integration
+
+      - name: Check generated database types
+        run: pnpm db:types:check
+
+      - name: Check database schema drift
+        run: pnpm db:drift:check
+
+      - name: Run local end-to-end tests
+        run: pnpm test:e2e
+
+      - name: Build the application
+        run: pnpm build
+
+      - name: Stop local Supabase
+        if: always()
+        run: pnpm db:stop
