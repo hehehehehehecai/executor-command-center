@@ -2,38 +2,141 @@
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { pathToFileURL } from "node:url";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { createFixtureSideEffectPreloaderSource } from "./testing/fixture-side-effect-preloader-source";
+
+const PRELOADER_TIMEOUT_MS = 3_000;
+const SIDE_EFFECT_EXIT_STATUS = 86;
+const SIDE_EFFECT_ERROR_PREFIX = "auth_fixture_side_effect_detected:";
+
+let preloaderDirectory = "";
+let preloaderUrl = "";
+let preloaderSourceFingerprint = "";
+
+beforeAll(() => {
+  const preloaderSource = createFixtureSideEffectPreloaderSource();
+  preloaderSourceFingerprint = createHash("sha256")
+    .update(preloaderSource)
+    .digest("hex");
+  preloaderDirectory = mkdtempSync(
+    path.join(os.tmpdir(), "executor-auth-fixture-guard-"),
+  );
+  const preloaderPath = path.join(
+    preloaderDirectory,
+    "fixture-side-effect-preloader.mjs",
+  );
+  writeFileSync(preloaderPath, preloaderSource, "utf8");
+  preloaderUrl = pathToFileURL(preloaderPath).href;
+});
+
+afterAll(() => {
+  if (preloaderDirectory) {
+    rmSync(preloaderDirectory, { force: true, recursive: true });
+  }
+});
 
 describe("phase_2 synthetic fixture provenance", () => {
-  it("hard-rejects the real fixture runner before side effects in production", () => {
-    const runnerPath = path.resolve(
-      process.cwd(),
-      "scripts/run-auth-fixture-e2e.mjs",
+  it("proves the preloader blocks a harmless file write before it happens", () => {
+    const sentinelPath = path.join(preloaderDirectory, "must-not-exist.txt");
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--import",
+        preloaderUrl,
+        "--input-type=module",
+        "--eval",
+        'import { writeFileSync } from "node:fs"; writeFileSync(process.env.AUTH_FIXTURE_PROBE_PATH, "blocked");',
+      ],
+      {
+        cwd: process.cwd(),
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          AUTH_FIXTURE_PROBE_PATH: sentinelPath,
+        },
+        timeout: PRELOADER_TIMEOUT_MS,
+        windowsHide: true,
+      },
     );
-    const startedAt = performance.now();
-    const result = spawnSync(process.execPath, [runnerPath], {
-      cwd: process.cwd(),
-      encoding: "utf8",
-      env: { ...process.env, NODE_ENV: "production" },
-      timeout: 3_000,
-      windowsHide: true,
-    });
-    const elapsedMs = performance.now() - startedAt;
 
+    expect(preloaderSourceFingerprint).toMatch(/^[a-f0-9]{64}$/);
     expect(result.error).toBeUndefined();
     expect(result.signal).toBeNull();
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(SIDE_EFFECT_EXIT_STATUS);
     expect(result.stdout).toBe("");
     expect(result.stderr.trim()).toBe(
-      "auth_fixture_forbidden_in_production",
+      `${SIDE_EFFECT_ERROR_PREFIX}file-write`,
     );
-    expect(elapsedMs).toBeLessThan(2_000);
-    expect(`${result.stdout}\n${result.stderr}`).not.toMatch(
-      /Running \d+ test|Next\.js|Playwright|synthetic-callback-code|fixture-user/i,
-    );
+    expect(existsSync(sentinelPath)).toBe(false);
   });
+
+  it.each(Array.from({ length: 10 }, (_, index) => index + 1))(
+    "hard-rejects the real fixture runner before side effects in production (iteration %i)",
+    (iteration) => {
+      const runnerPath = path.resolve(
+        process.cwd(),
+        "scripts/run-auth-fixture-e2e.mjs",
+      );
+      const startedAt = performance.now();
+      const result = spawnSync(
+        process.execPath,
+        ["--import", preloaderUrl, runnerPath],
+        {
+          cwd: process.cwd(),
+          encoding: "utf8",
+          env: { ...process.env, NODE_ENV: "production" },
+          timeout: PRELOADER_TIMEOUT_MS,
+          windowsHide: true,
+        },
+      );
+      const elapsedMs = performance.now() - startedAt;
+      const combinedOutput = `${result.stdout}\n${result.stderr}`;
+      const guardCodeCount = combinedOutput.match(
+        /auth_fixture_forbidden_in_production/g,
+      )?.length ?? 0;
+      const sideEffectCodeCount = combinedOutput.match(
+        /auth_fixture_side_effect_detected:/g,
+      )?.length ?? 0;
+
+      console.info(
+        JSON.stringify({
+          contract_id: "auth-fixture-production-guard-test.v1",
+          iteration,
+          node_env: "production",
+          preloader_loaded: true,
+          elapsed_ms: Math.round(elapsedMs * 1_000) / 1_000,
+          status: result.status,
+          signal: result.signal,
+          timed_out:
+            result.error !== undefined &&
+            "code" in result.error &&
+            result.error.code === "ETIMEDOUT",
+          guard_code_count: guardCodeCount,
+          side_effect_code_count: sideEffectCodeCount,
+        }),
+      );
+
+      expect(result.error).toBeUndefined();
+      expect(result.signal).toBeNull();
+      expect(result.status).toBe(1);
+      expect(result.stdout).toBe("");
+      expect(result.stderr.trim()).toBe(
+        "auth_fixture_forbidden_in_production",
+      );
+      expect(guardCodeCount).toBe(1);
+      expect(sideEffectCodeCount).toBe(0);
+    },
+  );
 
   it("binds every required fixture to the frozen pre-run fingerprint", () => {
     const fixturePath = path.resolve(
