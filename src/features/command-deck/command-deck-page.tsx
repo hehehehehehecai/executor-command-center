@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { commandDeckPreviewFixture } from "@/content/demo-data/command-deck-preview-fixture";
+import { GitHubSignInLink } from "@/features/onboarding";
 import { featureRegistry } from "@/shared/features/feature-registry";
 
 export function CommandDeckPage() {
@@ -20,6 +21,7 @@ export function CommandDeckPage() {
             演示数据版本 {commandDeckPreviewFixture.fixtureVersion}
           </span>
         </div>
+        <GitHubSignInLink />
       </header>
 
       <section className="project-summary" aria-labelledby="command-deck-title">

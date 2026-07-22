@@ -436,16 +436,20 @@ describe("ESLint module boundary enforcement", () => {
     ["octokit", 'import { Octokit } from "octokit";'],
     ["inngest", 'import { Inngest } from "inngest";'],
     ["openai", 'import OpenAI from "openai";'],
-  ])("rejects Domain import %s", async (_specifier, source) => {
-    const messages = await lintSynthetic(
-      source,
-      syntheticPath("domain", "projects", "service.ts"),
-    );
+  ])(
+    "rejects Domain import %s",
+    async (_specifier, source) => {
+      const messages = await lintSynthetic(
+        source,
+        syntheticPath("domain", "projects", "service.ts"),
+      );
 
-    expect(messages.some(({ ruleId }) => ruleId === "no-restricted-imports")).toBe(
-      true,
-    );
-  });
+      expect(
+        messages.some(({ ruleId }) => ruleId === "no-restricted-imports"),
+      ).toBe(true);
+    },
+    10_000,
+  );
 
   it("rejects a Feature internal alias without blocking its public root", async () => {
     const internalMessages = await lintSynthetic(

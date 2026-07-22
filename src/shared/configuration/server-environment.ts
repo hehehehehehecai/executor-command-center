@@ -7,6 +7,7 @@ export function parseServerEnvironment(
   source: Readonly<Record<string, string | undefined>>,
 ): EnvironmentConfiguration {
   return parseEnvironment({
+    APP_ORIGIN: source.APP_ORIGIN,
     NEXT_PUBLIC_SUPABASE_URL: source.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: source.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     SUPABASE_SERVICE_ROLE_KEY: source.SUPABASE_SERVICE_ROLE_KEY,

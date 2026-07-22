@@ -9,6 +9,7 @@ import {
 export { environmentContractId } from "./environment-error";
 
 export const approvedEnvironmentVariableNames = [
+  "APP_ORIGIN",
   "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
   "SUPABASE_SERVICE_ROLE_KEY",
@@ -21,6 +22,7 @@ export const approvedEnvironmentVariableNames = [
 ] as const;
 
 export const serverEnvironmentVariableNames = [
+  "APP_ORIGIN",
   "SUPABASE_SERVICE_ROLE_KEY",
   "GITHUB_APP_ID",
   "GITHUB_APP_PRIVATE_KEY",
@@ -49,7 +51,22 @@ const privateKey = z.string().superRefine((value, context) => {
   }
 });
 
+const appOrigin = z.string().url().superRefine((value, context) => {
+  const url = new URL(value);
+  const isLocalHost =
+    url.hostname === "localhost" || url.hostname === "127.0.0.1";
+  const allowedProtocol =
+    url.protocol === "https:" || (url.protocol === "http:" && isLocalHost);
+  const originOnly =
+    url.pathname === "/" && !url.search && !url.hash && !url.username && !url.password;
+
+  if (!allowedProtocol || !originOnly) {
+    context.addIssue({ code: "custom", message: "invalid_app_origin" });
+  }
+});
+
 const environmentShape = {
+  APP_ORIGIN: optionalEnvironmentString(appOrigin),
   ...publicEnvironmentShape,
   SUPABASE_SERVICE_ROLE_KEY: optionalEnvironmentString(z.string()),
   GITHUB_APP_ID: optionalEnvironmentString(z.string().regex(/^\d+$/)),
