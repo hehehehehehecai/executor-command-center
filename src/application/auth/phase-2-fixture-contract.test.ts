@@ -1,11 +1,40 @@
 // @vitest-environment node
 
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 describe("phase_2 synthetic fixture provenance", () => {
+  it("hard-rejects the real fixture runner before side effects in production", () => {
+    const runnerPath = path.resolve(
+      process.cwd(),
+      "scripts/run-auth-fixture-e2e.mjs",
+    );
+    const startedAt = performance.now();
+    const result = spawnSync(process.execPath, [runnerPath], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      env: { ...process.env, NODE_ENV: "production" },
+      timeout: 3_000,
+      windowsHide: true,
+    });
+    const elapsedMs = performance.now() - startedAt;
+
+    expect(result.error).toBeUndefined();
+    expect(result.signal).toBeNull();
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr.trim()).toBe(
+      "auth_fixture_forbidden_in_production",
+    );
+    expect(elapsedMs).toBeLessThan(2_000);
+    expect(`${result.stdout}\n${result.stderr}`).not.toMatch(
+      /Running \d+ test|Next\.js|Playwright|synthetic-callback-code|fixture-user/i,
+    );
+  });
+
   it("binds every required fixture to the frozen pre-run fingerprint", () => {
     const fixturePath = path.resolve(
       process.cwd(),

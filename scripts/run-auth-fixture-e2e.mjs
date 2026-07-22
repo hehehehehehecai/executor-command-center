@@ -5,6 +5,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import next from "next";
 
+if (process.env.NODE_ENV === "production") {
+  console.error("auth_fixture_forbidden_in_production");
+  process.exit(1);
+}
+
 const hostname = "127.0.0.1";
 const appPort = 3000;
 const fixturePort = 54322;
