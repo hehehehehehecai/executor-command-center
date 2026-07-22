@@ -99,8 +99,7 @@ describe("SupabaseUserRepository with Local Supabase", () => {
     configuration = readLocalSupabaseConfiguration();
   });
 
-  function createAuthUser() {
-    const id = randomUUID();
+  function createAuthUser(id = randomUUID()) {
     const email = `identity-${id}@example.test`;
 
     executeLocalSql(`
@@ -188,6 +187,208 @@ describe("SupabaseUserRepository with Local Supabase", () => {
       executeLocalSql(`delete from auth.users where id = '${authUserId}'`);
     }
     authUserIds.clear();
+  });
+
+  it("fulfills every concurrent ensure for the same exact identity", async () => {
+    const concurrencyWidth = 8;
+    const iterationCount = 3;
+    const reports = [];
+
+    for (let iteration = 1; iteration <= iterationCount; iteration += 1) {
+      const authUser = createAuthUser(
+        `c1000000-0000-4000-8000-${String(iteration).padStart(12, "0")}`,
+      );
+      const githubUserId = 8_100_000_000 + iteration;
+      const repository = createRepository();
+      const results = await Promise.allSettled(
+        Array.from({ length: concurrencyWidth }, () =>
+          repository.ensureForAuthUser({
+            authUserId: authUser.id,
+            githubUserId,
+            githubLogin: "concurrent-identity",
+            avatarUrl: "https://avatars.example.test/concurrent.png",
+          }),
+        ),
+      );
+      const serialResult = await repository.ensureForAuthUser({
+        authUserId: authUser.id,
+        githubUserId,
+        githubLogin: "concurrent-identity-refreshed",
+        avatarUrl: null,
+      });
+      const accessToken = createAccessToken(authUser);
+      const [users, identities] = await Promise.all([
+        selectRows<UserRow>(
+          "users",
+          `select=id&id=eq.${authUser.id}`,
+          accessToken,
+        ),
+        selectRows<GitHubIdentityRow>(
+          "github_identities",
+          `select=user_id,github_user_id,github_login,avatar_url&user_id=eq.${authUser.id}`,
+          accessToken,
+        ),
+      ]);
+      const outcomes = results.map((result, requestIndex) => {
+        if (result.status === "fulfilled") {
+          return {
+            requestIndex,
+            status: result.status,
+            returnedUserId: result.value.userId,
+          };
+        }
+
+        const errorCode =
+          typeof result.reason === "object" &&
+          result.reason !== null &&
+          "code" in result.reason &&
+          typeof result.reason.code === "string"
+            ? result.reason.code
+            : null;
+
+        return {
+          requestIndex,
+          status: result.status,
+          errorType:
+            result.reason instanceof Error
+              ? result.reason.name
+              : typeof result.reason,
+          errorCode,
+        };
+      });
+      const fulfilledUserIds = outcomes.flatMap((outcome) =>
+        outcome.status === "fulfilled" ? [outcome.returnedUserId] : [],
+      );
+
+      reports.push({
+        iteration,
+        authUserId: authUser.id,
+        githubUserId,
+        fulfilledCount: fulfilledUserIds.length,
+        rejectedCount: outcomes.length - fulfilledUserIds.length,
+        distinctUserIds: [...new Set(fulfilledUserIds)],
+        serialUserId: serialResult.userId,
+        usersCount: users.length,
+        identitiesCount: identities.length,
+        outcomes,
+      });
+    }
+
+    expect(reports, JSON.stringify(reports, null, 2)).toMatchObject(
+      reports.map((report) => ({
+        fulfilledCount: concurrencyWidth,
+        rejectedCount: 0,
+        distinctUserIds: [report.authUserId],
+        serialUserId: report.authUserId,
+        usersCount: 1,
+        identitiesCount: 1,
+      })),
+    );
+  });
+
+  it("allows only one concurrent GitHub binding for the same Auth user", async () => {
+    const authUser = createAuthUser(
+      "d1000000-0000-4000-8000-000000000001",
+    );
+    const repository = createRepository();
+    const githubUserIds = [8_200_000_001, 8_200_000_002] as const;
+    const results = await Promise.allSettled(
+      githubUserIds.map((githubUserId) =>
+        repository.ensureForAuthUser({
+          authUserId: authUser.id,
+          githubUserId,
+          githubLogin: `same-auth-${githubUserId}`,
+          avatarUrl: null,
+        }),
+      ),
+    );
+    const fulfilled = results.filter(
+      (result): result is PromiseFulfilledResult<{ userId: string }> =>
+        result.status === "fulfilled",
+    );
+    const rejected = results.filter(
+      (result): result is PromiseRejectedResult => result.status === "rejected",
+    );
+
+    expect(fulfilled).toEqual([
+      expect.objectContaining({ value: { userId: authUser.id } }),
+    ]);
+    expect(rejected).toHaveLength(1);
+    expect(rejected[0]?.reason).toEqual(
+      expect.objectContaining({ code: "auth_user_already_bound" }),
+    );
+
+    const accessToken = createAccessToken(authUser);
+    const identities = await selectRows<GitHubIdentityRow>(
+      "github_identities",
+      `select=user_id,github_user_id,github_login,avatar_url&user_id=eq.${authUser.id}`,
+      accessToken,
+    );
+
+    expect(identities).toHaveLength(1);
+    expect(githubUserIds).toContain(identities[0]?.github_user_id);
+  });
+
+  it("allows only one Auth user to concurrently claim a GitHub identity", async () => {
+    const authUsers = [
+      createAuthUser("e1000000-0000-4000-8000-000000000001"),
+      createAuthUser("e1000000-0000-4000-8000-000000000002"),
+    ] as const;
+    const repository = createRepository();
+    const githubUserId = 8_300_000_001;
+    const results = await Promise.allSettled(
+      authUsers.map((authUser) =>
+        repository.ensureForAuthUser({
+          authUserId: authUser.id,
+          githubUserId,
+          githubLogin: "shared-github-identity",
+          avatarUrl: null,
+        }),
+      ),
+    );
+    const fulfilled = results.filter(
+      (result): result is PromiseFulfilledResult<{ userId: string }> =>
+        result.status === "fulfilled",
+    );
+    const rejected = results.filter(
+      (result): result is PromiseRejectedResult => result.status === "rejected",
+    );
+
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    expect(rejected[0]?.reason).toEqual(
+      expect.objectContaining({ code: "github_user_already_bound" }),
+    );
+
+    const winningUserId = fulfilled[0]?.value.userId;
+    const winningUser = authUsers.find((user) => user.id === winningUserId);
+    const losingUser = authUsers.find((user) => user.id !== winningUserId);
+
+    expect(winningUser).toBeDefined();
+    expect(losingUser).toBeDefined();
+
+    const winnerAccessToken = createAccessToken(winningUser as TestAuthUser);
+    const loserAccessToken = createAccessToken(losingUser as TestAuthUser);
+    const [winnerIdentities, loserUsers] = await Promise.all([
+      selectRows<GitHubIdentityRow>(
+        "github_identities",
+        `select=user_id,github_user_id,github_login,avatar_url&github_user_id=eq.${githubUserId}`,
+        winnerAccessToken,
+      ),
+      selectRows<UserRow>(
+        "users",
+        `select=id&id=eq.${losingUser?.id}`,
+        loserAccessToken,
+      ),
+    ]);
+
+    expect(winnerIdentities).toEqual([
+      expect.objectContaining({
+        user_id: winningUserId,
+        github_user_id: githubUserId,
+      }),
+    ]);
+    expect(loserUsers).toEqual([]);
   });
 
   it("creates once, returns the Auth UUID, and refreshes display fields in place", async () => {
