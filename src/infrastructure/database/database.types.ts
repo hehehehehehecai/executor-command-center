@@ -49,13 +49,76 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      github_identities: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          github_login: string
+          github_user_id: number
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          github_login: string
+          github_user_id: number
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          github_login?: string
+          github_user_id?: number
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "github_identities_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          created_at: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      ensure_user_identity: {
+        Args: {
+          p_auth_user_id: string
+          p_avatar_url: string
+          p_github_login: string
+          p_github_user_id: number
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
