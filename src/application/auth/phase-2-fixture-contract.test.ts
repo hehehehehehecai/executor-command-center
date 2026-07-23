@@ -18,6 +18,21 @@ import { createFixtureSideEffectPreloaderSource } from "./testing/fixture-side-e
 const PRELOADER_TIMEOUT_MS = 3_000;
 const SIDE_EFFECT_EXIT_STATUS = 86;
 const SIDE_EFFECT_ERROR_PREFIX = "auth_fixture_side_effect_detected:";
+const FIXTURE_FINGERPRINT_CONTRACT = Object.freeze({
+  contractId: "auth-fixture-fingerprint.v2",
+  fixtureDataset: "phase-2-fixtures",
+  algorithm: "sha256-utf8-eol-normalized.v1",
+  encoding: "UTF-8",
+  normalization: "CRLF/CR -> LF only",
+  expectedFingerprint:
+    "sha256:3b05deb38b711541706523fdfbab14d823973d0d544c4c682f3f96a996cf4b16",
+});
+
+function computeCanonicalFixtureFingerprint(text: string): string {
+  const normalizedText = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+  return `sha256:${createHash("sha256").update(normalizedText, "utf8").digest("hex")}`;
+}
 
 let preloaderDirectory = "";
 let preloaderUrl = "";
@@ -138,6 +153,79 @@ describe("phase_2 synthetic fixture provenance", () => {
     },
   );
 
+  it("keeps the frozen fingerprint stable across LF, CRLF, CR, and worktree representations", () => {
+    const fixturePath = path.resolve(
+      process.cwd(),
+      "tests/fixtures/auth/phase-2-fixtures.json",
+    );
+    const worktreeRepresentation = readFileSync(fixturePath, "utf8");
+    const lfRepresentation = worktreeRepresentation
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n");
+    const crlfRepresentation = lfRepresentation.replace(/\n/g, "\r\n");
+    const crRepresentation = lfRepresentation.replace(/\n/g, "\r");
+
+    expect(FIXTURE_FINGERPRINT_CONTRACT).toMatchObject({
+      contractId: "auth-fixture-fingerprint.v2",
+      algorithm: "sha256-utf8-eol-normalized.v1",
+      encoding: "UTF-8",
+      normalization: "CRLF/CR -> LF only",
+    });
+    expect(computeCanonicalFixtureFingerprint(lfRepresentation)).toBe(
+      FIXTURE_FINGERPRINT_CONTRACT.expectedFingerprint,
+    );
+    expect(computeCanonicalFixtureFingerprint(crlfRepresentation)).toBe(
+      FIXTURE_FINGERPRINT_CONTRACT.expectedFingerprint,
+    );
+    expect(computeCanonicalFixtureFingerprint(crRepresentation)).toBe(
+      FIXTURE_FINGERPRINT_CONTRACT.expectedFingerprint,
+    );
+    expect(computeCanonicalFixtureFingerprint(worktreeRepresentation)).toBe(
+      FIXTURE_FINGERPRINT_CONTRACT.expectedFingerprint,
+    );
+  });
+
+  it("changes the fingerprint for every non-EOL content mutation", () => {
+    const fixturePath = path.resolve(
+      process.cwd(),
+      "tests/fixtures/auth/phase-2-fixtures.json",
+    );
+    const lfRepresentation = readFileSync(fixturePath, "utf8")
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n");
+    const canonicalFingerprint = computeCanonicalFixtureFingerprint(
+      lfRepresentation,
+    );
+    const ordinaryCharacterChanged = lfRepresentation.replace(
+      "valid_github_auth_user",
+      "walid_github_auth_user",
+    );
+    const spaceAdded = `${lfRepresentation} `;
+    const spaceDeleted = lfRepresentation.replace("  ", " ");
+    const newlineAdded = `${lfRepresentation}\n`;
+    const newlineDeleted = lfRepresentation.replace("\n", "");
+    const keyOrderChanged = lfRepresentation.replace(
+      '"fixture_id":"valid_github_auth_user","fixture_version":"1.0.0"',
+      '"fixture_version":"1.0.0","fixture_id":"valid_github_auth_user"',
+    );
+
+    expect(ordinaryCharacterChanged).not.toBe(lfRepresentation);
+    expect(spaceDeleted).not.toBe(lfRepresentation);
+    expect(keyOrderChanged).not.toBe(lfRepresentation);
+    for (const representation of [
+      ordinaryCharacterChanged,
+      spaceAdded,
+      spaceDeleted,
+      newlineAdded,
+      newlineDeleted,
+      keyOrderChanged,
+    ]) {
+      expect(computeCanonicalFixtureFingerprint(representation)).not.toBe(
+        canonicalFingerprint,
+      );
+    }
+  });
+
   it("binds every required fixture to the frozen pre-run fingerprint", () => {
     const fixturePath = path.resolve(
       process.cwd(),
@@ -147,10 +235,10 @@ describe("phase_2 synthetic fixture provenance", () => {
       process.cwd(),
       "tests/fixtures/auth/phase-2-pre-run-freeze.json",
     );
-    const fixtureBytes = readFileSync(fixturePath);
-    const fixtures = JSON.parse(fixtureBytes.toString("utf8"));
+    const fixtureText = readFileSync(fixturePath, "utf8");
+    const fixtures = JSON.parse(fixtureText);
     const freeze = JSON.parse(readFileSync(freezePath, "utf8"));
-    const fingerprint = createHash("sha256").update(fixtureBytes).digest("hex");
+    const fingerprint = computeCanonicalFixtureFingerprint(fixtureText);
 
     expect(fixtures.map((fixture: { fixture_id: string }) => fixture.fixture_id))
       .toEqual([
@@ -175,7 +263,7 @@ describe("phase_2 synthetic fixture provenance", () => {
       fixture.source_type === "synthetic")).toBe(true);
     expect(fixtures.every((fixture: { contains_real_secret: boolean }) =>
       fixture.contains_real_secret === false)).toBe(true);
-    expect(freeze.fixture_fingerprint).toBe(`sha256:${fingerprint}`);
+    expect(freeze.fixture_fingerprint).toBe(fingerprint);
     expect(freeze).toMatchObject({
       base_commit: "fde4d29309dc63be7ad0f9bedacfc0e9ca017ff5",
       branch: "feat/phase-2-github-sign-in",
