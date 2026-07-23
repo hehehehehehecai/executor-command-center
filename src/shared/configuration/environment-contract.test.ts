@@ -8,7 +8,9 @@ const approvedNames = [
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
   "SUPABASE_SERVICE_ROLE_KEY",
   "GITHUB_APP_ID",
+  "GITHUB_APP_SLUG",
   "GITHUB_APP_PRIVATE_KEY",
+  "GITHUB_REST_API_VERSION",
   "GITHUB_WEBHOOK_SECRET",
   "INNGEST_EVENT_KEY",
   "INNGEST_SIGNING_KEY",
@@ -28,8 +30,10 @@ const validAppOrigin = { APP_ORIGIN: "https://executor.example.test" };
 
 const validGitHub = {
   GITHUB_APP_ID: "123456",
+  GITHUB_APP_SLUG: "executor-fixture-app",
   GITHUB_APP_PRIVATE_KEY:
     "-----BEGIN PRIVATE KEY-----\nfictional-phase-6-key\n-----END PRIVATE KEY-----",
+  GITHUB_REST_API_VERSION: "2026-03-10",
   GITHUB_WEBHOOK_SECRET: "fictional-webhook-secret",
 };
 
@@ -173,6 +177,25 @@ describe("environment-validation.v1", () => {
     expect(() =>
       parseEnvironment({ ...validGitHub, GITHUB_APP_ID: "app-123" }),
     ).toThrow(/GITHUB_APP_ID/);
+  });
+
+  test("rejects an unsafe GitHub App slug", async () => {
+    const { parseEnvironment } = await loadContract();
+
+    expect(() =>
+      parseEnvironment({ ...validGitHub, GITHUB_APP_SLUG: "../other-app" }),
+    ).toThrow(/GITHUB_APP_SLUG/);
+  });
+
+  test("requires an explicit date-versioned GitHub REST API contract", async () => {
+    const { parseEnvironment } = await loadContract();
+
+    expect(() =>
+      parseEnvironment({
+        ...validGitHub,
+        GITHUB_REST_API_VERSION: "latest",
+      }),
+    ).toThrow(/GITHUB_REST_API_VERSION/);
   });
 
   test("rejects a GitHub private key without PEM boundaries", async () => {
