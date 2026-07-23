@@ -49,6 +49,19 @@ describe("CommandDeckPage", () => {
     expect(screen.getByText("Command Your Projects")).toBeInTheDocument();
   });
 
+  it("offers the GitHub identity sign-in entry without claiming repository access", () => {
+    render(<CommandDeckPage />);
+
+    expect(
+      screen.getByRole("link", { name: "使用 GitHub 登录" }),
+    ).toHaveAttribute(
+      "href",
+      "/api/auth/github?returnTo=%2Fonboarding",
+    );
+    expect(screen.getByText("登录仅用于确认身份，不授予仓库权限。"))
+      .toBeInTheDocument();
+  });
+
   it("discloses the fictional preview and fixture version", () => {
     render(<CommandDeckPage />);
 
@@ -120,11 +133,11 @@ describe("CommandDeckPage", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it("does not claim a real connection, login or successful sync", () => {
+  it("does not claim a real connection or successful sync", () => {
     render(<CommandDeckPage />);
 
     expect(
-      screen.queryByText(/请登录|登录后|连接成功|同步成功|Connected Mode/i),
+      screen.queryByText(/连接成功|同步成功|Connected Mode/i),
     ).not.toBeInTheDocument();
   });
 

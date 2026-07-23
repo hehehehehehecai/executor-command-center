@@ -3,6 +3,7 @@ import path from "node:path";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 const approvedNames = [
+  "APP_ORIGIN",
   "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
   "SUPABASE_SERVICE_ROLE_KEY",
@@ -22,6 +23,8 @@ const validPublicSupabase = {
   NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
   NEXT_PUBLIC_SUPABASE_ANON_KEY: "fictional-anon-key",
 };
+
+const validAppOrigin = { APP_ORIGIN: "https://executor.example.test" };
 
 const validGitHub = {
   GITHUB_APP_ID: "123456",
@@ -71,6 +74,23 @@ describe("environment-validation.v1", () => {
     expect(parseEnvironment(validPublicSupabase)).toMatchObject(
       validPublicSupabase,
     );
+  });
+
+  test("accepts a trusted HTTPS application origin and local HTTP origin", async () => {
+    const { parseEnvironment } = await loadContract();
+
+    expect(parseEnvironment(validAppOrigin)).toMatchObject(validAppOrigin);
+    expect(parseEnvironment({ APP_ORIGIN: "http://127.0.0.1:3000" }))
+      .toMatchObject({ APP_ORIGIN: "http://127.0.0.1:3000" });
+  });
+
+  test("rejects an untrusted application origin shape", async () => {
+    const { parseEnvironment } = await loadContract();
+
+    expect(() => parseEnvironment({ APP_ORIGIN: "http://evil.example" }))
+      .toThrow(/APP_ORIGIN/);
+    expect(() => parseEnvironment({ APP_ORIGIN: "https://example.test/path" }))
+      .toThrow(/APP_ORIGIN/);
   });
 
   test("rejects an incomplete public Supabase pair", async () => {

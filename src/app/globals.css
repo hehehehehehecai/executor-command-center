@@ -81,6 +81,60 @@ h1 {
   font-weight: 650;
 }
 
+.auth-entry {
+  display: grid;
+  gap: 0.5rem;
+  align-self: end;
+}
+
+.auth-entry p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.auth-entry-link {
+  width: fit-content;
+  border: 1px solid var(--accent);
+  padding: 0.65rem 0.9rem;
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.auth-status-shell {
+  width: min(100% - 2rem, 48rem);
+  margin: 0 auto;
+  padding: 4rem 0;
+}
+
+.auth-status-shell h1 {
+  font-size: clamp(2.5rem, 9vw, 5rem);
+}
+
+.auth-state-list {
+  display: grid;
+  margin: 2rem 0;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.auth-state-list div {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) 1fr;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+}
+
+.auth-state-list div + div {
+  border-top: 1px solid var(--border);
+}
+
+.auth-state-list dd {
+  margin: 0;
+  font-weight: 700;
+}
+
 .project-summary {
   display: grid;
   gap: 1.5rem;
