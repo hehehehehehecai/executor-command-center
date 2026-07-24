@@ -1,0 +1,50 @@
+{
+  "attempt_id": "phase-3-1-formal-conformance-20260724-001",
+  "attempt_version": "1.0.0",
+  "base_phase_3_commit": "87c83c9c5466f9bb8353b49fa157f857d58d243c",
+  "base_phase_3_tree": "2dbf975e4d6e185e5704ba64a38caef210d35038",
+  "failure_contract_path": "tests/fixtures/github-installation/phase-3-1-failure-contract.json",
+  "failure_contract_blob": "54c50c9bdef4c4a086b20a15e72394f969aea4c3",
+  "conformance_freeze_path": "tests/fixtures/github-installation/phase-3-1-conformance-freeze.json",
+  "conformance_freeze_blob": "531209cc1d2f06233d024654b4054a6fd56affe8",
+  "contract_test_path": "src/application/github-installation/github-installation-failure-contract.test.ts",
+  "contract_test_blob": "212f9365ba9df0fc858c79f2d73a07aa9c2a581b",
+  "run_command": "& 'C:\\Users\\admin\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe' '.\\node_modules\\vitest\\vitest.mjs' run 'src/application/github-installation/github-installation-failure-contract.test.ts' --reporter=verbose",
+  "run_started_at": "2026-07-24T10:58:28.2256052+08:00",
+  "run_completed_at": "2026-07-24T10:58:48.6372432+08:00",
+  "run_exit_code": 0,
+  "run_passed": 20,
+  "run_failed": 0,
+  "run_skipped": 0,
+  "run_todo": 0,
+  "run_xfailed": 0,
+  "attempt_status": "invalidated_conformance_attempt",
+  "formal_conformance_eligible": false,
+  "exposure_status": "results_viewed",
+  "holdout_eligibility": "not_applicable",
+  "invalidation_findings": [
+    {
+      "finding_id": "P3-CONF-01",
+      "finding": "The Conformance Freeze canonical fingerprint was not independently frozen before the formal run."
+    },
+    {
+      "finding_id": "P3-CONF-02",
+      "finding": "Fixture mappings were copied between new artifacts instead of being derived and reconciled from the original Fixture."
+    },
+    {
+      "finding_id": "P3-CONF-03",
+      "finding": "Internal, public, and handler semantics were incomplete for current_github_identity_read_failed and github_app_configuration_missing."
+    },
+    {
+      "finding_id": "P3-CONF-04",
+      "finding": "Log redaction checks did not drive synthetic sensitive markers through real HTTP and logger behavior."
+    },
+    {
+      "finding_id": "P3-CONF-05",
+      "finding": "Implementation Failure Code extraction depended on a fuzzy suffix regular expression."
+    }
+  ],
+  "production_code_modified": false,
+  "fixture_modified": false,
+  "historical_freeze_modified": false
+}
