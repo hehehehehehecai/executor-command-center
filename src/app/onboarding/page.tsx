@@ -38,7 +38,8 @@ export default async function OnboardingPage(input: {
       if (
         !installationError &&
         (installation?.status === "active" ||
-          installation?.status === "suspended")
+          installation?.status === "suspended" ||
+          installation?.status === "revoked")
       ) {
         installationStatus = installation.status;
       }

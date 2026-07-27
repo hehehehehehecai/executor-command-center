@@ -1,15 +1,19 @@
 import Link from "next/link";
 
+import { AuthorizedRepositoryList } from "./authorized-repository-list";
+
 export type GitHubInstallationUiStatus =
   | "not_registered"
   | "active"
   | "suspended"
+  | "revoked"
   | "configuration_failed";
 
 const statusMessage: Record<GitHubInstallationUiStatus, string> = {
   not_registered: "尚未连接 GitHub App",
   active: "GitHub App Installation 已连接",
   suspended: "GitHub App Installation 已暂停",
+  revoked: "GitHub App Installation 已撤销",
   configuration_failed: "GitHub App Installation 配置失败",
 };
 
@@ -28,10 +32,13 @@ export function GitHubInstallationStatus(input: {
           <dt>github_app_installation</dt>
           <dd>{input.installationStatus}</dd>
         </div>
-        <div>
-          <dt>repository_access</dt>
-          <dd>not_loaded</dd>
-        </div>
+        {input.installationStatus === "not_registered" ||
+        input.installationStatus === "configuration_failed" ? (
+          <div>
+            <dt>repository_access</dt>
+            <dd>not_loaded</dd>
+          </div>
+        ) : null}
         <div>
           <dt>selected_repositories</dt>
           <dd>none</dd>
@@ -42,7 +49,13 @@ export function GitHubInstallationStatus(input: {
         </div>
       </dl>
       <p>{statusMessage[input.installationStatus]}</p>
-      <p>仓库访问尚未读取，将在后续 Phase 单独完成。</p>
+      {input.installationStatus === "active" ||
+      input.installationStatus === "suspended" ||
+      input.installationStatus === "revoked" ? (
+        <AuthorizedRepositoryList
+          installationStatus={input.installationStatus}
+        />
+      ) : null}
       {input.authenticated &&
       input.installationStatus === "not_registered" ? (
         <Link href="/api/github/installations/start?returnTo=%2Fonboarding">
