@@ -1,0 +1,1591 @@
+{
+  "contract_id": "github-installation-failure-contract.v2",
+  "contract_version": "2.0.0",
+  "schema_version": "installation-failure-contract-schema.v2",
+  "base_phase_3_commit": "87c83c9c5466f9bb8353b49fa157f857d58d243c",
+  "base_phase_3_tree": "2dbf975e4d6e185e5704ba64a38caef210d35038",
+  "dataset_kind": "engineering_regression_fixture",
+  "exposure_status": "known_regression",
+  "required_internal_codes": [
+    "unauthenticated",
+    "installation_state_missing",
+    "installation_state_invalid",
+    "installation_state_expired",
+    "installation_state_replayed",
+    "installation_state_wrong_user",
+    "installation_state_persistence_failed",
+    "installation_id_invalid",
+    "github_app_configuration_missing",
+    "github_app_authentication_failed",
+    "github_installation_not_found",
+    "github_api_forbidden",
+    "github_api_rate_limited",
+    "github_api_timeout",
+    "github_api_invalid_response",
+    "github_api_unavailable",
+    "installation_app_mismatch",
+    "installation_id_mismatch",
+    "unsupported_installation_account_type",
+    "current_github_identity_missing",
+    "installation_account_mismatch",
+    "github_installation_already_bound",
+    "installation_persistence_failed"
+  ],
+  "actual_internal_codes": [
+    "unauthenticated",
+    "installation_state_generation_failed",
+    "installation_state_persistence_failed",
+    "installation_state_missing",
+    "installation_state_invalid",
+    "installation_state_expired",
+    "installation_state_replayed",
+    "installation_state_wrong_user",
+    "installation_id_invalid",
+    "github_app_configuration_missing",
+    "github_app_authentication_failed",
+    "github_installation_not_found",
+    "github_api_forbidden",
+    "github_api_rate_limited",
+    "github_api_timeout",
+    "github_api_invalid_response",
+    "github_api_unavailable",
+    "installation_app_mismatch",
+    "installation_id_mismatch",
+    "unsupported_installation_account_type",
+    "current_github_identity_missing",
+    "current_github_identity_read_failed",
+    "installation_account_mismatch",
+    "github_installation_already_bound",
+    "installation_persistence_failed",
+    "github_installation_registration_failed"
+  ],
+  "entries": [
+    {
+      "internalCode": "unauthenticated",
+      "category": "authentication",
+      "sourceErrorClass": "UnauthenticatedSession",
+      "sourceStage": "route",
+      "sourceFile": "src/app/api/github/installations/start/route.ts",
+      "reachable": true,
+      "defensiveReason": null,
+      "publicMappings": [
+        {
+          "route": "start",
+          "handlerStage": "direct_route",
+          "publicCode": "unauthenticated",
+          "safePublicCode": "auth_error",
+          "responseMode": "redirect",
+          "httpStatus": 303,
+          "redirectTarget": "/auth/error",
+          "queryCode": null,
+          "responseBodyPolicy": "empty",
+          "stateConsumed": "no",
+          "installationPersisted": "no",
+          "githubApiCalled": "no",
+          "loggerEvent": "github-installation-registration.v1"
+        },
+        {
+          "route": "setup",
+          "handlerStage": "direct_route",
+          "publicCode": "unauthenticated",
+          "safePublicCode": "configuration_failed",
+          "responseMode": "redirect",
+          "httpStatus": 303,
+          "redirectTarget": "/onboarding?installation=configuration_failed",
+          "queryCode": "configuration_failed",
+          "responseBodyPolicy": "empty",
+          "stateConsumed": "no",
+          "installationPersisted": "no",
+          "githubApiCalled": "no",
+          "loggerEvent": "github-installation-registration.v1"
+        }
+      ],
+      "retryable": true,
+      "sensitiveFieldsForbidden": [
+        "raw_state",
+        "state_hash",
+        "private_key",
+        "app_jwt",
+        "authorization_header",
+        "session_cookie",
+        "service_role_key",
+        "github_raw_response",
+        "github_error_body"
+      ],
+      "fixtureIds": [
+        "unauthenticated_start",
+        "unauthenticated_setup"
+      ],
+      "testPaths": [
+        "src/infrastructure/github/github-installation-http.test.ts"
+      ]
+    },
+    {
+      "internalCode": "installation_state_generation_failed",
+      "category": "state",
+      "sourceErrorClass": "InstallationStateGenerationFailure",
+      "sourceStage": "state_create",
+      "sourceFile": "src/application/github-installation/installation-state.ts",
+      "reachable": true,
+      "defensiveReason": null,
+      "publicMappings": [
+        {
+          "route": "start",
+          "handlerStage": "http_adapter",
+          "publicCode": "installation_state_generation_failed",
+          "safePublicCode": "auth_error",
+          "responseMode": "redirect",
+          "httpStatus": 303,
+          "redirectTarget": "/auth/error",
+          "queryCode": null,
+          "responseBodyPolicy": "empty",
+          "stateConsumed": "no",
+          "installationPersisted": "no",
+          "githubApiCalled": "no",
+          "loggerEvent": "github-installation-registration.v1"
+        }
+      ],
+      "retryable": true,
+      "sensitiveFieldsForbidden": [
+        "raw_state",
+        "state_hash",
+        "private_key",
+        "app_jwt",
+        "authorization_header",
+        "session_cookie",
+        "service_role_key",
+        "github_raw_response",
+        "github_error_body"
+      ],
+      "fixtureIds": [],
+      "testPaths": [
+        "src/application/github-installation/installation-state.test.ts"
+      ]
+    },
+    {
+      "internalCode": "installation_state_persistence_failed",
+      "category": "state",
+      "sourceErrorClass": "InstallationStatePersistenceFailure",
+      "sourceStage": "state_create",
+      "sourceFile": "src/infrastructure/github/supabase-github-installation-repository.ts",
+      "reachable": true,
+      "defensiveReason": null,
+      "publicMappings": [
+        {
+          "route": "start",
+          "handlerStage": "http_adapter",
+          "publicCode": "installation_state_persistence_failed",
+          "safePublicCode": "auth_error",
+          "responseMode": "redirect",
+          "httpStatus": 303,
+          "redirectTarget": "/auth/error",
+          "queryCode": null,
+          "responseBodyPolicy": "empty",
+          "stateConsumed": "no",
+          "installationPersisted": "no",
+          "githubApiCalled": "no",
+          "loggerEvent": "github-installation-registration.v1"
+        }
+      ],
+      "retryable": true,
+      "sensitiveFieldsForbidden": [
+        "raw_state",
+        "state_hash",
+        "private_key",
+        "app_jwt",
+        "authorization_header",
+        "session_cookie",
+        "service_role_key",
+        "github_raw_response",
+        "github_error_body"
+      ],
+      "fixtureIds": [],
+      "testPaths": [
+        "src/application/github-installation/github-installation-failure-contract.test.ts"
+      ]
+    },
+    {
+      "internalCode": "installation_state_missing",
+      "category": "state",
+      "sourceErrorClass": "InstallationStateMissing",
+      "sourceStage": "state_consume",
+      "sourceFile": "src/application/github-installation/installation-state.ts",
+      "reachable": true,
+      "defensiveReason": null,
+      "publicMappings": [
+        {
+          "route": "setup",
+          "handlerStage": "http_adapter",
+          "publicCode": "installation_state_missing",
+          "safePublicCode": "configuration_failed",
+          "responseMode": "redirect",
+          "httpStatus": 303,
+          "redirectTarget": "/onboarding?installation=configuration_failed",
+          "queryCode": "configuration_failed",
+          "responseBodyPolicy": "empty",
+          "stateConsumed": "no",
+          "installationPersisted": "no",
+          "githubApiCalled": "no",
+          "loggerEvent": "github-installation-registration.v1"
+        }
+      ],
+      "retryable": true,
+      "sensitiveFieldsForbidden": [
+        "raw_state",
+        "state_hash",
+        "private_key",
+        "app_jwt",
+        "authorization_header",
+        "session_cookie",
+        "service_role_key",
+        "github_raw_response",
+        "github_error_body"
+      ],
+      "fixtureIds": [
+        "missing_state"
+      ],
+      "testPaths": [
+        "src/application/github-installation/installation-state.test.ts"
+      ]
+    },
+    {
+      "internalCode": "installation_state_invalid",
+      "category": "state",
+      "sourceErrorClass": "InstallationStateInvalid",
+      "sourceStage": "state_consume",
+      "sourceFile": "src/application/github-installation/installation-state.ts",
+      "reachable": true,
+      "defensiveReason": null,
+      "publicMappings": [
+        {
+          "route": "setup",
+          "handlerStage": "http_adapter",
+          "publicCode": "installation_state_invalid",
+          "safePublicCode": "configuration_failed",
+          "responseMode": "redirect",
+          "httpStatus": 303,
+          "redirectTarget": "/onboarding?installation=configuration_failed",
+          "queryCode": "configuration_failed",
+          "responseBodyPolicy": "empty",
+          "stateConsumed": "no",
+          "installationPersisted": "no",
+          "githubApiCalled": "no",
+          "loggerEvent": "github-installation-registration.v1"
+        }
+      ],
+      "retryable": true,
+      "sensitiveFieldsForbidden": [
+        "raw_state",
+        "state_hash",
+        "private_key",
+        "app_jwt",
+        "authorization_header",
+        "session_cookie",
+        "service_role_key",
+        "github_raw_response",
+        "github_error_body"
+      ],
+      "fixtureIds": [],
+      "testPaths": [
+        "src/application/github-installation/installation-state.test.ts"
+      ]
+    },
+    {
+      "internalCode": "installation_state_expired",
+      "category": "state",
+      "sourceErrorClass": "InstallationStateExpired",
+      "sourceStage": "state_consume",
+      "sourceFile": "src/infrastructure/github/supabase-github-installation-repository.ts",
+      "reachable": true,
+      "defensiveReason": null,
+      "publicMappings": [
+        {
+          "route": "setup",
+          "handlerStage": "http_adapter",
+          "publicCode": "installation_state_expired",
+          "safePublicCode": "configuration_failed",
+          "responseMode": "redirect",
+          "httpStatus": 303,
+          "redirectTarget": "/onboarding?installation=configuration_failed",
+          "queryCode": "configuration_failed",
+          "responseBodyPolicy": "empty",
+          "stateConsumed": "no",
+          "installationPersisted": "no",
+          "githubApiCalled": "no",
+          "loggerEvent": "github-installation-registration.v1"
+        }
+      ],
+      "retryable": true,
+      "sensitiveFieldsForbidden": [
+        "raw_state",
+        "state_hash",
+        "private_key",
+        "app_jwt",
+        "authorization_header",
+        "session_cookie",
+        "service_role_key",
+        "github_raw_response",
+        "github_error_body"
+      ],
+      "fixtureIds": [
+        "expired_state"
+      ],
+      "testPaths": [
+        "src/infrastructure/github/supabase-github-installation-repository.test.ts"
+      ]
+    },
+    {
+      "internalCode": "installation_state_replayed",
+      "category": "state",
+      "sourceErrorClass": "InstallationStateReplayed",
+      "sourceStage": "state_consume",
+      "sourceFile": "src/infrastructure/github/supabase-github-installation-repository.ts",
+      "reachable": true,
+      "defensiveReason": null,
+      "publicMappings": [
+        {
+          "route": "setup",
+          "handlerStage": "http_adapter",
+          "publicCode": "installation_state_replayed",
+          "safePublicCode": "configuration_failed",
+          "responseMode": "redirect",
+          "httpStatus": 303,
+          "redirectTarget": "/onboarding?installation=configuration_failed",
+          "queryCode": "configuration_failed",
+          "responseBodyPolicy": "empty",
+          "stateConsumed": "yes",
+          "installationPersisted": "no",
+          "githubApiCalled": "no",
+          "loggerEvent": "github-installation-registration.v1"
+        }
+      ],
+      "retryable": false,
+      "sensitiveFieldsForbidden": [
+        "raw_state",
+        "state_hash",
+        "private_key",
+        "app_jwt",
+        "authorization_header",
+        "session_cookie",
+        "service_role_key",
+        "github_raw_response",
+        "github_error_body"
+      ],
+      "fixtureIds": [
+        "replayed_state"
+      ],
+      "testPaths": [
+        "src/infrastructure/github/supabase-github-installation-repository.test.ts"
+      ]
+    },
+    {
+      "internalCode": "installation_state_wrong_user",
+      "category": "state",
+      "sourceErrorClass": "InstallationStateWrongUser",
+      "sourceStage": "state_consume",
+      "sourceFile": "src/infrastructure/github/supabase-github-installation-repository.ts",
+      "reachable": true,
+      "defensiveReason": null,
+      "publicMappings": [
+        {
+          "route": "setup",
+          "handlerStage": "http_adapter",
+          "publicCode": "installation_state_wrong_user",
+          "safePublicCode": "configuration_failed",
+          "responseMode": "redirect",
+          "httpStatus": 303,
+          "redirectTarget": "/onboarding?installation=configuration_failed",
+          "queryCode": "configuration_failed",
+          "responseBodyPolicy": "empty",
+          "stateConsumed": "no",
+          "installationPersisted": "no",
+          "githubApiCalled": "no",
+          "loggerEvent": "github-installation-registration.v1"
+        }
+      ],
+      "retryable": false,
+      "sensitiveFieldsForbidden": [
+        "raw_state",
+        "state_hash",
+        "private_key",
+        "app_jwt",
+        "authorization_header",
+        "session_cookie",
+        "service_role_key",
+        "github_raw_response",
+        "github_error_body"
+      ],
+      "fixtureIds": [
+        "state_for_other_user"
+      ],
+      "testPaths": [
+        "src/infrastructure/github/supabase-github-installation-repository.test.ts"
+      ]
+    },
+    {
+      "internalCode": "installation_id_invalid",
+      "category": "configuration",
+      "sourceErrorClass": "InstallationIdInvalid",
+      "sourceStage": "setup",
+      "sourceFile": "src/application/github-installation/register-github-installation.ts",
+      "reachable": true,
+      "defensiveReason": null,
+      "publicMappings": [
+        {
+          "route": "setup",
+          "handlerStage": "http_adapter",
+          "publicCode": "installation_id_invalid",
+          "safePublicCode": "configuration_failed",
+          "responseMode": "redirect",
+          "httpStatus": 303,
+          "redirectTarget": "/onboarding?installation=configuration_failed",
+          "queryCode": "configuration_failed",
+          "responseBodyPolicy": "empty",
+          "stateConsumed": "yes",
+          "installationPersisted": "no",
+          "githubApiCalled": "no",
+          "loggerEvent": "github-installation-registration.v1"
+        }
+      ],
+      "retryable": false,
+      "sensitiveFieldsForbidden": [
+        "raw_state",
+        "state_hash",
+        "private_key",
+        "app_jwt",
+        "authorization_header",
+        "session_cookie",
+        "service_role_key",
+        "github_raw_response",
+        "github_error_body"
+      ],
+      "fixtureIds": [
+        "invalid_installation_id"
+      ],
+      "testPaths": [
+        "src/application/github-installation/register-github-installation.test.ts"
+      ]
+    },
+    {
+      "internalCode": "github_app_configuration_missing",
+      "category": "configuration",
+      "sourceErrorClass": "GitHubAppConfigurationMissing",
+      "sourceStage": "start",
+      "sourceFile": "src/application/github-installation/start-github-installation.ts",
+      "reachable": true,
+      "defensiveReason": null,
+      "publicMappings": [
+        {
+          "route": "start",
+          "handlerStage": "http_adapter",
+          "publicCode": "github_app_configuration_missing",
+          "safePublicCode": "auth_error",
+          "responseMode": "redirect",
+          "httpStatus": 303,
+          "redirectTarget": "/auth/error",
+          "queryCode": null,
+          "responseBodyPolicy": "empty",
+          "stateConsumed": "no",
+          "installationPersisted": "no",
+          "githubApiCalled": "no",
+          "loggerEvent": "github-installation-registration.v1"
+        },
+        {
+          "route": "start",
+          "handlerStage": "route_outer",
+          "publicCode": "github_app_configuration_missing",
+          "safePublicCode": "configuration_unavailable",
+          "responseMode": "http_error",
+          "httpStatus": 503,
+          "redirectTarget": null,
+          "queryCode": null,
+          "responseBodyPolicy": "safe_static",
+          "stateConsumed": "no",
+          "installationPersisted": "unknown",
+          "githubApiCalled": "unknown",
+          "loggerEvent": "github-installation-registration.v1"
+        },
+        {
+          "route": "setup",
+          "handlerStage": "http_adapter",
+          "publicCode": "github_app_configuration_missing",
+          "safePublicCode": "configuration_failed",
+          "responseMode": "redirect",
+          "httpStatus": 303,
+          "redirectTarget": "/onboarding?installation=configuration_failed",
+          "queryCode": "configuration_failed",
+          "responseBodyPolicy": "empty",
+          "stateConsumed": "yes",
+          "installationPersisted": "no",
+          "githubApiCalled": "no",
+          "loggerEvent": "github-installation-registration.v1"
+        },
+        {
+          "route": "setup",
+          "handlerStage": "route_outer",
+          "publicCode": "github_app_configuration_missing",
+          "safePublicCode": "configuration_unavailable",
+          "responseMode": "http_error",
+          "httpStatus": 503,
+          "redirectTarget": null,
+          "queryCode": null,
+          "responseBodyPolicy": "safe_static",
+          "stateConsumed": "no",
+          "installationPersisted": "unknown",
+          "githubApiCalled": "unknown",
+          "loggerEvent": "github-installation-registration.v1"
+        }
+      ],
+      "retryable": false,
+      "sensitiveFieldsForbidden": [
+        "raw_state",
+        "state_hash",
+        "private_key",
+        "app_jwt",
+        "authorization_header",
+        "session_cookie",
+        "service_role_key",
+        "github_raw_response",
+        "github_error_body"
+      ],
+      "fixtureIds": [],
+      "testPaths": [
+        "src/application/github-installation/start-github-installation.test.ts"
+      ]
+    },
+    {
+      "internalCode": "github_app_authentication_failed",
+      "category": "github_app_authentication",
+      "sourceErrorClass": "GitHubAppAuthenticationFailure",
+      "sourceStage": "jwt_sign",
+      "sourceFile": "src/infrastructure/github/github-app-jwt.ts",
+      "reachable": true,
+      "defensiveReason": null,
+      "publicMappings": [
+        {
+          "route": "setup",
+          "handlerStage": "http_adapter",
+          "publicCode": "github_app_authentication_failed",
+          "safePublicCode": "configuration_failed",
+          "responseMode": "redirect",
+          "httpStatus": 303,
+          "redirectTarget": "/onboarding?installation=configuration_failed",
+          "queryCode": "configuration_failed",
+          "responseBodyPolicy": "empty",
+          "stateConsumed": "yes",
+          "installationPersisted": "no",
+          "githubApiCalled": "no",
+          "loggerEvent": "github-installation-registration.v1"
+        }
+      ],
+      "retryable": false,
+      "sensitiveFieldsForbidden": [
+        "raw_state",
+        "state_hash",
+        "private_key",
+        "app_jwt",
+        "authorization_header",
+        "session_cookie",
+        "service_role_key",
+        "github_raw_response",
+        "github_error_body"
+      ],
+      "fixtureIds": [],
+      "testPaths": [
+        "src/infrastructure/github/github-app-jwt.test.ts"
+      ]
+    },
+    {
+      "internalCode": "github_installation_not_found",
+      "category": "github_api",
+      "sourceErrorClass": "GitHubInstallationNotFound",
+      "sourceStage": "installation_read",
+      "sourceFile": "src/infrastructure/github/github-app-installation-reader.ts",
+      "reachable": true,
+      "defensiveReason": null,
+      "publicMappings": [
+        {
+          "route": "setup",
+          "handlerStage": "http_adapter",
+          "publicCode": "github_installation_not_found",
+          "safePublicCode": "configuration_failed",
+          "responseMode": "redirect",
+          "httpStatus": 303,
+          "redirectTarget": "/onboarding?installation=configuration_failed",
+          "queryCode": "configuration_failed",
+          "responseBodyPolicy": "empty",
+          "stateConsumed": "yes",
+          "installationPersisted": "no",
+          "githubApiCalled": "yes",
+          "loggerEvent": "github-installation-registration.v1"
+        }
+      ],
+      "retryable": false,
+      "sensitiveFieldsForbidden": [
+        "raw_state",
+        "state_hash",
+        "private_key",
+        "app_jwt",
+        "authorization_header",
+        "session_cookie",
+        "service_role_key",
+        "github_raw_response",
+        "github_error_body"
+      ],
+      "fixtureIds": [
+        "installation_id_not_found"
+      ],
+      "testPaths": [
+        "src/infrastructure/github/github-app-installation-reader.test.ts"
+      ]
+    },
+    {
+      "internalCode": "github_api_forbidden",
+      "category": "github_api",
+      "sourceErrorClass": "GitHubApiForbidden",
+      "sourceStage": "installation_read",
+      "sourceFile": "src/infrastructure/github/github-app-installation-reader.ts",
+      "reachable": true,
+      "defensiveReason": null,
+      "publicMappings": [
+        {
+          "route": "setup",
+          "handlerStage": "http_adapter",
+          "publicCode": "github_api_forbidden",
+          "safePublicCode": "configuration_failed",
+          "responseMode": "redirect",
+          "httpStatus": 303,
+          "redirectTarget": "/onboarding?installation=configuration_failed",
+          "queryCode": "configuration_failed",
+          "responseBodyPolicy": "empty",
+          "stateConsumed": "yes",
+          "installationPersisted": "no",
+          "githubApiCalled": "yes",
+          "loggerEvent": "github-installation-registration.v1"
+        }
+      ],
+      "retryable": false,
+      "sensitiveFieldsForbidden": [
+        "raw_state",
+        "state_hash",
+        "private_key",
+        "app_jwt",
+        "authorization_header",
+        "session_cookie",
+        "service_role_key",
+        "github_raw_response",
+        "github_error_body"
+      ],
+      "fixtureIds": [],
+      "testPaths": [
+        "src/infrastructure/github/github-app-installation-reader.test.ts"
+      ]
+    },
+    {
+      "internalCode": "github_api_rate_limited",
+      "category": "github_api",
+      "sourceErrorClass": "GitHubApiRateLimited",
+      "sourceStage": "installation_read",
+      "sourceFile": "src/infrastructure/github/github-app-installation-reader.ts",
+      "reachable": true,
+      "defensiveReason": null,
+      "publicMappings": [
+        {
+          "route": "setup",
+          "handlerStage": "http_adapter",
+          "publicCode": "github_api_rate_limited",
+          "safePublicCode": "configuration_failed",
+          "responseMode": "redirect",
+          "httpStatus": 303,
+          "redirectTarget": "/onboarding?installation=configuration_failed",
+          "queryCode": "configuration_failed",
+          "responseBodyPolicy": "empty",
+          "stateConsumed": "yes",
+          "installationPersisted": "no",
+          "githubApiCalled": "yes",
+          "loggerEvent": "github-installation-registration.v1"
+        }
+      ],
+      "retryable": true,
+      "sensitiveFieldsForbidden": [
+        "raw_state",
+        "state_hash",
+        "private_key",
+        "app_jwt",
+        "authorization_header",
+        "session_cookie",
+        "service_role_key",
+        "github_raw_response",
+        "github_error_body"
+      ],
+      "fixtureIds": [
+        "rate_limited"
+      ],
+      "testPaths": [
+        "src/infrastructure/github/github-app-installation-reader.test.ts"
+      ]
+    },
+    {
+      "internalCode": "github_api_timeout",
+      "category": "github_api",
+      "sourceErrorClass": "GitHubApiTimeout",
+      "sourceStage": "installation_read",
+      "sourceFile": "src/infrastructure/github/github-app-installation-reader.ts",
+      "reachable": true,
+      "defensiveReason": null,
+      "publicMappings": [
+        {
+          "route": "setup",
+          "handlerStage": "http_adapter",
+          "publicCode": "github_api_timeout",
+          "safePublicCode": "configuration_failed",
+          "responseMode": "redirect",
+          "httpStatus": 303,
+          "redirectTarget": "/onboarding?installation=configuration_failed",
+          "queryCode": "configuration_failed",
+          "responseBodyPolicy": "empty",
+          "stateConsumed": "yes",
+          "installationPersisted": "no",
+          "githubApiCalled": "yes",
+          "loggerEvent": "github-installation-registration.v1"
+        }
+      ],
+      "retryable": true,
+      "sensitiveFieldsForbidden": [
+        "raw_state",
+        "state_hash",
+        "private_key",
+        "app_jwt",
+        "authorization_header",
+        "session_cookie",
+        "service_role_key",
+        "github_raw_response",
+        "github_error_body"
+      ],
+      "fixtureIds": [],
+      "testPaths": [
+        "src/infrastructure/github/github-app-installation-reader.test.ts"
+      ]
+    },
+    {
+      "internalCode": "github_api_invalid_response",
+      "category": "github_api",
+      "sourceErrorClass": "GitHubApiInvalidResponse",
+      "sourceStage": "installation_read",
+      "sourceFile": "src/infrastructure/github/github-app-installation-reader.ts",
+      "reachable": true,
+      "defensiveReason": null,
+      "publicMappings": [
+        {
+          "route": "setup",
+          "handlerStage": "http_adapter",
+          "publicCode": "github_api_invalid_response",
+          "safePublicCode": "configuration_failed",
+          "responseMode": "redirect",
+          "httpStatus": 303,
+          "redirectTarget": "/onboarding?installation=configuration_failed",
+          "queryCode": "configuration_failed",
+          "responseBodyPolicy": "empty",
+          "stateConsumed": "yes",
+          "installationPersisted": "no",
+          "githubApiCalled": "yes",
+          "loggerEvent": "github-installation-registration.v1"
+        }
+      ],
+      "retryable": true,
+      "sensitiveFieldsForbidden": [
+        "raw_state",
+        "state_hash",
+        "private_key",
+        "app_jwt",
+        "authorization_header",
+        "session_cookie",
+        "service_role_key",
+        "github_raw_response",
+        "github_error_body"
+      ],
+      "fixtureIds": [
+        "invalid_github_response"
+      ],
+      "testPaths": [
+        "src/infrastructure/github/github-app-installation-reader.test.ts"
+      ]
+    },
+    {
+      "internalCode": "github_api_unavailable",
+      "category": "github_api",
+      "sourceErrorClass": "GitHubApiUnavailable",
+      "sourceStage": "installation_read",
+      "sourceFile": "src/infrastructure/github/github-app-installation-reader.ts",
+      "reachable": true,
+      "defensiveReason": null,
+      "publicMappings": [
+        {
+          "route": "setup",
+          "handlerStage": "http_adapter",
+          "publicCode": "github_api_unavailable",
+          "safePublicCode": "configuration_failed",
+          "responseMode": "redirect",
+          "httpStatus": 303,
+          "redirectTarget": "/onboarding?installation=configuration_failed",
+          "queryCode": "configuration_failed",
+          "responseBodyPolicy": "empty",
+          "stateConsumed": "yes",
+          "installationPersisted": "no",
+          "githubApiCalled": "yes",
+          "loggerEvent": "github-installation-registration.v1"
+        }
+      ],
+      "retryable": true,
+      "sensitiveFieldsForbidden": [
+        "raw_state",
+        "state_hash",
+        "private_key",
+        "app_jwt",
+        "authorization_header",
+        "session_cookie",
+        "service_role_key",
+        "github_raw_response",
+        "github_error_body"
+      ],
+      "fixtureIds": [],
+      "testPaths": [
+        "src/infrastructure/github/github-app-installation-reader.test.ts"
+      ]
+    },
+    {
+      "internalCode": "installation_app_mismatch",
+      "category": "ownership",
+      "sourceErrorClass": "InstallationAppMismatch",
+      "sourceStage": "ownership_verify",
+      "sourceFile": "src/application/github-installation/register-github-installation.ts",
+      "reachable": true,
+      "defensiveReason": null,
+      "publicMappings": [
+        {
+          "route": "setup",
+          "handlerStage": "http_adapter",
+          "publicCode": "installation_app_mismatch",
+          "safePublicCode": "configuration_failed",
+          "responseMode": "redirect",
+          "httpStatus": 303,
+          "redirectTarget": "/onboarding?installation=configuration_failed",
+          "queryCode": "configuration_failed",
+          "responseBodyPolicy": "empty",
+          "stateConsumed": "yes",
+          "installationPersisted": "no",
+          "githubApiCalled": "yes",
+          "loggerEvent": "github-installation-registration.v1"
+        }
+      ],
+      "retryable": false,
+      "sensitiveFieldsForbidden": [
+        "raw_state",
+        "state_hash",
+        "private_key",
+        "app_jwt",
+        "authorization_header",
+        "session_cookie",
+        "service_role_key",
+        "github_raw_response",
+        "github_error_body"
+      ],
+      "fixtureIds": [
+        "installation_app_mismatch"
+      ],
+      "testPaths": [
+        "src/application/github-installation/register-github-installation.test.ts"
+      ]
+    },
+    {
+      "internalCode": "installation_id_mismatch",
+      "category": "ownership",
+      "sourceErrorClass": "InstallationIdMismatch",
+      "sourceStage": "ownership_verify",
+      "sourceFile": "src/application/github-installation/register-github-installation.ts",
+      "reachable": true,
+      "defensiveReason": null,
+      "publicMappings": [
+        {
+          "route": "setup",
+          "handlerStage": "http_adapter",
+          "publicCode": "installation_id_mismatch",
+          "safePublicCode": "configuration_failed",
+          "responseMode": "redirect",
+          "httpStatus": 303,
+          "redirectTarget": "/onboarding?installation=configuration_failed",
+          "queryCode": "configuration_failed",
+          "responseBodyPolicy": "empty",
+          "stateConsumed": "yes",
+          "installationPersisted": "no",
+          "githubApiCalled": "yes",
+          "loggerEvent": "github-installation-registration.v1"
+        }
+      ],
+      "retryable": false,
+      "sensitiveFieldsForbidden": [
+        "raw_state",
+        "state_hash",
+        "private_key",
+        "app_jwt",
+        "authorization_header",
+        "session_cookie",
+        "service_role_key",
+        "github_raw_response",
+        "github_error_body"
+      ],
+      "fixtureIds": [],
+      "testPaths": [
+        "src/application/github-installation/register-github-installation.test.ts"
+      ]
+    },
+    {
+      "internalCode": "unsupported_installation_account_type",
+      "category": "ownership",
+      "sourceErrorClass": "UnsupportedInstallationAccountType",
+      "sourceStage": "ownership_verify",
+      "sourceFile": "src/application/github-installation/register-github-installation.ts",
+      "reachable": true,
+      "defensiveReason": null,
+      "publicMappings": [
+        {
+          "route": "setup",
+          "handlerStage": "http_adapter",
+          "publicCode": "unsupported_installation_account_type",
+          "safePublicCode": "configuration_failed",
+          "responseMode": "redirect",
+          "httpStatus": 303,
+          "redirectTarget": "/onboarding?installation=configuration_failed",
+          "queryCode": "configuration_failed",
+          "responseBodyPolicy": "empty",
+          "stateConsumed": "yes",
+          "installationPersisted": "no",
+          "githubApiCalled": "yes",
+          "loggerEvent": "github-installation-registration.v1"
+        }
+      ],
+      "retryable": false,
+      "sensitiveFieldsForbidden": [
+        "raw_state",
+        "state_hash",
+        "private_key",
+        "app_jwt",
+        "authorization_header",
+        "session_cookie",
+        "service_role_key",
+        "github_raw_response",
+        "github_error_body"
+      ],
+      "fixtureIds": [
+        "organization_installation"
+      ],
+      "testPaths": [
+        "src/application/github-installation/register-github-installation.test.ts"
+      ]
+    },
+    {
+      "internalCode": "current_github_identity_missing",
+      "category": "identity",
+      "sourceErrorClass": "CurrentGitHubIdentityMissing",
+      "sourceStage": "ownership_verify",
+      "sourceFile": "src/application/github-installation/register-github-installation.ts",
+      "reachable": true,
+      "defensiveReason": null,
+      "publicMappings": [
+        {
+          "route": "setup",
+          "handlerStage": "http_adapter",
+          "publicCode": "current_github_identity_missing",
+          "safePublicCode": "configuration_failed",
+          "responseMode": "redirect",
+          "httpStatus": 303,
+          "redirectTarget": "/onboarding?installation=configuration_failed",
+          "queryCode": "configuration_failed",
+          "responseBodyPolicy": "empty",
+          "stateConsumed": "yes",
+          "installationPersisted": "no",
+          "githubApiCalled": "yes",
+          "loggerEvent": "github-installation-registration.v1"
+        }
+      ],
+      "retryable": false,
+      "sensitiveFieldsForbidden": [
+        "raw_state",
+        "state_hash",
+        "private_key",
+        "app_jwt",
+        "authorization_header",
+        "session_cookie",
+        "service_role_key",
+        "github_raw_response",
+        "github_error_body"
+      ],
+      "fixtureIds": [],
+      "testPaths": [
+        "src/application/github-installation/register-github-installation.test.ts"
+      ]
+    },
+    {
+      "internalCode": "current_github_identity_read_failed",
+      "category": "identity",
+      "sourceErrorClass": "CurrentGitHubIdentityReadFailure",
+      "sourceStage": "ownership_verify",
+      "sourceFile": "src/infrastructure/github/supabase-github-installation-repository.ts",
+      "reachable": true,
+      "defensiveReason": null,
+      "publicMappings": [
+        {
+          "route": "setup",
+          "handlerStage": "http_adapter",
+          "publicCode": "github_installation_registration_failed",
+          "safePublicCode": "configuration_failed",
+          "responseMode": "redirect",
+          "httpStatus": 303,
+          "redirectTarget": "/onboarding?installation=configuration_failed",
+          "queryCode": "configuration_failed",
+          "responseBodyPolicy": "empty",
+          "stateConsumed": "yes",
+          "installationPersisted": "no",
+          "githubApiCalled": "yes",
+          "loggerEvent": "github-installation-registration.v1"
+        }
+      ],
+      "retryable": true,
+      "sensitiveFieldsForbidden": [
+        "raw_state",
+        "state_hash",
+        "private_key",
+        "app_jwt",
+        "authorization_header",
+        "session_cookie",
+        "service_role_key",
+        "github_raw_response",
+        "github_error_body"
+      ],
+      "fixtureIds": [],
+      "testPaths": [
+        "src/application/github-installation/github-installation-failure-contract.test.ts"
+      ]
+    },
+    {
+      "internalCode": "installation_account_mismatch",
+      "category": "ownership",
+      "sourceErrorClass": "InstallationAccountMismatch",
+      "sourceStage": "ownership_verify",
+      "sourceFile": "src/application/github-installation/register-github-installation.ts",
+      "reachable": true,
+      "defensiveReason": null,
+      "publicMappings": [
+        {
+          "route": "setup",
+          "handlerStage": "http_adapter",
+          "publicCode": "installation_account_mismatch",
+          "safePublicCode": "configuration_failed",
+          "responseMode": "redirect",
+          "httpStatus": 303,
+          "redirectTarget": "/onboarding?installation=configuration_failed",
+          "queryCode": "configuration_failed",
+          "responseBodyPolicy": "empty",
+          "stateConsumed": "yes",
+          "installationPersisted": "no",
+          "githubApiCalled": "yes",
+          "loggerEvent": "github-installation-registration.v1"
+        }
+      ],
+      "retryable": false,
+      "sensitiveFieldsForbidden": [
+        "raw_state",
+        "state_hash",
+        "private_key",
+        "app_jwt",
+        "authorization_header",
+        "session_cookie",
+        "service_role_key",
+        "github_raw_response",
+        "github_error_body"
+      ],
+      "fixtureIds": [
+        "installation_account_mismatch"
+      ],
+      "testPaths": [
+        "src/application/github-installation/register-github-installation.test.ts"
+      ]
+    },
+    {
+      "internalCode": "github_installation_already_bound",
+      "category": "ownership",
+      "sourceErrorClass": "GitHubInstallationAlreadyBound",
+      "sourceStage": "installation_store",
+      "sourceFile": "src/infrastructure/github/supabase-github-installation-repository.ts",
+      "reachable": true,
+      "defensiveReason": null,
+      "publicMappings": [
+        {
+          "route": "setup",
+          "handlerStage": "http_adapter",
+          "publicCode": "github_installation_already_bound",
+          "safePublicCode": "configuration_failed",
+          "responseMode": "redirect",
+          "httpStatus": 303,
+          "redirectTarget": "/onboarding?installation=configuration_failed",
+          "queryCode": "configuration_failed",
+          "responseBodyPolicy": "empty",
+          "stateConsumed": "yes",
+          "installationPersisted": "no",
+          "githubApiCalled": "yes",
+          "loggerEvent": "github-installation-registration.v1"
+        }
+      ],
+      "retryable": false,
+      "sensitiveFieldsForbidden": [
+        "raw_state",
+        "state_hash",
+        "private_key",
+        "app_jwt",
+        "authorization_header",
+        "session_cookie",
+        "service_role_key",
+        "github_raw_response",
+        "github_error_body"
+      ],
+      "fixtureIds": [
+        "cross_user_installation_binding"
+      ],
+      "testPaths": [
+        "src/infrastructure/github/supabase-github-installation-repository.test.ts"
+      ]
+    },
+    {
+      "internalCode": "installation_persistence_failed",
+      "category": "persistence",
+      "sourceErrorClass": "InstallationPersistenceFailure",
+      "sourceStage": "installation_store",
+      "sourceFile": "src/infrastructure/github/supabase-github-installation-repository.ts",
+      "reachable": true,
+      "defensiveReason": null,
+      "publicMappings": [
+        {
+          "route": "setup",
+          "handlerStage": "http_adapter",
+          "publicCode": "installation_persistence_failed",
+          "safePublicCode": "configuration_failed",
+          "responseMode": "redirect",
+          "httpStatus": 303,
+          "redirectTarget": "/onboarding?installation=configuration_failed",
+          "queryCode": "configuration_failed",
+          "responseBodyPolicy": "empty",
+          "stateConsumed": "yes",
+          "installationPersisted": "no",
+          "githubApiCalled": "yes",
+          "loggerEvent": "github-installation-registration.v1"
+        }
+      ],
+      "retryable": true,
+      "sensitiveFieldsForbidden": [
+        "raw_state",
+        "state_hash",
+        "private_key",
+        "app_jwt",
+        "authorization_header",
+        "session_cookie",
+        "service_role_key",
+        "github_raw_response",
+        "github_error_body"
+      ],
+      "fixtureIds": [],
+      "testPaths": [
+        "src/application/github-installation/github-installation-failure-contract.test.ts"
+      ]
+    },
+    {
+      "internalCode": "github_installation_registration_failed",
+      "category": "persistence",
+      "sourceErrorClass": "UnknownInstallationRegistrationFailure",
+      "sourceStage": "http_adapter",
+      "sourceFile": "src/infrastructure/github/github-installation-http.ts",
+      "reachable": true,
+      "defensiveReason": null,
+      "publicMappings": [
+        {
+          "route": "start",
+          "handlerStage": "http_adapter",
+          "publicCode": "github_installation_registration_failed",
+          "safePublicCode": "auth_error",
+          "responseMode": "redirect",
+          "httpStatus": 303,
+          "redirectTarget": "/auth/error",
+          "queryCode": null,
+          "responseBodyPolicy": "empty",
+          "stateConsumed": "unknown",
+          "installationPersisted": "unknown",
+          "githubApiCalled": "unknown",
+          "loggerEvent": "github-installation-registration.v1"
+        },
+        {
+          "route": "setup",
+          "handlerStage": "http_adapter",
+          "publicCode": "github_installation_registration_failed",
+          "safePublicCode": "configuration_failed",
+          "responseMode": "redirect",
+          "httpStatus": 303,
+          "redirectTarget": "/onboarding?installation=configuration_failed",
+          "queryCode": "configuration_failed",
+          "responseBodyPolicy": "empty",
+          "stateConsumed": "unknown",
+          "installationPersisted": "unknown",
+          "githubApiCalled": "unknown",
+          "loggerEvent": "github-installation-registration.v1"
+        },
+        {
+          "route": "start",
+          "handlerStage": "route_outer",
+          "publicCode": "github_installation_registration_failed",
+          "safePublicCode": "configuration_unavailable",
+          "responseMode": "http_error",
+          "httpStatus": 503,
+          "redirectTarget": null,
+          "queryCode": null,
+          "responseBodyPolicy": "safe_static",
+          "stateConsumed": "no",
+          "installationPersisted": "unknown",
+          "githubApiCalled": "unknown",
+          "loggerEvent": "github-installation-registration.v1"
+        },
+        {
+          "route": "setup",
+          "handlerStage": "route_outer",
+          "publicCode": "github_installation_registration_failed",
+          "safePublicCode": "configuration_unavailable",
+          "responseMode": "http_error",
+          "httpStatus": 503,
+          "redirectTarget": null,
+          "queryCode": null,
+          "responseBodyPolicy": "safe_static",
+          "stateConsumed": "no",
+          "installationPersisted": "unknown",
+          "githubApiCalled": "unknown",
+          "loggerEvent": "github-installation-registration.v1"
+        }
+      ],
+      "retryable": true,
+      "sensitiveFieldsForbidden": [
+        "raw_state",
+        "state_hash",
+        "private_key",
+        "app_jwt",
+        "authorization_header",
+        "session_cookie",
+        "service_role_key",
+        "github_raw_response",
+        "github_error_body"
+      ],
+      "fixtureIds": [],
+      "testPaths": [
+        "src/application/github-installation/github-installation-failure-contract.test.ts"
+      ]
+    }
+  ],
+  "fixture_path": "tests/fixtures/github-installation/phase-3-fixtures.json",
+  "fixture_blob": "0dc72c818695f69462ecca01fab3fe84b7cf3aac",
+  "fixture_fingerprint": "sha256:be3605720022e210b5842b8473d17e7cb25b318ac8e9177bd8c97fb38dbebaec",
+  "fixture_expected_results": [
+    {
+      "fixtureId": "valid_active_personal_installation",
+      "fixtureVersion": "1.0.0",
+      "sourceType": "synthetic",
+      "containsRealSecret": false,
+      "resultKind": "success",
+      "publicCode": null,
+      "successState": "active_created",
+      "expectedStorageResult": "created"
+    },
+    {
+      "fixtureId": "valid_suspended_personal_installation",
+      "fixtureVersion": "1.0.0",
+      "sourceType": "synthetic",
+      "containsRealSecret": false,
+      "resultKind": "success",
+      "publicCode": null,
+      "successState": "suspended_created",
+      "expectedStorageResult": "created"
+    },
+    {
+      "fixtureId": "repeat_same_installation",
+      "fixtureVersion": "1.0.0",
+      "sourceType": "synthetic",
+      "containsRealSecret": false,
+      "resultKind": "success",
+      "publicCode": null,
+      "successState": "same_internal_record",
+      "expectedStorageResult": "same_internal_record"
+    },
+    {
+      "fixtureId": "reinstall_same_user_new_installation_id",
+      "fixtureVersion": "1.0.0",
+      "sourceType": "synthetic",
+      "containsRealSecret": false,
+      "resultKind": "success",
+      "publicCode": null,
+      "successState": "same_internal_record_new_external_id",
+      "expectedStorageResult": "same_internal_record_new_external_id"
+    },
+    {
+      "fixtureId": "installation_id_not_found",
+      "fixtureVersion": "1.0.0",
+      "sourceType": "synthetic",
+      "containsRealSecret": false,
+      "resultKind": "failure",
+      "publicCode": "github_installation_not_found",
+      "successState": null,
+      "expectedStorageResult": "no_write"
+    },
+    {
+      "fixtureId": "installation_app_mismatch",
+      "fixtureVersion": "1.0.0",
+      "sourceType": "synthetic",
+      "containsRealSecret": false,
+      "resultKind": "failure",
+      "publicCode": "installation_app_mismatch",
+      "successState": null,
+      "expectedStorageResult": "no_write"
+    },
+    {
+      "fixtureId": "installation_account_mismatch",
+      "fixtureVersion": "1.0.0",
+      "sourceType": "synthetic",
+      "containsRealSecret": false,
+      "resultKind": "failure",
+      "publicCode": "installation_account_mismatch",
+      "successState": null,
+      "expectedStorageResult": "no_write"
+    },
+    {
+      "fixtureId": "organization_installation",
+      "fixtureVersion": "1.0.0",
+      "sourceType": "synthetic",
+      "containsRealSecret": false,
+      "resultKind": "failure",
+      "publicCode": "unsupported_installation_account_type",
+      "successState": null,
+      "expectedStorageResult": "no_write"
+    },
+    {
+      "fixtureId": "invalid_installation_id",
+      "fixtureVersion": "1.0.0",
+      "sourceType": "synthetic",
+      "containsRealSecret": false,
+      "resultKind": "failure",
+      "publicCode": "installation_id_invalid",
+      "successState": null,
+      "expectedStorageResult": "no_write"
+    },
+    {
+      "fixtureId": "rate_limited",
+      "fixtureVersion": "1.0.0",
+      "sourceType": "synthetic",
+      "containsRealSecret": false,
+      "resultKind": "failure",
+      "publicCode": "github_api_rate_limited",
+      "successState": null,
+      "expectedStorageResult": "no_write"
+    },
+    {
+      "fixtureId": "invalid_github_response",
+      "fixtureVersion": "1.0.0",
+      "sourceType": "synthetic",
+      "containsRealSecret": false,
+      "resultKind": "failure",
+      "publicCode": "github_api_invalid_response",
+      "successState": null,
+      "expectedStorageResult": "no_write"
+    },
+    {
+      "fixtureId": "expired_state",
+      "fixtureVersion": "1.0.0",
+      "sourceType": "synthetic",
+      "containsRealSecret": false,
+      "resultKind": "failure",
+      "publicCode": "installation_state_expired",
+      "successState": null,
+      "expectedStorageResult": "no_write"
+    },
+    {
+      "fixtureId": "replayed_state",
+      "fixtureVersion": "1.0.0",
+      "sourceType": "synthetic",
+      "containsRealSecret": false,
+      "resultKind": "failure",
+      "publicCode": "installation_state_replayed",
+      "successState": null,
+      "expectedStorageResult": "no_write"
+    },
+    {
+      "fixtureId": "state_for_other_user",
+      "fixtureVersion": "1.0.0",
+      "sourceType": "synthetic",
+      "containsRealSecret": false,
+      "resultKind": "failure",
+      "publicCode": "installation_state_wrong_user",
+      "successState": null,
+      "expectedStorageResult": "no_write"
+    },
+    {
+      "fixtureId": "missing_state",
+      "fixtureVersion": "1.0.0",
+      "sourceType": "synthetic",
+      "containsRealSecret": false,
+      "resultKind": "failure",
+      "publicCode": "installation_state_missing",
+      "successState": null,
+      "expectedStorageResult": "no_write"
+    },
+    {
+      "fixtureId": "unauthenticated_start",
+      "fixtureVersion": "1.0.0",
+      "sourceType": "synthetic",
+      "containsRealSecret": false,
+      "resultKind": "failure",
+      "publicCode": "unauthenticated",
+      "successState": null,
+      "expectedStorageResult": "no_write"
+    },
+    {
+      "fixtureId": "unauthenticated_setup",
+      "fixtureVersion": "1.0.0",
+      "sourceType": "synthetic",
+      "containsRealSecret": false,
+      "resultKind": "failure",
+      "publicCode": "unauthenticated",
+      "successState": null,
+      "expectedStorageResult": "no_write"
+    },
+    {
+      "fixtureId": "cross_user_installation_binding",
+      "fixtureVersion": "1.0.0",
+      "sourceType": "synthetic",
+      "containsRealSecret": false,
+      "resultKind": "failure",
+      "publicCode": "github_installation_already_bound",
+      "successState": null,
+      "expectedStorageResult": "original_binding_preserved"
+    }
+  ],
+  "historical_attempt": {
+    "status_path": "tests/fixtures/github-installation/phase-3-1-attempt-status.json",
+    "attempt_id": "phase-3-1-formal-conformance-20260724-001",
+    "attempt_status": "invalidated_conformance_attempt"
+  },
+  "historical_mismatches": [
+    {
+      "fixtureId": "invalid_installation_id",
+      "historicalExpectedCode": "invalid_installation_id",
+      "actualPhase3Code": "installation_id_invalid",
+      "v2PublicCode": "installation_id_invalid",
+      "mismatchReason": "The historical Fixture used a legacy phrase; Phase 3 emits installation_id_invalid.",
+      "historicalSourceArtifact": "tests/fixtures/github-installation/phase-3-fixtures.json"
+    },
+    {
+      "fixtureId": "expired_state",
+      "historicalExpectedCode": "invalid_installation_state",
+      "actualPhase3Code": "installation_state_expired",
+      "v2PublicCode": "installation_state_expired",
+      "mismatchReason": "The historical Fixture collapsed an expired state into invalid_installation_state.",
+      "historicalSourceArtifact": "tests/fixtures/github-installation/phase-3-fixtures.json"
+    },
+    {
+      "fixtureId": "replayed_state",
+      "historicalExpectedCode": "invalid_installation_state",
+      "actualPhase3Code": "installation_state_replayed",
+      "v2PublicCode": "installation_state_replayed",
+      "mismatchReason": "The historical Fixture collapsed a replayed state into invalid_installation_state.",
+      "historicalSourceArtifact": "tests/fixtures/github-installation/phase-3-fixtures.json"
+    },
+    {
+      "fixtureId": "state_for_other_user",
+      "historicalExpectedCode": "invalid_installation_state",
+      "actualPhase3Code": "installation_state_wrong_user",
+      "v2PublicCode": "installation_state_wrong_user",
+      "mismatchReason": "The historical Fixture collapsed wrong-user state into invalid_installation_state.",
+      "historicalSourceArtifact": "tests/fixtures/github-installation/phase-3-fixtures.json"
+    },
+    {
+      "fixtureId": "missing_state",
+      "historicalExpectedCode": "invalid_installation_state",
+      "actualPhase3Code": "installation_state_missing",
+      "v2PublicCode": "installation_state_missing",
+      "mismatchReason": "The historical Fixture collapsed missing state into invalid_installation_state.",
+      "historicalSourceArtifact": "tests/fixtures/github-installation/phase-3-fixtures.json"
+    }
+  ],
+  "source_file_allowlist": [
+    "src/application/github-installation/installation-state.ts",
+    "src/application/github-installation/start-github-installation.ts",
+    "src/application/github-installation/register-github-installation.ts",
+    "src/infrastructure/github/github-app-jwt.ts",
+    "src/infrastructure/github/github-app-installation-reader.ts",
+    "src/infrastructure/github/supabase-github-installation-repository.ts",
+    "src/infrastructure/github/github-installation-http.ts",
+    "src/app/api/github/installations/start/route.ts",
+    "src/app/api/github/installations/setup/route.ts"
+  ],
+  "route_handler_paths": [
+    "src/app/api/github/installations/start/route.ts",
+    "src/app/api/github/installations/setup/route.ts",
+    "src/infrastructure/github/github-installation-http.ts"
+  ],
+  "logger_paths": [
+    "src/app/api/github/installations/start/route.ts",
+    "src/app/api/github/installations/setup/route.ts",
+    "src/infrastructure/github/github-installation-http.ts"
+  ],
+  "non_contract_literals": [
+    {
+      "literal": "invalid_key_type",
+      "sourceFile": "src/infrastructure/github/github-app-jwt.ts",
+      "transformedTo": "github_app_authentication_failed",
+      "reason": "The JWT signer catches this local sentinel and emits the stable authentication failure."
+    },
+    {
+      "literal": "configuration_failed",
+      "sourceFile": "src/infrastructure/github/github-installation-http.ts",
+      "transformedTo": "safe_redirect_indicator",
+      "reason": "This is a safe public redirect indicator, not an internal failure cause."
+    },
+    {
+      "literal": "auth_configuration_missing",
+      "sourceFile": "src/infrastructure/auth/supabase-server-client.ts",
+      "transformedTo": "github_installation_registration_failed",
+      "reason": "The installation Route outer boundary converts unknown authentication configuration errors to the generic installation failure."
+    }
+  ],
+  "sensitive_marker_set": [
+    "SYNTHETIC_RAW_STATE_DO_NOT_LOG",
+    "SYNTHETIC_STATE_HASH_DO_NOT_LOG",
+    "SYNTHETIC_PRIVATE_KEY_DO_NOT_LOG",
+    "SYNTHETIC_APP_JWT_DO_NOT_LOG",
+    "SYNTHETIC_AUTHORIZATION_DO_NOT_LOG",
+    "SYNTHETIC_SESSION_COOKIE_DO_NOT_LOG",
+    "SYNTHETIC_SERVICE_ROLE_DO_NOT_LOG",
+    "SYNTHETIC_GITHUB_RESPONSE_DO_NOT_LOG",
+    "SYNTHETIC_GITHUB_ERROR_BODY_DO_NOT_LOG"
+  ],
+  "sensitive_fields_forbidden": [
+    "raw_state",
+    "state_hash",
+    "private_key",
+    "app_jwt",
+    "authorization_header",
+    "session_cookie",
+    "service_role_key",
+    "github_raw_response",
+    "github_error_body"
+  ],
+  "canonicalization_algorithm": {
+    "version": "canonical-text-sha256.v1",
+    "encoding": "UTF-8",
+    "lineEndings": "CRLF/CR to LF",
+    "trim": false,
+    "jsonKeySorting": false
+  },
+  "recorded_at": "2026-07-24T11:52:39.1775156+08:00"
+}

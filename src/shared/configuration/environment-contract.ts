@@ -14,7 +14,9 @@ export const approvedEnvironmentVariableNames = [
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
   "SUPABASE_SERVICE_ROLE_KEY",
   "GITHUB_APP_ID",
+  "GITHUB_APP_SLUG",
   "GITHUB_APP_PRIVATE_KEY",
+  "GITHUB_REST_API_VERSION",
   "GITHUB_WEBHOOK_SECRET",
   "INNGEST_EVENT_KEY",
   "INNGEST_SIGNING_KEY",
@@ -25,7 +27,9 @@ export const serverEnvironmentVariableNames = [
   "APP_ORIGIN",
   "SUPABASE_SERVICE_ROLE_KEY",
   "GITHUB_APP_ID",
+  "GITHUB_APP_SLUG",
   "GITHUB_APP_PRIVATE_KEY",
+  "GITHUB_REST_API_VERSION",
   "GITHUB_WEBHOOK_SECRET",
   "INNGEST_EVENT_KEY",
   "INNGEST_SIGNING_KEY",
@@ -40,7 +44,7 @@ const privateKey = z.string().superRefine((value, context) => {
     /^-----BEGIN ((?:RSA |EC |OPENSSH )?PRIVATE KEY)-----/,
   );
   const end = value.match(
-    /-----END ((?:RSA |EC |OPENSSH )?PRIVATE KEY)-----$/,
+    /-----END ((?:RSA |EC |OPENSSH )?PRIVATE KEY)-----\s*$/,
   );
 
   if (!begin || !end || begin[1] !== end[1]) {
@@ -70,7 +74,13 @@ const environmentShape = {
   ...publicEnvironmentShape,
   SUPABASE_SERVICE_ROLE_KEY: optionalEnvironmentString(z.string()),
   GITHUB_APP_ID: optionalEnvironmentString(z.string().regex(/^\d+$/)),
+  GITHUB_APP_SLUG: optionalEnvironmentString(
+    z.string().regex(/^[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?$/),
+  ),
   GITHUB_APP_PRIVATE_KEY: optionalEnvironmentString(privateKey),
+  GITHUB_REST_API_VERSION: optionalEnvironmentString(
+    z.string().regex(/^2026-03-10$/),
+  ),
   GITHUB_WEBHOOK_SECRET: optionalEnvironmentString(z.string()),
   INNGEST_EVENT_KEY: optionalEnvironmentString(z.string()),
   INNGEST_SIGNING_KEY: optionalEnvironmentString(z.string()),
@@ -129,8 +139,9 @@ export const environmentSchema = z
       context,
       [
         "GITHUB_APP_ID",
+        "GITHUB_APP_SLUG",
         "GITHUB_APP_PRIVATE_KEY",
-        "GITHUB_WEBHOOK_SECRET",
+        "GITHUB_REST_API_VERSION",
       ],
       "incomplete_github_app_group",
     );

@@ -1,0 +1,19 @@
+{
+  "manifest_id": "phase-3-2-installation-conformance-manifest.v1",
+  "manifest_version": "1.0.0",
+  "freeze_payload_path": "tests/fixtures/github-installation/phase-3-2-conformance-freeze.json",
+  "freeze_payload_sha256": "sha256:935694ded67faf9af6b5190c2ea6f15adbe10669f9d9d7e0eba694509fe18ead",
+  "archive_attempt_status_sha256": "sha256:49347489ea88b9d202b32efba8d54213884258075cdf5dc9dc93366ec556991a",
+  "failure_contract_sha256": "sha256:4a79e5d89daea11cc3c9f3c57629d9878955e5904a16853433eb1230b779f476",
+  "failure_code_exact_set_sha256": "sha256:bea92fe1aa93cc4c36952762f257e7cb253c794599894f029e64f75c1eecc7de",
+  "public_mapping_sha256": "sha256:b19e7762c7a5f633de7d5157930319d0c5b666b9a359f98f9df26ebda196ab0d",
+  "handler_variant_sha256": "sha256:b44372068e1ed213e2bc43f36fd692989aa1033517a2cccb393e297c8bd16659",
+  "fixture_sha256": "sha256:be3605720022e210b5842b8473d17e7cb25b318ac8e9177bd8c97fb38dbebaec",
+  "fixture_mapping_sha256": "sha256:94b66f909901fcd5d2fdad62c917135c991bc60369dcf25ea70fe724cce1351d",
+  "target_test_sha256": "sha256:798b75850c7d8418fdc1192c566d4c9d587c49774e04be749bce2ed702582ed9",
+  "expected_parent_commit": "0422ed53a7b9fb7f6733e9fb31b824fc22c0fd96",
+  "formal_run_command": "$env:PHASE_3_2_RUN_KIND='formal_conformance'; & 'C:\\Users\\admin\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe' '.\\node_modules\\vitest\\vitest.mjs' run 'src/application/github-installation/github-installation-failure-contract.test.ts' --reporter=verbose",
+  "created_before_formal_run": true,
+  "canonicalization_algorithm_version": "canonical-text-sha256.v1",
+  "recorded_at": "2026-07-24T11:52:39.1775156+08:00"
+}

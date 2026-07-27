@@ -1,13 +1,22 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
 
+import {
+  GitHubInstallationStatus,
+  type GitHubInstallationUiStatus,
+} from "@/features/onboarding";
 import { createSupabaseServerClient } from "@/infrastructure/auth/supabase-server-client";
 import { parseServerEnvironment } from "@/shared/configuration/server-environment";
 
 export const dynamic = "force-dynamic";
 
-export default async function OnboardingPage() {
+export default async function OnboardingPage(input: {
+  readonly searchParams: Promise<{
+    installation?: string | string[];
+  }>;
+}) {
   let authenticated = false;
+  let installationStatus: GitHubInstallationUiStatus = "not_registered";
 
   try {
     const environment = parseServerEnvironment(process.env);
@@ -18,21 +27,43 @@ export default async function OnboardingPage() {
     });
     const { data, error } = await client.auth.getUser();
     authenticated = !error && Boolean(data.user);
+
+    if (authenticated && data.user) {
+      const { data: installation, error: installationError } = await client
+        .from("github_installations")
+        .select("status")
+        .eq("user_id", data.user.id)
+        .maybeSingle();
+
+      if (
+        !installationError &&
+        (installation?.status === "active" ||
+          installation?.status === "suspended")
+      ) {
+        installationStatus = installation.status;
+      }
+    }
   } catch {
     authenticated = false;
+  }
+
+  const searchParams = await input.searchParams;
+  if (
+    authenticated &&
+    installationStatus === "not_registered" &&
+    searchParams.installation === "configuration_failed"
+  ) {
+    installationStatus = "configuration_failed";
   }
 
   return (
     <main className="auth-status-shell">
       <p className="section-kicker">GitHub identity</p>
       <h1>{authenticated ? "GitHub 身份登录成功" : "尚未登录"}</h1>
-      <dl className="auth-state-list">
-        <div><dt>authenticated</dt><dd>{String(authenticated)}</dd></div>
-        <div><dt>github_app_installation</dt><dd>not_registered</dd></div>
-        <div><dt>repository_access</dt><dd>none</dd></div>
-        <div><dt>selected_repositories</dt><dd>none</dd></div>
-      </dl>
-      <p>尚未连接 GitHub App。仓库只读授权将在后续 Phase 单独完成。</p>
+      <GitHubInstallationStatus
+        authenticated={authenticated}
+        installationStatus={installationStatus}
+      />
       <Link href="/">返回 Command Deck</Link>
     </main>
   );

@@ -87,6 +87,100 @@ export type Database = {
           },
         ]
       }
+      github_installation_states: {
+        Row: {
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          return_to: string
+          state_hash: string
+          user_id: string
+        }
+        Insert: {
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          return_to: string
+          state_hash: string
+          user_id: string
+        }
+        Update: {
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          return_to?: string
+          state_hash?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "github_installation_states_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      github_installations: {
+        Row: {
+          account_type: string
+          created_at: string
+          github_account_id: number
+          github_account_login: string
+          id: string
+          installation_id: number
+          last_verified_at: string
+          repository_selection: string
+          revoked_at: string | null
+          status: string
+          suspended_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_type: string
+          created_at?: string
+          github_account_id: number
+          github_account_login: string
+          id?: string
+          installation_id: number
+          last_verified_at: string
+          repository_selection: string
+          revoked_at?: string | null
+          status: string
+          suspended_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_type?: string
+          created_at?: string
+          github_account_id?: number
+          github_account_login?: string
+          id?: string
+          installation_id?: number
+          last_verified_at?: string
+          repository_selection?: string
+          revoked_at?: string | null
+          status?: string
+          suspended_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "github_installations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           created_at: string
@@ -110,12 +204,39 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      consume_github_installation_state: {
+        Args: { p_state_hash: string; p_user_id: string }
+        Returns: string
+      }
+      create_github_installation_state: {
+        Args: {
+          p_expires_at: string
+          p_return_to: string
+          p_state_hash: string
+          p_user_id: string
+        }
+        Returns: string
+      }
       ensure_user_identity: {
         Args: {
           p_auth_user_id: string
           p_avatar_url: string
           p_github_login: string
           p_github_user_id: number
+        }
+        Returns: string
+      }
+      register_verified_github_installation: {
+        Args: {
+          p_account_type: string
+          p_github_account_id: number
+          p_github_account_login: string
+          p_installation_id: number
+          p_repository_selection: string
+          p_status: string
+          p_suspended_at: string
+          p_user_id: string
+          p_verified_at: string
         }
         Returns: string
       }
