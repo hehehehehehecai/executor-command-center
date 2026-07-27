@@ -7,6 +7,7 @@ import {
   installationAccessTokenContract,
   installationTokenRevocationContract,
 } from "./github-installation-token-client";
+import { GitHubAuthorizedRepositoryGatewayAdapter } from "./github-authorized-repository-gateway";
 
 const now = new Date("2026-07-27T05:30:00.000Z");
 
@@ -86,6 +87,57 @@ describe("github-installation-access-token.v1", () => {
     expect(String(init?.body)).not.toMatch(
       /repositories|repository_ids/,
     );
+  });
+
+  it.each([200, 202, 204])(
+    "rejects unexpected token success status %i before reading its body",
+    async (status) => {
+      const response = new Response(null, { status });
+      const json = vi.spyOn(response, "json").mockResolvedValue({
+        token: "must-not-be-created",
+        expires_at: "2026-07-27T06:30:00.000Z",
+        repository_selection: "selected",
+        permissions: { metadata: "read" },
+      });
+      const fetcher = vi.fn<typeof fetch>().mockResolvedValue(response);
+
+      await expect(createClient(fetcher).create(81001)).rejects.toThrow(
+        "github_installation_token_invalid_response",
+      );
+      expect(json).not.toHaveBeenCalled();
+    },
+  );
+
+  it("does not read repositories or revoke when an unexpected token 2xx is rejected", async () => {
+    const response = new Response(null, { status: 200 });
+    vi.spyOn(response, "json").mockResolvedValue({
+      token: "must-not-be-created",
+      expires_at: "2026-07-27T06:30:00.000Z",
+      repository_selection: "selected",
+      permissions: { metadata: "read" },
+    });
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(response);
+    const tokenClient = createClient(fetcher);
+    const revoke = vi.spyOn(tokenClient, "revoke");
+    const repositoryReader = {
+      listAll: vi.fn().mockResolvedValue({
+        repositorySelection: "selected" as const,
+        totalCount: 0,
+        repositories: [],
+        loadedAt: "2026-07-27T05:30:00.000Z",
+      }),
+    };
+    const gateway = new GitHubAuthorizedRepositoryGatewayAdapter({
+      tokenClient,
+      repositoryReader,
+      operationTimeoutMilliseconds: 30_000,
+    });
+
+    await expect(gateway.listAllForInstallation(81001)).rejects.toThrow(
+      "github_installation_token_invalid_response",
+    );
+    expect(repositoryReader.listAll).not.toHaveBeenCalled();
+    expect(revoke).not.toHaveBeenCalled();
   });
 
   it.each([

@@ -120,7 +120,12 @@ export class GitHubInstallationTokenClient {
         },
       );
 
-      if (!response.ok) {
+      if (response.status !== 201) {
+        if (response.status >= 200 && response.status < 300) {
+          throw new Error(
+            "github_installation_token_invalid_response",
+          );
+        }
         throw new Error(tokenErrorForResponse(response));
       }
 

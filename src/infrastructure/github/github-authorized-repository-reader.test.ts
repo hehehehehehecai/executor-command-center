@@ -6,6 +6,7 @@ import {
   GitHubAuthorizedRepositoryReader,
   repositoryListContract,
 } from "./github-authorized-repository-reader";
+import { GitHubAuthorizedRepositoryGatewayAdapter } from "./github-authorized-repository-gateway";
 
 function repository(
   id: number,
@@ -31,14 +32,18 @@ function repository(
   };
 }
 
-function page(totalCount: number, repositories: unknown[]) {
+function page(
+  totalCount: number,
+  repositories: unknown[],
+  status = 200,
+) {
   return new Response(
     JSON.stringify({
       total_count: totalCount,
       repositories,
       extra_raw_field: "must-not-be-returned",
     }),
-    { status: 200 },
+    { status },
   );
 }
 
@@ -125,6 +130,83 @@ describe("github-authorized-repository-list.v1 single page", () => {
       repositories: [],
     });
     expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([201, 206, 204])(
+    "rejects unexpected repository success status %i before pagination",
+    async (status) => {
+      const response = new Response(null, { status });
+      const json = vi.spyOn(response, "json").mockResolvedValue({
+        total_count: 101,
+        repositories: Array.from({ length: 100 }, (_, index) =>
+          repository(index + 1),
+        ),
+      });
+      const fetcher = vi.fn<typeof fetch>().mockResolvedValue(response);
+
+      await expect(
+        createReader(fetcher).listAll("opaque", "selected"),
+      ).rejects.toThrow("github_repository_list_invalid_response");
+      expect(fetcher).toHaveBeenCalledTimes(1);
+      expect(json).not.toHaveBeenCalled();
+    },
+  );
+
+  it("revokes after an unexpected repository 2xx and returns no repository data", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(page(0, [], 206));
+    const tokenClient = {
+      create: vi.fn().mockResolvedValue({
+        token: "opaque",
+        expiresAt: "2026-07-27T06:30:00.000Z",
+        repositorySelection: "selected" as const,
+      }),
+      revoke: vi.fn().mockResolvedValue(undefined),
+    };
+    const gateway = new GitHubAuthorizedRepositoryGatewayAdapter({
+      tokenClient,
+      repositoryReader: createReader(fetcher),
+      operationTimeoutMilliseconds: 30_000,
+    });
+
+    await expect(gateway.listAllForInstallation(81001)).rejects.toThrow(
+      "github_repository_list_invalid_response",
+    );
+    expect(tokenClient.revoke).toHaveBeenCalledWith("opaque");
+  });
+
+  it("preserves an unexpected repository 2xx as primary when revocation also fails", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(page(0, [], 206));
+    const tokenClient = {
+      create: vi.fn().mockResolvedValue({
+        token: "opaque",
+        expiresAt: "2026-07-27T06:30:00.000Z",
+        repositorySelection: "selected" as const,
+      }),
+      revoke: vi
+        .fn()
+        .mockRejectedValue(
+          new Error("github_installation_token_revoke_failed"),
+        ),
+    };
+    const onSecondaryFailure = vi.fn();
+    const gateway = new GitHubAuthorizedRepositoryGatewayAdapter({
+      tokenClient,
+      repositoryReader: createReader(fetcher),
+      operationTimeoutMilliseconds: 30_000,
+      onSecondaryFailure,
+    });
+
+    await expect(gateway.listAllForInstallation(81001)).rejects.toThrow(
+      "github_repository_list_invalid_response",
+    );
+    expect(onSecondaryFailure).toHaveBeenCalledWith({
+      failureCode: "github_installation_token_revoke_failed",
+      primaryFailureCode: "github_repository_list_invalid_response",
+    });
   });
 
   it.each([

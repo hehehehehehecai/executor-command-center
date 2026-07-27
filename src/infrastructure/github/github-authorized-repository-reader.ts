@@ -133,7 +133,12 @@ export class GitHubAuthorizedRepositoryReader {
         },
       );
 
-      if (!response.ok) {
+      if (response.status !== 200) {
+        if (response.status >= 200 && response.status < 300) {
+          throw new Error(
+            "github_repository_list_invalid_response",
+          );
+        }
         throw new Error(errorForResponse(response));
       }
 
