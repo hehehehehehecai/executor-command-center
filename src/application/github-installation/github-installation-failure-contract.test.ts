@@ -24,6 +24,10 @@ const archiveCommit =
   "0422ed53a7b9fb7f6733e9fb31b824fc22c0fd96";
 const archiveTree =
   "96cef06f8c4043313449941a532bf531fdc83482";
+const v2ConformanceCommit =
+  "a3229d6e42547ad39ecc99efd6c8cd9b32cf02f7";
+const historyBoundaryContractId =
+  "github-installation-conformance-history-boundary.v1";
 const attemptStatusPath =
   "tests/fixtures/github-installation/phase-3-1-attempt-status.json";
 const phase31ContractPath =
@@ -42,6 +46,15 @@ const freezeManifestPath =
   "tests/fixtures/github-installation/phase-3-2-conformance-freeze-manifest.json";
 const targetTestPath =
   "src/application/github-installation/github-installation-failure-contract.test.ts";
+const historicalAllowedPaths = [
+  phase31ContractPath,
+  phase31FreezePath,
+  attemptStatusPath,
+  targetTestPath,
+  contractPath,
+  freezePayloadPath,
+  freezeManifestPath,
+] as const;
 
 const requiredInternalCodes = [
   "unauthenticated",
@@ -411,7 +424,7 @@ function readJson(relativePath: string): unknown {
   return JSON.parse(readUtf8(relativePath));
 }
 
-function git(args: string[]) {
+function runGit(args: string[]) {
   const result = spawnSync("git", args, {
     cwd: process.cwd(),
     encoding: "utf8",
@@ -422,7 +435,100 @@ function git(args: string[]) {
     throw new Error(result.stderr || `git ${args.join(" ")} failed`);
   }
 
-  return result.stdout.trim();
+  return result.stdout;
+}
+
+function git(args: string[]) {
+  return runGit(args).trim();
+}
+
+function readGitUtf8(commit: string, relativePath: string) {
+  return runGit(["show", `${commit}:${relativePath}`]);
+}
+
+function changedPathsBetween(fromCommit: string, toCommit: string) {
+  return git(["diff", "--name-only", fromCommit, toCommit, "--"])
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((item) => item.replace(/\\/g, "/"));
+}
+
+function assertExactHistoricalPaths(
+  changedPaths: readonly string[],
+  allowedPaths: readonly string[],
+) {
+  const changedSet = new Set(changedPaths);
+  const allowedSet = new Set(allowedPaths);
+  const missing = allowedPaths.filter((item) => !changedSet.has(item));
+  const unexpected = changedPaths.filter((item) => !allowedSet.has(item));
+  const duplicates = changedPaths.filter(
+    (item, index) => changedPaths.indexOf(item) !== index,
+  );
+
+  if (missing.length || unexpected.length || duplicates.length) {
+    throw new Error(
+      `historical_allowlist_mismatch:${JSON.stringify({
+        missing,
+        unexpected,
+        duplicates,
+      })}`,
+    );
+  }
+}
+
+function inspectHistoryBoundary({
+  baseCommit = phase3Commit,
+  archiveBoundaryCommit = archiveCommit,
+  conformanceCommit = v2ConformanceCommit,
+}: {
+  baseCommit?: string;
+  archiveBoundaryCommit?: string;
+  conformanceCommit?: string;
+} = {}) {
+  for (const [label, commit] of [
+    ["phase3", baseCommit],
+    ["archive", archiveBoundaryCommit],
+    ["v2", conformanceCommit],
+  ] as const) {
+    try {
+      git(["rev-parse", "--verify", `${commit}^{commit}`]);
+      git(["ls-tree", "-r", "--full-tree", commit]);
+    } catch {
+      throw new Error(`historical_commit_missing:${label}:${commit}`);
+    }
+  }
+
+  const archiveParent = git(["rev-parse", `${archiveBoundaryCommit}^`]);
+  const conformanceParent = git(["rev-parse", `${conformanceCommit}^`]);
+  if (
+    archiveParent !== baseCommit ||
+    conformanceParent !== archiveBoundaryCommit
+  ) {
+    throw new Error(
+      `parent_chain_mismatch:${JSON.stringify({
+        baseCommit,
+        archiveBoundaryCommit,
+        archiveParent,
+        conformanceCommit,
+        conformanceParent,
+      })}`,
+    );
+  }
+
+  try {
+    git(["merge-base", "--is-ancestor", conformanceCommit, "HEAD"]);
+  } catch {
+    throw new Error(`v2_not_ancestor_of_head:${conformanceCommit}`);
+  }
+
+  const changedPaths = changedPathsBetween(baseCommit, conformanceCommit);
+  assertExactHistoricalPaths(changedPaths, historicalAllowedPaths);
+
+  return {
+    contractId: historyBoundaryContractId,
+    currentHead: git(["rev-parse", "HEAD"]),
+    changedPaths,
+  };
 }
 
 function loadFrozenArtifacts() {
@@ -1368,7 +1474,9 @@ describe("github-installation-failure-contract.v2", () => {
     const payloadHash = sha256Text(readUtf8(freezePayloadPath));
     const attemptHash = sha256Text(readUtf8(attemptStatusPath));
     const fixtureHash = sha256Text(readUtf8(fixturePath));
-    const testHash = sha256Text(readUtf8(targetTestPath));
+    const testHash = sha256Text(
+      readGitUtf8(v2ConformanceCommit, targetTestPath),
+    );
     const exactHash = exactSetFingerprint(
       contract.actual_internal_codes,
     );
@@ -1402,8 +1510,9 @@ describe("github-installation-failure-contract.v2", () => {
     );
   });
 
-  it("preserves the original Fixture, historical Freeze, and Phase 3 production tree", () => {
+  it("pins the Phase 3 conformance history boundary to the V2 commit", () => {
     const { contract, payload } = loadFrozenArtifacts();
+    const boundary = inspectHistoryBoundary();
 
     expect(git(["rev-parse", `${phase3Commit}:${fixturePath}`])).toBe(
       contract.fixture_blob,
@@ -1416,22 +1525,49 @@ describe("github-installation-failure-contract.v2", () => {
       phase3Tree,
     );
     expect(payload.production_code_mutation_allowed).toBe(false);
+    expect(boundary.contractId).toBe(
+      "github-installation-conformance-history-boundary.v1",
+    );
+    expect(boundary.currentHead).not.toBe(v2ConformanceCommit);
+    expect(boundary.changedPaths).toHaveLength(
+      historicalAllowedPaths.length,
+    );
+  });
 
-    const allowed = new Set([
-      phase31ContractPath,
-      phase31FreezePath,
-      attemptStatusPath,
-      targetTestPath,
-      contractPath,
-      freezePayloadPath,
-      freezeManifestPath,
-    ]);
-    const changed = git(["diff", "--name-only", phase3Commit, "--"])
-      .split(/\r?\n/)
-      .filter(Boolean)
-      .map((item) => item.replace(/\\/g, "/"));
+  it("keeps later legal commits outside the fixed historical interval", () => {
+    const boundary = inspectHistoryBoundary();
+    const postV2Changes = changedPathsBetween(v2ConformanceCommit, "HEAD");
 
-    expect(changed.filter((item) => !allowed.has(item))).toEqual([]);
+    expect(postV2Changes).toContain(".github/workflows/ci.yml");
+    expect(boundary.changedPaths).not.toContain(".github/workflows/ci.yml");
+  });
+
+  it("rejects production drift inside the fixed historical interval", () => {
+    expect(() =>
+      assertExactHistoricalPaths(
+        [
+          ...historicalAllowedPaths,
+          "src/application/github-installation/production-drift.ts",
+        ],
+        historicalAllowedPaths,
+      ),
+    ).toThrow(/historical_allowlist_mismatch/);
+  });
+
+  it("rejects a missing historical commit", () => {
+    expect(() =>
+      inspectHistoryBoundary({
+        conformanceCommit: "0000000000000000000000000000000000000000",
+      }),
+    ).toThrow(/historical_commit_missing:v2/);
+  });
+
+  it("rejects parent-chain drift between historical commits", () => {
+    expect(() =>
+      inspectHistoryBoundary({
+        archiveBoundaryCommit: v2ConformanceCommit,
+      }),
+    ).toThrow(/parent_chain_mismatch/);
   });
 
   it("enforces the immutable commit boundary during the formal run", () => {
