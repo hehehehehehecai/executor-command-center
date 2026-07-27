@@ -2,7 +2,13 @@
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import ts from "typescript";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -28,6 +34,8 @@ const v2ConformanceCommit =
   "a3229d6e42547ad39ecc99efd6c8cd9b32cf02f7";
 const historyBoundaryContractId =
   "github-installation-conformance-history-boundary.v1";
+const historicalArtifactBindingContractId =
+  "github-installation-historical-artifact-binding.v1";
 const attemptStatusPath =
   "tests/fixtures/github-installation/phase-3-1-attempt-status.json";
 const phase31ContractPath =
@@ -405,6 +413,20 @@ const originalFixtureSchema = z.object({
 
 type Contract = z.infer<typeof contractSchema>;
 type PublicMapping = z.infer<typeof publicMappingSchema>;
+type HistoricalArtifactBinding = {
+  id: string;
+  path: string;
+  commit: string;
+};
+type HistoricalParentChain = {
+  phase3Commit: string;
+  archiveCommit: string;
+  archiveParent: string;
+  v2Commit: string;
+  v2Parent: string;
+};
+
+const repositoryRoot = process.cwd();
 
 function canonicalText(text: string) {
   return text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
@@ -420,17 +442,16 @@ function readUtf8(relativePath: string) {
   return readFileSync(path.resolve(relativePath), "utf8");
 }
 
-function readJson(relativePath: string): unknown {
-  return JSON.parse(readUtf8(relativePath));
-}
-
-function runGit(args: string[]) {
-  const result = spawnSync("git", args, {
-    cwd: process.cwd(),
+function executeGit(args: string[], cwd = repositoryRoot) {
+  return spawnSync("git", args, {
+    cwd,
     encoding: "utf8",
     windowsHide: true,
   });
+}
 
+function runGit(args: string[], cwd = repositoryRoot) {
+  const result = executeGit(args, cwd);
   if (result.status !== 0) {
     throw new Error(result.stderr || `git ${args.join(" ")} failed`);
   }
@@ -438,12 +459,158 @@ function runGit(args: string[]) {
   return result.stdout;
 }
 
-function git(args: string[]) {
-  return runGit(args).trim();
+function git(args: string[], cwd = repositoryRoot) {
+  return runGit(args, cwd).trim();
 }
 
-function readGitUtf8(commit: string, relativePath: string) {
-  return runGit(["show", `${commit}:${relativePath}`]);
+const historicalArtifactBindings = {
+  phase3Fixture: {
+    id: "phase3_fixture",
+    path: fixturePath,
+    commit: phase3Commit,
+  },
+  phase3HistoricalFreeze: {
+    id: "phase3_historical_freeze",
+    path: historicalFreezePath,
+    commit: phase3Commit,
+  },
+  phase31Contract: {
+    id: "phase31_contract",
+    path: phase31ContractPath,
+    commit: archiveCommit,
+  },
+  phase31Freeze: {
+    id: "phase31_freeze",
+    path: phase31FreezePath,
+    commit: archiveCommit,
+  },
+  phase31Attempt: {
+    id: "phase31_attempt",
+    path: attemptStatusPath,
+    commit: archiveCommit,
+  },
+  phase31Test: {
+    id: "phase31_test",
+    path: targetTestPath,
+    commit: archiveCommit,
+  },
+  phase32Contract: {
+    id: "phase32_contract",
+    path: contractPath,
+    commit: v2ConformanceCommit,
+  },
+  phase32Payload: {
+    id: "phase32_payload",
+    path: freezePayloadPath,
+    commit: v2ConformanceCommit,
+  },
+  phase32Manifest: {
+    id: "phase32_manifest",
+    path: freezeManifestPath,
+    commit: v2ConformanceCommit,
+  },
+  phase32Test: {
+    id: "phase32_test",
+    path: targetTestPath,
+    commit: v2ConformanceCommit,
+  },
+} as const satisfies Record<string, HistoricalArtifactBinding>;
+
+function readHistoricalArtifact(
+  binding: HistoricalArtifactBinding,
+  cwd = repositoryRoot,
+) {
+  const commitResult = executeGit(
+    ["rev-parse", "--verify", `${binding.commit}^{commit}`],
+    cwd,
+  );
+  if (commitResult.status !== 0) {
+    throw new Error(`historical_commit_missing:${binding.id}`);
+  }
+
+  const pathResult = executeGit(
+    ["cat-file", "-e", `${binding.commit}:${binding.path}`],
+    cwd,
+  );
+  if (pathResult.status !== 0) {
+    throw new Error(`historical_artifact_missing:${binding.id}`);
+  }
+
+  const readResult = executeGit(
+    ["show", `${binding.commit}:${binding.path}`],
+    cwd,
+  );
+  if (readResult.status !== 0) {
+    throw new Error(`historical_artifact_read_failed:${binding.id}`);
+  }
+
+  return readResult.stdout;
+}
+
+function readHistoricalJson(binding: HistoricalArtifactBinding): unknown {
+  return JSON.parse(readHistoricalArtifact(binding));
+}
+
+function historicalArtifactBlob(binding: HistoricalArtifactBinding) {
+  return git(["rev-parse", `${binding.commit}:${binding.path}`]);
+}
+
+function assertHistoricalParentChain(chain: HistoricalParentChain) {
+  if (chain.archiveParent !== chain.phase3Commit) {
+    throw new Error("parent_chain_mismatch:archive");
+  }
+  if (chain.v2Parent !== chain.archiveCommit) {
+    throw new Error("parent_chain_mismatch:v2");
+  }
+}
+
+function withTemporaryGitRepository(
+  callback: (context: {
+    repository: string;
+    frozenCommit: string;
+    artifactPath: string;
+  }) => void,
+) {
+  const repository = mkdtempSync(
+    path.join(tmpdir(), "executor-phase-3-6-"),
+  );
+  const artifactPath = "historical-artifact.txt";
+
+  try {
+    git(["init", "--quiet"], repository);
+    git(["config", "user.name", "Phase 3.6 Test"], repository);
+    git(
+      ["config", "user.email", "phase-3-6@example.invalid"],
+      repository,
+    );
+    writeFileSync(
+      path.join(repository, artifactPath),
+      "frozen content\n",
+      "utf8",
+    );
+    git(["add", artifactPath], repository);
+    git(["commit", "--quiet", "-m", "freeze artifact"], repository);
+    const frozenCommit = git(["rev-parse", "HEAD"], repository);
+    writeFileSync(
+      path.join(repository, artifactPath),
+      "changed content\n",
+      "utf8",
+    );
+    git(["add", artifactPath], repository);
+    git(["commit", "--quiet", "-m", "change artifact"], repository);
+    writeFileSync(
+      path.join(
+        repository,
+        "historical-artifact-present-only-in-worktree.json",
+      ),
+      "worktree only\n",
+      "utf8",
+    );
+
+    callback({ repository, frozenCommit, artifactPath });
+  } finally {
+    rmSync(repository, { recursive: true, force: true });
+  }
 }
 
 function changedPathsBetween(fromCommit: string, toCommit: string) {
@@ -500,20 +667,13 @@ function inspectHistoryBoundary({
 
   const archiveParent = git(["rev-parse", `${archiveBoundaryCommit}^`]);
   const conformanceParent = git(["rev-parse", `${conformanceCommit}^`]);
-  if (
-    archiveParent !== baseCommit ||
-    conformanceParent !== archiveBoundaryCommit
-  ) {
-    throw new Error(
-      `parent_chain_mismatch:${JSON.stringify({
-        baseCommit,
-        archiveBoundaryCommit,
-        archiveParent,
-        conformanceCommit,
-        conformanceParent,
-      })}`,
-    );
-  }
+  assertHistoricalParentChain({
+    phase3Commit: baseCommit,
+    archiveCommit: archiveBoundaryCommit,
+    archiveParent,
+    v2Commit: conformanceCommit,
+    v2Parent: conformanceParent,
+  });
 
   try {
     git(["merge-base", "--is-ancestor", conformanceCommit, "HEAD"]);
@@ -533,9 +693,15 @@ function inspectHistoryBoundary({
 
 function loadFrozenArtifacts() {
   return {
-    contract: contractSchema.parse(readJson(contractPath)),
-    payload: freezePayloadSchema.parse(readJson(freezePayloadPath)),
-    manifest: freezeManifestSchema.parse(readJson(freezeManifestPath)),
+    contract: contractSchema.parse(
+      readHistoricalJson(historicalArtifactBindings.phase32Contract),
+    ),
+    payload: freezePayloadSchema.parse(
+      readHistoricalJson(historicalArtifactBindings.phase32Payload),
+    ),
+    manifest: freezeManifestSchema.parse(
+      readHistoricalJson(historicalArtifactBindings.phase32Manifest),
+    ),
   };
 }
 
@@ -1008,7 +1174,9 @@ describe("github-installation-failure-contract.v2", () => {
   });
 
   it("preserves and invalidates the complete Phase 3.1 attempt", () => {
-    const attempt = readJson(attemptStatusPath) as {
+    const attempt = readHistoricalJson(
+      historicalArtifactBindings.phase31Attempt,
+    ) as {
       attempt_status: string;
       formal_conformance_eligible: boolean;
       failure_contract_blob: string;
@@ -1104,7 +1272,9 @@ describe("github-installation-failure-contract.v2", () => {
     const { contract } = loadFrozenArtifacts();
     const fixtures = z
       .array(originalFixtureSchema)
-      .parse(readJson(fixturePath));
+      .parse(
+        readHistoricalJson(historicalArtifactBindings.phase3Fixture),
+      );
     const fixtureIds = fixtures.map((fixture) => fixture.fixture_id);
     const mappingIds = contract.fixture_expected_results.map(
       (mapping) => mapping.fixtureId,
@@ -1470,12 +1640,20 @@ describe("github-installation-failure-contract.v2", () => {
 
   it("matches every pre-formal fingerprint in the Payload and Manifest", () => {
     const { contract, payload, manifest } = loadFrozenArtifacts();
-    const contractHash = sha256Text(readUtf8(contractPath));
-    const payloadHash = sha256Text(readUtf8(freezePayloadPath));
-    const attemptHash = sha256Text(readUtf8(attemptStatusPath));
-    const fixtureHash = sha256Text(readUtf8(fixturePath));
+    const contractHash = sha256Text(
+      readHistoricalArtifact(historicalArtifactBindings.phase32Contract),
+    );
+    const payloadHash = sha256Text(
+      readHistoricalArtifact(historicalArtifactBindings.phase32Payload),
+    );
+    const attemptHash = sha256Text(
+      readHistoricalArtifact(historicalArtifactBindings.phase31Attempt),
+    );
+    const fixtureHash = sha256Text(
+      readHistoricalArtifact(historicalArtifactBindings.phase3Fixture),
+    );
     const testHash = sha256Text(
-      readGitUtf8(v2ConformanceCommit, targetTestPath),
+      readHistoricalArtifact(historicalArtifactBindings.phase32Test),
     );
     const exactHash = exactSetFingerprint(
       contract.actual_internal_codes,
@@ -1510,6 +1688,89 @@ describe("github-installation-failure-contract.v2", () => {
     );
   });
 
+  it("binds every historical artifact to its fixed Git blob", () => {
+    const expectedBlobs = new Map<string, string>([
+      ["phase3_fixture", "0dc72c818695f69462ecca01fab3fe84b7cf3aac"],
+      [
+        "phase3_historical_freeze",
+        "09a61bb4da2aae37f9f5cec6c466b646403f3920",
+      ],
+      ["phase31_contract", "54c50c9bdef4c4a086b20a15e72394f969aea4c3"],
+      ["phase31_freeze", "531209cc1d2f06233d024654b4054a6fd56affe8"],
+      ["phase31_attempt", "5ada158db7981bb39f125db51e97d6ed1bb6b29e"],
+      ["phase31_test", "212f9365ba9df0fc858c79f2d73a07aa9c2a581b"],
+      ["phase32_contract", "99e1304cbc91c5dc9c99bab0dab948c63cb1dd06"],
+      ["phase32_payload", "3c5ac7a44fd1a6ad7456161793476c7b69887e51"],
+      ["phase32_manifest", "27c2ac935146cb8068e58f469534f2e0472c5b2b"],
+      ["phase32_test", "6e25e9a8bd4dd498f7d5e15367b3324919b26a4c"],
+    ]);
+    const bindings = Object.values(historicalArtifactBindings);
+
+    expect(historicalArtifactBindingContractId).toBe(
+      "github-installation-historical-artifact-binding.v1",
+    );
+    expect(bindings).toHaveLength(10);
+    for (const binding of bindings) {
+      expect(readHistoricalArtifact(binding).length).toBeGreaterThan(0);
+      expect(historicalArtifactBlob(binding)).toBe(
+        expectedBlobs.get(binding.id),
+      );
+    }
+    expect(git(["hash-object", targetTestPath])).not.toBe(
+      historicalArtifactBlob(historicalArtifactBindings.phase32Test),
+    );
+  });
+
+  it("links the Phase 3.1 fingerprints only to fixed historical blobs", () => {
+    const archiveAttempt = readHistoricalJson(
+      historicalArtifactBindings.phase31Attempt,
+    ) as {
+      failure_contract_blob: string;
+      conformance_freeze_blob: string;
+      contract_test_blob: string;
+    };
+    const archiveFreeze = readHistoricalJson(
+      historicalArtifactBindings.phase31Freeze,
+    ) as {
+      failure_contract_fingerprint: string;
+      historical_freeze_blob: string;
+      fixture_fingerprint: string;
+      target_test_fingerprints: Record<string, string>;
+    };
+
+    expect(archiveAttempt.failure_contract_blob).toBe(
+      historicalArtifactBlob(historicalArtifactBindings.phase31Contract),
+    );
+    expect(archiveAttempt.conformance_freeze_blob).toBe(
+      historicalArtifactBlob(historicalArtifactBindings.phase31Freeze),
+    );
+    expect(archiveAttempt.contract_test_blob).toBe(
+      historicalArtifactBlob(historicalArtifactBindings.phase31Test),
+    );
+    expect(archiveFreeze.failure_contract_fingerprint).toBe(
+      sha256Text(
+        readHistoricalArtifact(
+          historicalArtifactBindings.phase31Contract,
+        ),
+      ),
+    );
+    expect(archiveFreeze.historical_freeze_blob).toBe(
+      historicalArtifactBlob(
+        historicalArtifactBindings.phase3HistoricalFreeze,
+      ),
+    );
+    expect(archiveFreeze.fixture_fingerprint).toBe(
+      sha256Text(
+        readHistoricalArtifact(historicalArtifactBindings.phase3Fixture),
+      ),
+    );
+    expect(archiveFreeze.target_test_fingerprints[targetTestPath]).toBe(
+      sha256Text(
+        readHistoricalArtifact(historicalArtifactBindings.phase31Test),
+      ),
+    );
+  });
+
   it("pins the Phase 3 conformance history boundary to the V2 commit", () => {
     const { contract, payload } = loadFrozenArtifacts();
     const boundary = inspectHistoryBoundary();
@@ -1517,9 +1778,10 @@ describe("github-installation-failure-contract.v2", () => {
     expect(git(["rev-parse", `${phase3Commit}:${fixturePath}`])).toBe(
       contract.fixture_blob,
     );
-    expect(git(["hash-object", fixturePath])).toBe(contract.fixture_blob);
     expect(
-      git(["hash-object", historicalFreezePath]),
+      historicalArtifactBlob(
+        historicalArtifactBindings.phase3HistoricalFreeze,
+      ),
     ).toBe("09a61bb4da2aae37f9f5cec6c466b646403f3920");
     expect(git(["show", "-s", "--format=%T", phase3Commit])).toBe(
       phase3Tree,
@@ -1562,12 +1824,79 @@ describe("github-installation-failure-contract.v2", () => {
     ).toThrow(/historical_commit_missing:v2/);
   });
 
-  it("rejects parent-chain drift between historical commits", () => {
+  it("reads a fixed historical blob after HEAD and the worktree change", () => {
+    withTemporaryGitRepository(
+      ({ repository, frozenCommit, artifactPath }) => {
+        expect(
+          readHistoricalArtifact({
+            id: "worktree_isolation",
+            path: artifactPath,
+            commit: frozenCommit,
+          }, repository),
+        ).toBe("frozen content\n");
+        expect(
+          readFileSync(
+            path.join(repository, artifactPath),
+            "utf8",
+          ),
+        ).toBe("changed content\n");
+      },
+    );
+  });
+
+  it("rejects a missing historical commit without fallback", () => {
     expect(() =>
-      inspectHistoryBoundary({
-        archiveBoundaryCommit: v2ConformanceCommit,
+      readHistoricalArtifact({
+        id: "missing_commit",
+        path: contractPath,
+        commit: "0000000000000000000000000000000000000000",
       }),
-    ).toThrow(/parent_chain_mismatch/);
+    ).toThrow(/^historical_commit_missing:missing_commit$/);
+  });
+
+  it("rejects a missing historical path without worktree fallback", () => {
+    withTemporaryGitRepository(({ repository, frozenCommit }) => {
+      const worktreeOnlyPath =
+        "historical-artifact-present-only-in-worktree.json";
+
+      expect(
+        readFileSync(path.join(repository, worktreeOnlyPath), "utf8"),
+      ).toBe("worktree only\n");
+      expect(() =>
+        readHistoricalArtifact(
+          {
+            id: "missing_path",
+            path: worktreeOnlyPath,
+            commit: frozenCommit,
+          },
+          repository,
+        ),
+      ).toThrow(/^historical_artifact_missing:missing_path$/);
+    });
+  });
+
+  it("rejects an Archive parent-only mismatch with a distinct code", () => {
+    expect(() =>
+      assertHistoricalParentChain({
+        phase3Commit,
+        archiveCommit,
+        archiveParent: v2ConformanceCommit,
+        v2Commit: v2ConformanceCommit,
+        v2Parent: archiveCommit,
+      }),
+    ).toThrow(/^parent_chain_mismatch:archive$/);
+  });
+
+  it("rejects a V2 parent-only mismatch with a distinct code", () => {
+    expect(() =>
+      assertHistoricalParentChain({
+        phase3Commit,
+        archiveCommit,
+        archiveParent: phase3Commit,
+        v2Commit: v2ConformanceCommit,
+        v2Parent: phase3Commit,
+      }),
+    ).toThrow(/^parent_chain_mismatch:v2$/);
   });
 
   it("enforces the immutable commit boundary during the formal run", () => {
