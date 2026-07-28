@@ -1,0 +1,31 @@
+{
+  "attempt_id": "phase-4-2-local-repair-run",
+  "attempt_version": "1.0.0",
+  "phase": "phase_4_2",
+  "phase_4_commit": "09724056fa5d9fead3a616c0d588392172bfda66",
+  "phase_4_2_commit": "825b9447c4c3c109180c1e6dc258f9c40e3f0841",
+  "phase_4_2_tree": "e460d2ebf4271f54bbef6a045d9c73003af32e40",
+  "repair_fixture_path": "tests/fixtures/github-repository/phase-4-2-repair-fixtures.json",
+  "repair_fixture_blob": "a0c2af276d4c216dc8e2eb493961b47cb1781be1",
+  "repair_fixture_fingerprint": "sha256:1d77f4da7952babd48152100749c3776d4666f7fb5c46d01e57beb9655df5738",
+  "repair_freeze_path": "tests/fixtures/github-repository/phase-4-2-repair-freeze.json",
+  "repair_freeze_blob": "1adcee5faafea21631c828efd26a5d1febcafae8",
+  "repair_freeze_recorded_at": "2026-07-27T15:38:20.1198073+08:00",
+  "technical_audit_status": "passed",
+  "technical_findings_resolved": [
+    "F4.1-01",
+    "F4.1-02",
+    "F4.1-03"
+  ],
+  "run_kind": "development_regression",
+  "exposure_status": "results_viewed",
+  "formal_conformance_eligible": false,
+  "ordering_evidence": "executor_claim_only",
+  "invalidation_reason": "F4.3-E01",
+  "production_code_after_repair_modified": false,
+  "historical_artifacts_modified": false,
+  "superseded_by": "phase-4-4-remote-ci-conformance.v1",
+  "contains_real_secret": false,
+  "real_github_called": false,
+  "recorded_at": "2026-07-28T09:18:43.7022683+08:00"
+}

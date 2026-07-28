@@ -1,11 +1,22 @@
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GitHubInstallationStatus } from "./github-installation-status";
 
 afterEach(cleanup);
 
 describe("GitHub App installation status UI", () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockReturnValue(new Promise(() => undefined)),
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("keeps login, installation, and repository access as separate states", () => {
     render(
       <GitHubInstallationStatus
@@ -17,6 +28,9 @@ describe("GitHub App installation status UI", () => {
     expect(screen.getByText("true", { exact: true })).toBeInTheDocument();
     expect(screen.getByText("active", { exact: true })).toBeInTheDocument();
     expect(screen.getByText("not_loaded", { exact: true })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "加载已授权仓库" }),
+    ).toBeInTheDocument();
     expect(screen.getAllByText("none", { exact: true })).toHaveLength(2);
     expect(
       screen.getByText("GitHub App Installation 已连接"),
@@ -40,13 +54,12 @@ describe("GitHub App installation status UI", () => {
       "href",
       "/api/github/installations/start?returnTo=%2Fonboarding",
     );
-    expect(
-      screen.getByText("仓库访问尚未读取，将在后续 Phase 单独完成。"),
-    ).toBeInTheDocument();
+    expect(screen.queryByText("仓库正在加载")).not.toBeInTheDocument();
   });
 
   it.each([
     ["suspended", "GitHub App Installation 已暂停"],
+    ["revoked", "GitHub App Installation 已撤销"],
     ["configuration_failed", "GitHub App Installation 配置失败"],
   ] as const)("renders the stable %s state", (status, message) => {
     render(
