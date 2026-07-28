@@ -2,7 +2,14 @@
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
@@ -13,6 +20,10 @@ const repairCommit =
   "825b9447c4c3c109180c1e6dc258f9c40e3f0841";
 const repairTree =
   "e460d2ebf4271f54bbef6a045d9c73003af32e40";
+const phase4ConformanceCommit =
+  "8e2a95b883861fd24ef84be269c9f6ee2e12f42d";
+const phase4ConformanceTree =
+  "6d9541fab95a166d5244cd54eecd11672d87cc08";
 
 const baseFixturePath =
   "tests/fixtures/github-repository/phase-4-fixtures.json";
@@ -57,6 +68,14 @@ const fixtureContractTestBlob =
   "30880889eb0ff789c1bf88b824e7dd73e6ab4f1e";
 const ciWorkflowBlob =
   "120553ec29014b146079f521d3dc5e42d2819c14";
+const attemptStatusBlob =
+  "e48bb4e99d4dde96a8e5ffdae09b72d67f4c1de2";
+const freezePayloadBlob =
+  "ce3db4f1a6ba5a92637bb1b539d44f8860ce85c5";
+const manifestBlob =
+  "97ba67a39efe0ff7673b5224d1972a1fa329bee3";
+const historicalTargetTestBlob =
+  "ab005f2dd87608c0d6aceacd15bc99ca6ca99445";
 
 const baseFixtureFingerprint =
   "sha256:ba1ecd36e0fceb90588cb058457f05eeabe4448930abca8b2bb2fccec3fae0d2";
@@ -64,6 +83,12 @@ const repairFixtureFingerprint =
   "sha256:1d77f4da7952babd48152100749c3776d4666f7fb5c46d01e57beb9655df5738";
 const failureCodeExactSetFingerprint =
   "sha256:609f592ba4cf99bb9cf9af90a8ac608033408bff300310d1bbf90cb1b5ec91a9";
+const attemptStatusFingerprint =
+  "sha256:a2b364951793af00780864b3b9f5a2d1fd60057dc88bc34d3736dd32534640bc";
+const freezePayloadFingerprint =
+  "sha256:a7c79f23f203be04a4b6c3da32b8ecf55a3c54490d541d492f91529dedb85839";
+const historicalTargetTestFingerprint =
+  "sha256:40112ff11ffad1b12d9d68ff1ba852046ef916b7a3a8a344bf94a0cb673d135b";
 
 const repairAllowedPaths = [
   fixtureContractTestPath,
@@ -267,6 +292,406 @@ function gitBlob(commit: string, relativePath: string) {
   return git(["rev-parse", `${commit}:${relativePath}`]);
 }
 
+type GitCommand = (args: string[]) => string;
+
+type ConformanceExecutionEndpoint = {
+  mode:
+    | "direct_conformance"
+    | "linear_descendant"
+    | "synthetic_pull_request_merge";
+  executionHead: string;
+  scopeEndpoint: string;
+  syntheticMergeCommit: string | null;
+  baseParent: string | null;
+  pullRequestParent: string | null;
+};
+
+type ConformanceScope = ConformanceExecutionEndpoint & {
+  scopePaths: string[];
+  postConformancePaths: string[];
+};
+
+class ConformanceContractError extends Error {
+  constructor(readonly code: string) {
+    super(code);
+    this.name = "ConformanceContractError";
+  }
+}
+
+function readHistoricalConformanceArtifact(
+  gitCommand: GitCommand,
+  commit: string,
+  relativePath: string,
+  expectedBlob: string,
+  expectedFingerprint?: string,
+) {
+  try {
+    gitCommand(["rev-parse", "--verify", `${commit}^{commit}`]);
+  } catch {
+    throw new ConformanceContractError(
+      "historical_conformance_commit_missing",
+    );
+  }
+
+  let actualBlob: string;
+  let text: string;
+
+  try {
+    actualBlob = gitCommand([
+      "rev-parse",
+      `${commit}:${relativePath}`,
+    ]).trim();
+    text = gitCommand(["show", `${commit}:${relativePath}`]);
+  } catch {
+    throw new ConformanceContractError(
+      `historical_conformance_artifact_missing:${relativePath}`,
+    );
+  }
+
+  if (actualBlob !== expectedBlob) {
+    throw new ConformanceContractError(
+      `historical_conformance_blob_mismatch:${relativePath}`,
+    );
+  }
+
+  if (
+    expectedFingerprint !== undefined &&
+    sha256Text(text) !== expectedFingerprint
+  ) {
+    throw new ConformanceContractError(
+      `historical_conformance_fingerprint_mismatch:${relativePath}`,
+    );
+  }
+
+  return { blob: actualBlob, text };
+}
+
+function commitParents(gitCommand: GitCommand, commit: string) {
+  const line = gitCommand(["rev-list", "--parents", "-n", "1", commit]);
+  return line.split(/\s+/).slice(1);
+}
+
+function isAncestor(
+  gitCommand: GitCommand,
+  ancestor: string,
+  descendant: string,
+) {
+  if (ancestor === descendant) return true;
+
+  try {
+    return gitCommand(["merge-base", ancestor, descendant]) === ancestor;
+  } catch {
+    return false;
+  }
+}
+
+function assertLinearConformanceHistory(
+  gitCommand: GitCommand,
+  conformanceCommit: string,
+  endpoint: string,
+) {
+  if (conformanceCommit === endpoint) return;
+
+  const history = gitCommand([
+    "rev-list",
+    "--parents",
+    "--ancestry-path",
+    `${conformanceCommit}..${endpoint}`,
+  ])
+    .split(/\r?\n/)
+    .filter(Boolean);
+
+  if (
+    history.length === 0 ||
+    history.some((line) => line.trim().split(/\s+/).length !== 2)
+  ) {
+    throw new ConformanceContractError(
+      "conformance_history_non_linear",
+    );
+  }
+}
+
+function changedPaths(
+  gitCommand: GitCommand,
+  start: string,
+  endpoint: string,
+) {
+  const output = gitCommand([
+    "diff",
+    "--name-only",
+    start,
+    endpoint,
+  ]);
+
+  return output
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((relativePath) => relativePath.replaceAll("\\", "/"))
+    .sort();
+}
+
+function hasExactPaths(
+  actualPaths: readonly string[],
+  expectedPaths: readonly string[],
+) {
+  return (
+    actualPaths.length === new Set(actualPaths).size &&
+    JSON.stringify([...actualPaths].sort()) ===
+      JSON.stringify([...expectedPaths].sort())
+  );
+}
+
+function resolveConformanceExecutionEndpoint(
+  gitCommand: GitCommand,
+  head: string,
+  conformanceCommit: string,
+  expectedRepairCommit: string,
+): ConformanceExecutionEndpoint {
+  try {
+    gitCommand([
+      "rev-parse",
+      "--verify",
+      `${conformanceCommit}^{commit}`,
+    ]);
+  } catch {
+    throw new ConformanceContractError(
+      "historical_conformance_commit_missing",
+    );
+  }
+
+  const conformanceParents = commitParents(
+    gitCommand,
+    conformanceCommit,
+  );
+
+  if (
+    conformanceParents.length !== 1 ||
+    conformanceParents[0] !== expectedRepairCommit
+  ) {
+    throw new ConformanceContractError(
+      "conformance_commit_parent_mismatch",
+    );
+  }
+
+  if (head === conformanceCommit) {
+    return {
+      mode: "direct_conformance",
+      executionHead: head,
+      scopeEndpoint: conformanceCommit,
+      syntheticMergeCommit: null,
+      baseParent: null,
+      pullRequestParent: null,
+    };
+  }
+
+  const parents = commitParents(gitCommand, head);
+
+  if (
+    parents.length === 1 &&
+    isAncestor(gitCommand, conformanceCommit, head)
+  ) {
+    assertLinearConformanceHistory(
+      gitCommand,
+      conformanceCommit,
+      head,
+    );
+
+    return {
+      mode: "linear_descendant",
+      executionHead: head,
+      scopeEndpoint: head,
+      syntheticMergeCommit: null,
+      baseParent: null,
+      pullRequestParent: null,
+    };
+  }
+
+  if (parents.length !== 2) {
+    throw new ConformanceContractError("conformance_head_unsupported");
+  }
+
+  const pullRequestParents = parents.filter((parent) =>
+    isAncestor(gitCommand, conformanceCommit, parent),
+  );
+
+  if (pullRequestParents.length === 0) {
+    throw new ConformanceContractError(
+      "conformance_pr_parent_missing",
+    );
+  }
+
+  if (pullRequestParents.length !== 1) {
+    throw new ConformanceContractError(
+      "conformance_pr_parent_ambiguous",
+    );
+  }
+
+  const pullRequestParent = pullRequestParents[0];
+  const baseParent = parents.find(
+    (parent) => parent !== pullRequestParent,
+  );
+
+  if (!baseParent) {
+    throw new ConformanceContractError(
+      "conformance_pr_parent_ambiguous",
+    );
+  }
+
+  assertLinearConformanceHistory(
+    gitCommand,
+    conformanceCommit,
+    pullRequestParent,
+  );
+
+  return {
+    mode: "synthetic_pull_request_merge",
+    executionHead: head,
+    scopeEndpoint: pullRequestParent,
+    syntheticMergeCommit: head,
+    baseParent,
+    pullRequestParent,
+  };
+}
+
+function resolveConformanceScope(
+  gitCommand: GitCommand,
+  head: string,
+  conformanceCommit: string,
+  expectedRepairCommit: string,
+): ConformanceScope {
+  const endpoint = resolveConformanceExecutionEndpoint(
+    gitCommand,
+    head,
+    conformanceCommit,
+    expectedRepairCommit,
+  );
+  const scopePaths = changedPaths(
+    gitCommand,
+    expectedRepairCommit,
+    endpoint.scopeEndpoint,
+  );
+  const postConformancePaths = changedPaths(
+    gitCommand,
+    conformanceCommit,
+    endpoint.scopeEndpoint,
+  );
+  const expectedPostConformancePaths =
+    endpoint.mode === "direct_conformance" ? [] : [targetTestPath];
+
+  if (
+    !hasExactPaths(
+      postConformancePaths,
+      expectedPostConformancePaths,
+    )
+  ) {
+    throw new ConformanceContractError(
+      "post_conformance_scope_mismatch",
+    );
+  }
+
+  if (!hasExactPaths(scopePaths, conformanceAllowedPaths)) {
+    throw new ConformanceContractError("conformance_scope_mismatch");
+  }
+
+  return { ...endpoint, scopePaths, postConformancePaths };
+}
+
+type TempGitRepository = {
+  directory: string;
+  git: GitCommand;
+  write: (relativePath: string, contents: string) => void;
+  commit: (message: string) => string;
+};
+
+function withTempGitRepository(
+  run: (repository: TempGitRepository) => void,
+) {
+  const directory = mkdtempSync(
+    path.join(tmpdir(), "phase-4-6-conformance-"),
+  );
+  const tempGit = (args: string[]) => {
+    const result = spawnSync("git", args, {
+      cwd: directory,
+      encoding: "utf8",
+      windowsHide: true,
+    });
+
+    if (result.status !== 0) {
+      throw new Error(
+        result.stderr ||
+          `git ${args.join(" ")} failed with ${result.status}`,
+      );
+    }
+
+    return result.stdout.trim();
+  };
+  const write = (relativePath: string, contents: string) => {
+    const absolutePath = path.join(directory, relativePath);
+    mkdirSync(path.dirname(absolutePath), { recursive: true });
+    writeFileSync(absolutePath, contents, "utf8");
+  };
+  const commit = (message: string) => {
+    tempGit(["add", "--all"]);
+    tempGit(["commit", "--quiet", "-m", message]);
+    return tempGit(["rev-parse", "HEAD"]);
+  };
+
+  try {
+    tempGit(["init", "--quiet", "--initial-branch=main"]);
+    tempGit(["config", "user.name", "Phase 4.6 Test"]);
+    tempGit(["config", "user.email", "phase-4-6@example.invalid"]);
+    run({ directory, git: tempGit, write, commit });
+  } finally {
+    rmSync(directory, { force: true, recursive: true });
+  }
+}
+
+function createConformanceLineage(repository: TempGitRepository) {
+  repository.write("lineage/root.txt", "root\n");
+  const commonRoot = repository.commit("common root");
+  repository.git(["branch", "base", commonRoot]);
+
+  repository.write("lineage/repair.txt", "repair\n");
+  const repair = repository.commit("repair");
+
+  for (const relativePath of conformanceAllowedPaths) {
+    repository.write(relativePath, `conformance:${relativePath}\n`);
+  }
+  const conformance = repository.commit("conformance");
+  repository.git(["branch", "pull-request", conformance]);
+
+  return { commonRoot, repair, conformance };
+}
+
+function createPullRequestRepair(repository: TempGitRepository) {
+  repository.git(["checkout", "--quiet", "pull-request"]);
+  repository.write(targetTestPath, "phase-4-6 repair\n");
+  return repository.commit("phase 4.6 repair");
+}
+
+function createBaseChange(repository: TempGitRepository) {
+  repository.git(["checkout", "--quiet", "base"]);
+  repository.write("docs/base-only-change.md", "base only\n");
+  return repository.commit("base only change");
+}
+
+function createMerge(
+  repository: TempGitRepository,
+  currentBranch: string,
+  mergedBranch: string,
+) {
+  repository.git(["checkout", "--quiet", currentBranch]);
+  repository.git([
+    "merge",
+    "--quiet",
+    "--no-ff",
+    "-m",
+    `merge ${mergedBranch}`,
+    mergedBranch,
+  ]);
+  return repository.git(["rev-parse", "HEAD"]);
+}
+
 function sortedUnique(values: readonly string[]) {
   return [...new Set(values)].sort();
 }
@@ -343,26 +768,397 @@ function tokenRequestBody(source: string) {
 
 function currentConformanceScope() {
   const head = git(["rev-parse", "HEAD"]);
-
-  if (head === repairCommit) {
-    return git(["status", "--porcelain"])
-      .split(/\r?\n/)
-      .filter(Boolean)
-      .map((line) => line.slice(3).replaceAll("\\", "/"))
-      .sort();
-  }
-
-  expect(git(["rev-parse", `${head}^`])).toBe(repairCommit);
-  return git(["diff", "--name-only", repairCommit, head])
-    .split(/\r?\n/)
-    .filter(Boolean)
-    .sort();
+  return resolveConformanceScope(
+    git,
+    head,
+    phase4ConformanceCommit,
+    repairCommit,
+  ).scopePaths;
 }
+
+describe(
+  "phase-4-6-pr-merge-conformance-resolution.v1",
+  { timeout: 30_000 },
+  () => {
+  it("uses the fixed Phase 4.4 target test blob after the current test changes", () => {
+    const historicalTarget = readHistoricalConformanceArtifact(
+      runGit,
+      phase4ConformanceCommit,
+      targetTestPath,
+      historicalTargetTestBlob,
+      historicalTargetTestFingerprint,
+    );
+
+    expect(historicalTarget.blob).toBe(historicalTargetTestBlob);
+    expect(sha256Text(historicalTarget.text)).toBe(
+      historicalTargetTestFingerprint,
+    );
+    expect(sha256Text(readUtf8(targetTestPath))).not.toBe(
+      historicalTargetTestFingerprint,
+    );
+  });
+
+  it("fails closed when the fixed historical commit or path is missing", () => {
+    expect(() =>
+      readHistoricalConformanceArtifact(
+        runGit,
+        "0000000000000000000000000000000000000000",
+        targetTestPath,
+        historicalTargetTestBlob,
+      ),
+    ).toThrow("historical_conformance_commit_missing");
+    expect(() =>
+      readHistoricalConformanceArtifact(
+        runGit,
+        phase4ConformanceCommit,
+        "missing/historical-artifact.json",
+        historicalTargetTestBlob,
+      ),
+    ).toThrow(
+      "historical_conformance_artifact_missing:missing/historical-artifact.json",
+    );
+    expect(() =>
+      readHistoricalConformanceArtifact(
+        runGit,
+        phase4ConformanceCommit,
+        targetTestPath,
+        "0000000000000000000000000000000000000000",
+      ),
+    ).toThrow(
+      `historical_conformance_blob_mismatch:${targetTestPath}`,
+    );
+    expect(() =>
+      readHistoricalConformanceArtifact(
+        runGit,
+        phase4ConformanceCommit,
+        targetTestPath,
+        historicalTargetTestBlob,
+        "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      ),
+    ).toThrow(
+      `historical_conformance_fingerprint_mismatch:${targetTestPath}`,
+    );
+  });
+
+  it("resolves a direct conformance commit", () => {
+    withTempGitRepository((repository) => {
+      const lineage = createConformanceLineage(repository);
+      const result = resolveConformanceExecutionEndpoint(
+        repository.git,
+        lineage.conformance,
+        lineage.conformance,
+        lineage.repair,
+      );
+
+      expect(result).toEqual({
+        mode: "direct_conformance",
+        executionHead: lineage.conformance,
+        scopeEndpoint: lineage.conformance,
+        syntheticMergeCommit: null,
+        baseParent: null,
+        pullRequestParent: null,
+      });
+    });
+  });
+
+  it("resolves a linear Phase 4.6 descendant and its exact scope", () => {
+    withTempGitRepository((repository) => {
+      const lineage = createConformanceLineage(repository);
+      const repairHead = createPullRequestRepair(repository);
+      const result = resolveConformanceScope(
+        repository.git,
+        repairHead,
+        lineage.conformance,
+        lineage.repair,
+      );
+
+      expect(result.mode).toBe("linear_descendant");
+      expect(result.scopeEndpoint).toBe(repairHead);
+      expect(result.scopePaths).toEqual(
+        [...conformanceAllowedPaths].sort(),
+      );
+      expect(result.postConformancePaths).toEqual([targetTestPath]);
+    });
+  });
+
+  it("resolves a base-first synthetic pull request merge", () => {
+    withTempGitRepository((repository) => {
+      const lineage = createConformanceLineage(repository);
+      const pullRequestParent = createPullRequestRepair(repository);
+      const baseParent = createBaseChange(repository);
+      const head = createMerge(repository, "base", "pull-request");
+      const result = resolveConformanceExecutionEndpoint(
+        repository.git,
+        head,
+        lineage.conformance,
+        lineage.repair,
+      );
+
+      expect(result).toEqual({
+        mode: "synthetic_pull_request_merge",
+        executionHead: head,
+        scopeEndpoint: pullRequestParent,
+        syntheticMergeCommit: head,
+        baseParent,
+        pullRequestParent,
+      });
+    });
+  });
+
+  it("resolves a PR-first synthetic merge without parent-order assumptions", () => {
+    withTempGitRepository((repository) => {
+      const lineage = createConformanceLineage(repository);
+      const pullRequestParent = createPullRequestRepair(repository);
+      const baseParent = createBaseChange(repository);
+      const head = createMerge(repository, "pull-request", "base");
+      const result = resolveConformanceExecutionEndpoint(
+        repository.git,
+        head,
+        lineage.conformance,
+        lineage.repair,
+      );
+
+      expect(result).toEqual({
+        mode: "synthetic_pull_request_merge",
+        executionHead: head,
+        scopeEndpoint: pullRequestParent,
+        syntheticMergeCommit: head,
+        baseParent,
+        pullRequestParent,
+      });
+    });
+  });
+
+  it("rejects a synthetic merge with no conformance PR parent", () => {
+    withTempGitRepository((repository) => {
+      const lineage = createConformanceLineage(repository);
+      repository.git([
+        "checkout",
+        "--quiet",
+        "-b",
+        "left",
+        lineage.commonRoot,
+      ]);
+      repository.write("lineage/left.txt", "left\n");
+      repository.commit("left");
+      repository.git([
+        "checkout",
+        "--quiet",
+        "-b",
+        "right",
+        lineage.commonRoot,
+      ]);
+      repository.write("lineage/right.txt", "right\n");
+      repository.commit("right");
+      const head = createMerge(repository, "left", "right");
+
+      expect(() =>
+        resolveConformanceExecutionEndpoint(
+          repository.git,
+          head,
+          lineage.conformance,
+          lineage.repair,
+        ),
+      ).toThrow("conformance_pr_parent_missing");
+    });
+  });
+
+  it("rejects a synthetic merge with two conformance PR parents", () => {
+    withTempGitRepository((repository) => {
+      const lineage = createConformanceLineage(repository);
+      repository.git([
+        "checkout",
+        "--quiet",
+        "-b",
+        "left",
+        lineage.conformance,
+      ]);
+      repository.write("lineage/left.txt", "left\n");
+      repository.commit("left");
+      repository.git([
+        "checkout",
+        "--quiet",
+        "-b",
+        "right",
+        lineage.conformance,
+      ]);
+      repository.write("lineage/right.txt", "right\n");
+      repository.commit("right");
+      const head = createMerge(repository, "left", "right");
+
+      expect(() =>
+        resolveConformanceExecutionEndpoint(
+          repository.git,
+          head,
+          lineage.conformance,
+          lineage.repair,
+        ),
+      ).toThrow("conformance_pr_parent_ambiguous");
+    });
+  });
+
+  it("rejects a conformance commit whose parent is not the repair commit", () => {
+    withTempGitRepository((repository) => {
+      repository.write("lineage/repair.txt", "repair\n");
+      const repair = repository.commit("repair");
+      repository.write("lineage/unexpected.txt", "unexpected\n");
+      repository.commit("unexpected parent");
+      repository.write(targetTestPath, "conformance\n");
+      const conformance = repository.commit("conformance");
+
+      expect(() =>
+        resolveConformanceExecutionEndpoint(
+          repository.git,
+          conformance,
+          conformance,
+          repair,
+        ),
+      ).toThrow("conformance_commit_parent_mismatch");
+    });
+  });
+
+  it("rejects non-linear history between conformance and the PR parent", () => {
+    withTempGitRepository((repository) => {
+      const lineage = createConformanceLineage(repository);
+      repository.git([
+        "checkout",
+        "--quiet",
+        "-b",
+        "pr-left",
+        lineage.conformance,
+      ]);
+      repository.write(targetTestPath, "left repair\n");
+      repository.commit("left repair");
+      repository.git([
+        "checkout",
+        "--quiet",
+        "-b",
+        "pr-right",
+        lineage.conformance,
+      ]);
+      repository.write("lineage/right.txt", "right repair\n");
+      repository.commit("right repair");
+      createMerge(repository, "pr-left", "pr-right");
+      createBaseChange(repository);
+      const head = createMerge(repository, "base", "pr-left");
+
+      expect(() =>
+        resolveConformanceExecutionEndpoint(
+          repository.git,
+          head,
+          lineage.conformance,
+          lineage.repair,
+        ),
+      ).toThrow("conformance_history_non_linear");
+    });
+  });
+
+  it("rejects post-conformance scope drift outside the target test", () => {
+    withTempGitRepository((repository) => {
+      const lineage = createConformanceLineage(repository);
+      createPullRequestRepair(repository);
+      repository.write(
+        "src/infrastructure/github/production-drift.ts",
+        "production drift\n",
+      );
+      const head = repository.commit("out-of-scope drift");
+
+      expect(() =>
+        resolveConformanceScope(
+          repository.git,
+          head,
+          lineage.conformance,
+          lineage.repair,
+        ),
+      ).toThrow("post_conformance_scope_mismatch");
+    });
+  });
+
+  it("rejects an unsupported head and an incomplete conformance scope", () => {
+    withTempGitRepository((repository) => {
+      const lineage = createConformanceLineage(repository);
+      repository.git([
+        "checkout",
+        "--quiet",
+        "-b",
+        "unrelated",
+        lineage.commonRoot,
+      ]);
+      repository.write("lineage/unrelated.txt", "unrelated\n");
+      const unrelatedHead = repository.commit("unrelated");
+
+      expect(() =>
+        resolveConformanceExecutionEndpoint(
+          repository.git,
+          unrelatedHead,
+          lineage.conformance,
+          lineage.repair,
+        ),
+      ).toThrow("conformance_head_unsupported");
+
+      expect(() =>
+        resolveConformanceScope(
+          repository.git,
+          lineage.conformance,
+          lineage.conformance,
+          lineage.commonRoot,
+        ),
+      ).toThrow("conformance_commit_parent_mismatch");
+    });
+
+    withTempGitRepository((repository) => {
+      repository.write("lineage/repair.txt", "repair\n");
+      const repair = repository.commit("repair");
+      repository.write(targetTestPath, "conformance\n");
+      const conformance = repository.commit("conformance");
+
+      expect(() =>
+        resolveConformanceScope(
+          repository.git,
+          conformance,
+          conformance,
+          repair,
+        ),
+      ).toThrow("conformance_scope_mismatch");
+    });
+  });
+
+  it("excludes base-only changes from synthetic merge conformance scope", () => {
+    withTempGitRepository((repository) => {
+      const lineage = createConformanceLineage(repository);
+      const pullRequestParent = createPullRequestRepair(repository);
+      createBaseChange(repository);
+      const head = createMerge(repository, "base", "pull-request");
+      const result = resolveConformanceScope(
+        repository.git,
+        head,
+        lineage.conformance,
+        lineage.repair,
+      );
+
+      expect(result.scopeEndpoint).toBe(pullRequestParent);
+      expect(result.scopePaths).toEqual(
+        [...conformanceAllowedPaths].sort(),
+      );
+      expect(result.scopePaths).not.toContain(
+        "docs/base-only-change.md",
+      );
+    });
+  });
+  },
+);
 
 describe("phase-4-4-remote-ci-conformance.v1", () => {
   it("archives the exposed Phase 4.2 development run without rewriting history", () => {
+    const attemptText = readHistoricalConformanceArtifact(
+      runGit,
+      phase4ConformanceCommit,
+      attemptStatusPath,
+      attemptStatusBlob,
+      attemptStatusFingerprint,
+    ).text;
     const attempt = attemptStatusSchema.parse(
-      JSON.parse(readUtf8(attemptStatusPath)),
+      JSON.parse(attemptText),
     );
 
     expect(attempt.technical_findings_resolved).toEqual([
@@ -378,10 +1174,33 @@ describe("phase-4-4-remote-ci-conformance.v1", () => {
   });
 
   it("validates the freeze and manifest without self-referential fingerprints", () => {
-    const freezeText = readUtf8(freezePayloadPath);
-    const manifestText = readUtf8(manifestPath);
-    const attemptText = readUtf8(attemptStatusPath);
-    const targetTestText = readUtf8(targetTestPath);
+    const freezeText = readHistoricalConformanceArtifact(
+      runGit,
+      phase4ConformanceCommit,
+      freezePayloadPath,
+      freezePayloadBlob,
+      freezePayloadFingerprint,
+    ).text;
+    const manifestText = readHistoricalConformanceArtifact(
+      runGit,
+      phase4ConformanceCommit,
+      manifestPath,
+      manifestBlob,
+    ).text;
+    const attemptText = readHistoricalConformanceArtifact(
+      runGit,
+      phase4ConformanceCommit,
+      attemptStatusPath,
+      attemptStatusBlob,
+      attemptStatusFingerprint,
+    ).text;
+    const targetTestText = readHistoricalConformanceArtifact(
+      runGit,
+      phase4ConformanceCommit,
+      targetTestPath,
+      historicalTargetTestBlob,
+      historicalTargetTestFingerprint,
+    ).text;
     const freeze = freezePayloadSchema.parse(JSON.parse(freezeText));
     const manifest = manifestSchema.parse(JSON.parse(manifestText));
 
@@ -399,8 +1218,15 @@ describe("phase-4-4-remote-ci-conformance.v1", () => {
   });
 
   it("binds every Phase 4 and Phase 4.2 historical fact to fixed Git blobs", () => {
+    const freezeText = readHistoricalConformanceArtifact(
+      runGit,
+      phase4ConformanceCommit,
+      freezePayloadPath,
+      freezePayloadBlob,
+      freezePayloadFingerprint,
+    ).text;
     const freeze = freezePayloadSchema.parse(
-      JSON.parse(readUtf8(freezePayloadPath)),
+      JSON.parse(freezeText),
     );
     const bindings = [
       [baseFixturePath, baseFixtureBlob],
@@ -418,6 +1244,12 @@ describe("phase-4-4-remote-ci-conformance.v1", () => {
     expect(git(["show", "-s", "--format=%T", repairCommit])).toBe(
       repairTree,
     );
+    expect(git(["rev-parse", `${phase4ConformanceCommit}^`])).toBe(
+      repairCommit,
+    );
+    expect(
+      git(["show", "-s", "--format=%T", phase4ConformanceCommit]),
+    ).toBe(phase4ConformanceTree);
 
     for (const [artifactPath, expectedBlob] of bindings) {
       expect(gitBlob(repairCommit, artifactPath)).toBe(expectedBlob);
@@ -436,8 +1268,15 @@ describe("phase-4-4-remote-ci-conformance.v1", () => {
   });
 
   it("freezes exact HTTP statuses, minimal permissions, and three endpoints", () => {
+    const freezeText = readHistoricalConformanceArtifact(
+      runGit,
+      phase4ConformanceCommit,
+      freezePayloadPath,
+      freezePayloadBlob,
+      freezePayloadFingerprint,
+    ).text;
     const freeze = freezePayloadSchema.parse(
-      JSON.parse(readUtf8(freezePayloadPath)),
+      JSON.parse(freezeText),
     );
     const tokenSource = gitText(repairCommit, tokenClientPath);
     const repositorySource = gitText(repairCommit, repositoryReaderPath);
@@ -469,8 +1308,15 @@ describe("phase-4-4-remote-ci-conformance.v1", () => {
   });
 
   it("derives and reconciles all 24 failure codes without fuzzy matching", () => {
+    const freezeText = readHistoricalConformanceArtifact(
+      runGit,
+      phase4ConformanceCommit,
+      freezePayloadPath,
+      freezePayloadBlob,
+      freezePayloadFingerprint,
+    ).text;
     const freeze = freezePayloadSchema.parse(
-      JSON.parse(readUtf8(freezePayloadPath)),
+      JSON.parse(freezeText),
     );
     const baseCodes = fixtureFailureCodes(
       gitText(repairCommit, baseFixturePath),
@@ -503,11 +1349,24 @@ describe("phase-4-4-remote-ci-conformance.v1", () => {
   });
 
   it("keeps repair, conformance, CI, and security scopes immutable", () => {
+    const freezeText = readHistoricalConformanceArtifact(
+      runGit,
+      phase4ConformanceCommit,
+      freezePayloadPath,
+      freezePayloadBlob,
+      freezePayloadFingerprint,
+    ).text;
+    const manifestText = readHistoricalConformanceArtifact(
+      runGit,
+      phase4ConformanceCommit,
+      manifestPath,
+      manifestBlob,
+    ).text;
     const freeze = freezePayloadSchema.parse(
-      JSON.parse(readUtf8(freezePayloadPath)),
+      JSON.parse(freezeText),
     );
     const manifest = manifestSchema.parse(
-      JSON.parse(readUtf8(manifestPath)),
+      JSON.parse(manifestText),
     );
     const repairChangedPaths = git([
       "diff",
