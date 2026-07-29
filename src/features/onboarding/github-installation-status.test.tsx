@@ -31,6 +31,8 @@ describe("GitHub App installation status UI", () => {
     expect(
       screen.getByRole("button", { name: "加载已授权仓库" }),
     ).toBeInTheDocument();
+    expect(screen.getByText("unknown", { exact: true })).toBeInTheDocument();
+    expect(screen.getByText("pending", { exact: true })).toBeInTheDocument();
     expect(screen.getAllByText("none", { exact: true })).toHaveLength(2);
     expect(
       screen.getByText("GitHub App Installation 已连接"),
@@ -55,6 +57,7 @@ describe("GitHub App installation status UI", () => {
       "/api/github/installations/start?returnTo=%2Fonboarding",
     );
     expect(screen.queryByText("仓库正在加载")).not.toBeInTheDocument();
+    expect(screen.getByText("已选择仓库正在恢复")).toBeInTheDocument();
   });
 
   it.each([
