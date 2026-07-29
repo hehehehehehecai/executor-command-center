@@ -24,6 +24,14 @@ const phase4ConformanceCommit =
   "8e2a95b883861fd24ef84be269c9f6ee2e12f42d";
 const phase4ConformanceTree =
   "6d9541fab95a166d5244cd54eecd11672d87cc08";
+const phase4FinalConformanceCommit =
+  "3f2a0d72c286ac09b26068bdefa9a6b8dd601e7d";
+const phase4IntegrationBaseCommit =
+  "d5ef16bbcecb5d267d051bbcf5e04c4060d07566";
+const phase4IntegrationMergeCommit =
+  "01abfef14effbfd7e61aa370b254ad34d4182134";
+const integratedConformanceContract =
+  "phase-5-2-integrated-conformance-descendant.v1";
 
 const baseFixturePath =
   "tests/fixtures/github-repository/phase-4-fixtures.json";
@@ -294,16 +302,25 @@ function gitBlob(commit: string, relativePath: string) {
 
 type GitCommand = (args: string[]) => string;
 
+type ConformanceIntegrationBoundary = {
+  finalConformanceCommit: string;
+  integrationBaseCommit: string;
+  integrationMergeCommit: string;
+};
+
 type ConformanceExecutionEndpoint = {
   mode:
     | "direct_conformance"
     | "linear_descendant"
-    | "synthetic_pull_request_merge";
+    | "synthetic_pull_request_merge"
+    | "integrated_conformance_descendant";
   executionHead: string;
   scopeEndpoint: string;
   syntheticMergeCommit: string | null;
   baseParent: string | null;
   pullRequestParent: string | null;
+  integrationMergeCommit?: string;
+  finalConformanceCommit?: string;
 };
 
 type ConformanceScope = ConformanceExecutionEndpoint & {
@@ -367,8 +384,77 @@ function readHistoricalConformanceArtifact(
 }
 
 function commitParents(gitCommand: GitCommand, commit: string) {
-  const line = gitCommand(["rev-list", "--parents", "-n", "1", commit]);
+  const line = gitCommand([
+    "rev-list",
+    "--parents",
+    "-n",
+    "1",
+    commit,
+  ]).trim();
   return line.split(/\s+/).slice(1);
+}
+
+function assertConformanceIntegrationBoundary(
+  gitCommand: GitCommand,
+  conformanceCommit: string,
+  boundary: ConformanceIntegrationBoundary,
+) {
+  try {
+    gitCommand([
+      "rev-parse",
+      "--verify",
+      `${boundary.finalConformanceCommit}^{commit}`,
+    ]);
+  } catch {
+    throw new ConformanceContractError(
+      "conformance_final_commit_missing",
+    );
+  }
+
+  const finalParents = commitParents(
+    gitCommand,
+    boundary.finalConformanceCommit,
+  );
+
+  if (
+    finalParents.length !== 1 ||
+    finalParents[0] !== conformanceCommit
+  ) {
+    throw new ConformanceContractError(
+      "conformance_final_commit_parent_mismatch",
+    );
+  }
+
+  try {
+    gitCommand([
+      "rev-parse",
+      "--verify",
+      `${boundary.integrationMergeCommit}^{commit}`,
+    ]);
+  } catch {
+    throw new ConformanceContractError(
+      "conformance_integration_commit_missing",
+    );
+  }
+
+  const integrationParents = commitParents(
+    gitCommand,
+    boundary.integrationMergeCommit,
+  );
+  const expectedParents = new Set([
+    boundary.integrationBaseCommit,
+    boundary.finalConformanceCommit,
+  ]);
+
+  if (
+    integrationParents.length !== 2 ||
+    new Set(integrationParents).size !== 2 ||
+    integrationParents.some((parent) => !expectedParents.has(parent))
+  ) {
+    throw new ConformanceContractError(
+      "conformance_integration_parent_mismatch",
+    );
+  }
 }
 
 function isAncestor(
@@ -446,6 +532,7 @@ function resolveConformanceExecutionEndpoint(
   head: string,
   conformanceCommit: string,
   expectedRepairCommit: string,
+  integrationBoundary?: ConformanceIntegrationBoundary,
 ): ConformanceExecutionEndpoint {
   try {
     gitCommand([
@@ -471,6 +558,36 @@ function resolveConformanceExecutionEndpoint(
     throw new ConformanceContractError(
       "conformance_commit_parent_mismatch",
     );
+  }
+
+  if (integrationBoundary) {
+    assertConformanceIntegrationBoundary(
+      gitCommand,
+      conformanceCommit,
+      integrationBoundary,
+    );
+
+    if (
+      isAncestor(
+        gitCommand,
+        integrationBoundary.integrationMergeCommit,
+        head,
+      )
+    ) {
+      return {
+        mode: "integrated_conformance_descendant",
+        executionHead: head,
+        scopeEndpoint:
+          integrationBoundary.finalConformanceCommit,
+        syntheticMergeCommit: null,
+        baseParent: null,
+        pullRequestParent: null,
+        integrationMergeCommit:
+          integrationBoundary.integrationMergeCommit,
+        finalConformanceCommit:
+          integrationBoundary.finalConformanceCommit,
+      };
+    }
   }
 
   if (head === conformanceCommit) {
@@ -558,12 +675,14 @@ function resolveConformanceScope(
   head: string,
   conformanceCommit: string,
   expectedRepairCommit: string,
+  integrationBoundary?: ConformanceIntegrationBoundary,
 ): ConformanceScope {
   const endpoint = resolveConformanceExecutionEndpoint(
     gitCommand,
     head,
     conformanceCommit,
     expectedRepairCommit,
+    integrationBoundary,
   );
   const scopePaths = changedPaths(
     gitCommand,
@@ -692,6 +811,31 @@ function createMerge(
   return repository.git(["rev-parse", "HEAD"]);
 }
 
+function createIntegratedConformanceLineage(
+  repository: TempGitRepository,
+  parentOrder: "base-first" | "final-first" = "base-first",
+) {
+  const lineage = createConformanceLineage(repository);
+  const finalConformance = createPullRequestRepair(repository);
+  const integrationBase = createBaseChange(repository);
+  const integrationMerge =
+    parentOrder === "base-first"
+      ? createMerge(repository, "base", "pull-request")
+      : createMerge(repository, "pull-request", "base");
+
+  return {
+    ...lineage,
+    finalConformance,
+    integrationBase,
+    integrationMerge,
+    boundary: {
+      finalConformanceCommit: finalConformance,
+      integrationBaseCommit: integrationBase,
+      integrationMergeCommit: integrationMerge,
+    },
+  };
+}
+
 function sortedUnique(values: readonly string[]) {
   return [...new Set(values)].sort();
 }
@@ -773,6 +917,11 @@ function currentConformanceScope() {
     head,
     phase4ConformanceCommit,
     repairCommit,
+    {
+      finalConformanceCommit: phase4FinalConformanceCommit,
+      integrationBaseCommit: phase4IntegrationBaseCommit,
+      integrationMergeCommit: phase4IntegrationMergeCommit,
+    },
   ).scopePaths;
 }
 
@@ -1143,6 +1292,499 @@ describe(
       expect(result.scopePaths).not.toContain(
         "docs/base-only-change.md",
       );
+    });
+  });
+
+  describe(integratedConformanceContract, () => {
+    it("resolves the current Phase 5 commit as an integrated conformance descendant", () => {
+      const result = resolveConformanceScope(
+        git,
+        git(["rev-parse", "HEAD"]),
+        phase4ConformanceCommit,
+        repairCommit,
+        {
+          finalConformanceCommit: phase4FinalConformanceCommit,
+          integrationBaseCommit: phase4IntegrationBaseCommit,
+          integrationMergeCommit: phase4IntegrationMergeCommit,
+        },
+      );
+
+      expect(result).toMatchObject({
+        mode: "integrated_conformance_descendant",
+        executionHead: git(["rev-parse", "HEAD"]),
+        scopeEndpoint: phase4FinalConformanceCommit,
+        integrationMergeCommit: phase4IntegrationMergeCommit,
+        finalConformanceCommit: phase4FinalConformanceCommit,
+      });
+      expect(result.scopePaths).toEqual(
+        [...conformanceAllowedPaths].sort(),
+      );
+      expect(result.postConformancePaths).toEqual([targetTestPath]);
+    });
+
+    it("keeps repair and later ordinary commits outside the integrated historical scope", () => {
+      withTempGitRepository((repository) => {
+        const lineage = createIntegratedConformanceLineage(repository);
+        repository.write("phase-5/feature.txt", "phase 5\n");
+        repository.commit("phase 5");
+        repository.write(targetTestPath, "phase 5.2 repair\n");
+        const repairHead = repository.commit("phase 5.2 repair");
+        repository.write("phase-5/later.txt", "later\n");
+        const laterHead = repository.commit("later");
+
+        for (const head of [repairHead, laterHead]) {
+          const result = resolveConformanceScope(
+            repository.git,
+            head,
+            lineage.conformance,
+            lineage.repair,
+            lineage.boundary,
+          );
+
+          expect(result.mode).toBe(
+            "integrated_conformance_descendant",
+          );
+          expect(result.scopeEndpoint).toBe(
+            lineage.finalConformance,
+          );
+          expect(result.scopePaths).not.toContain(
+            "phase-5/feature.txt",
+          );
+          expect(result.scopePaths).not.toContain(
+            "phase-5/later.txt",
+          );
+          expect(result.scopePaths).not.toContain(
+            "docs/base-only-change.md",
+          );
+        }
+      });
+    });
+
+    it("accepts the fixed integration parents in either order", () => {
+      for (const parentOrder of [
+        "base-first",
+        "final-first",
+      ] as const) {
+        withTempGitRepository((repository) => {
+          const lineage = createIntegratedConformanceLineage(
+            repository,
+            parentOrder,
+          );
+          const result = resolveConformanceExecutionEndpoint(
+            repository.git,
+            lineage.integrationMerge,
+            lineage.conformance,
+            lineage.repair,
+            lineage.boundary,
+          );
+
+          expect(result.mode).toBe(
+            "integrated_conformance_descendant",
+          );
+          expect(new Set(commitParents(
+            repository.git,
+            lineage.integrationMerge,
+          ))).toEqual(
+            new Set([
+              lineage.integrationBase,
+              lineage.finalConformance,
+            ]),
+          );
+        });
+      }
+    });
+
+    it("accepts future merges whose parents both inherit the integration boundary", () => {
+      withTempGitRepository((repository) => {
+        const lineage = createIntegratedConformanceLineage(repository);
+        repository.git([
+          "checkout",
+          "--quiet",
+          "-b",
+          "future-base",
+          lineage.integrationMerge,
+        ]);
+        repository.write("phase-5/base.txt", "future base\n");
+        repository.commit("future base");
+        repository.git([
+          "checkout",
+          "--quiet",
+          "-b",
+          "future-pr",
+          lineage.integrationMerge,
+        ]);
+        repository.write("phase-5/pr.txt", "future pr\n");
+        repository.commit("future pr");
+        const futureMerge = createMerge(
+          repository,
+          "future-base",
+          "future-pr",
+        );
+
+        const result = resolveConformanceScope(
+          repository.git,
+          futureMerge,
+          lineage.conformance,
+          lineage.repair,
+          lineage.boundary,
+        );
+
+        expect(result.mode).toBe(
+          "integrated_conformance_descendant",
+        );
+        expect(result.scopeEndpoint).toBe(
+          lineage.finalConformance,
+        );
+        expect(result.scopePaths).not.toContain("phase-5/base.txt");
+        expect(result.scopePaths).not.toContain("phase-5/pr.txt");
+      });
+    });
+
+    it("accepts a future synthetic merge when both candidate parents inherit integration", () => {
+      withTempGitRepository((repository) => {
+        const lineage = createIntegratedConformanceLineage(repository);
+        repository.git([
+          "checkout",
+          "--quiet",
+          "-b",
+          "synthetic-base",
+          lineage.integrationMerge,
+        ]);
+        repository.write("phase-5/base-next.txt", "base next\n");
+        repository.commit("base next");
+        repository.git([
+          "checkout",
+          "--quiet",
+          "-b",
+          "synthetic-pr",
+          lineage.integrationMerge,
+        ]);
+        repository.write("phase-5/pr-next.txt", "pr next\n");
+        repository.commit("pr next");
+        const syntheticHead = createMerge(
+          repository,
+          "synthetic-base",
+          "synthetic-pr",
+        );
+
+        const result = resolveConformanceExecutionEndpoint(
+          repository.git,
+          syntheticHead,
+          lineage.conformance,
+          lineage.repair,
+          lineage.boundary,
+        );
+
+        expect(result.mode).toBe(
+          "integrated_conformance_descendant",
+        );
+        expect(result.scopeEndpoint).toBe(
+          lineage.finalConformance,
+        );
+      });
+    });
+
+    it("rejects a missing or wrongly parented final conformance commit", () => {
+      withTempGitRepository((repository) => {
+        const lineage = createIntegratedConformanceLineage(repository);
+
+        expect(() =>
+          resolveConformanceExecutionEndpoint(
+            repository.git,
+            lineage.integrationMerge,
+            lineage.conformance,
+            lineage.repair,
+            {
+              ...lineage.boundary,
+              finalConformanceCommit:
+                "0000000000000000000000000000000000000000",
+            },
+          ),
+        ).toThrow("conformance_final_commit_missing");
+
+        repository.git([
+          "checkout",
+          "--quiet",
+          "-b",
+          "wrong-final",
+          lineage.repair,
+        ]);
+        repository.write(targetTestPath, "wrong final\n");
+        const wrongFinal = repository.commit("wrong final");
+
+        expect(() =>
+          resolveConformanceExecutionEndpoint(
+            repository.git,
+            lineage.integrationMerge,
+            lineage.conformance,
+            lineage.repair,
+            {
+              ...lineage.boundary,
+              finalConformanceCommit: wrongFinal,
+            },
+          ),
+        ).toThrow("conformance_final_commit_parent_mismatch");
+      });
+    });
+
+    it("rejects a missing integration commit and invalid integration parent counts", () => {
+      withTempGitRepository((repository) => {
+        const lineage = createIntegratedConformanceLineage(repository);
+
+        expect(() =>
+          resolveConformanceExecutionEndpoint(
+            repository.git,
+            lineage.integrationMerge,
+            lineage.conformance,
+            lineage.repair,
+            {
+              ...lineage.boundary,
+              integrationMergeCommit:
+                "0000000000000000000000000000000000000000",
+            },
+          ),
+        ).toThrow("conformance_integration_commit_missing");
+
+        expect(() =>
+          resolveConformanceExecutionEndpoint(
+            repository.git,
+            lineage.integrationMerge,
+            lineage.conformance,
+            lineage.repair,
+            {
+              ...lineage.boundary,
+              integrationMergeCommit: lineage.finalConformance,
+            },
+          ),
+        ).toThrow("conformance_integration_parent_mismatch");
+
+        repository.git([
+          "checkout",
+          "--quiet",
+          "-b",
+          "third-parent",
+          lineage.commonRoot,
+        ]);
+        repository.write("lineage/third.txt", "third\n");
+        repository.commit("third");
+        repository.git([
+          "merge",
+          "--quiet",
+          "--no-ff",
+          "-m",
+          "three parent integration",
+          "base",
+          "pull-request",
+        ]);
+        const threeParentMerge = repository.git([
+          "rev-parse",
+          "HEAD",
+        ]);
+
+        expect(() =>
+          resolveConformanceExecutionEndpoint(
+            repository.git,
+            threeParentMerge,
+            lineage.conformance,
+            lineage.repair,
+            {
+              ...lineage.boundary,
+              integrationMergeCommit: threeParentMerge,
+            },
+          ),
+        ).toThrow("conformance_integration_parent_mismatch");
+      });
+    });
+
+    it("rejects integration merges missing either fixed parent", () => {
+      withTempGitRepository((repository) => {
+        const lineage = createIntegratedConformanceLineage(repository);
+        repository.git([
+          "checkout",
+          "--quiet",
+          "-b",
+          "unrelated",
+          lineage.commonRoot,
+        ]);
+        repository.write("lineage/unrelated.txt", "unrelated\n");
+        repository.commit("unrelated");
+        const missingFinal = createMerge(
+          repository,
+          "base",
+          "unrelated",
+        );
+
+        expect(() =>
+          resolveConformanceExecutionEndpoint(
+            repository.git,
+            missingFinal,
+            lineage.conformance,
+            lineage.repair,
+            {
+              ...lineage.boundary,
+              integrationMergeCommit: missingFinal,
+            },
+          ),
+        ).toThrow("conformance_integration_parent_mismatch");
+
+        const missingBase = createMerge(
+          repository,
+          "pull-request",
+          "unrelated",
+        );
+
+        expect(() =>
+          resolveConformanceExecutionEndpoint(
+            repository.git,
+            missingBase,
+            lineage.conformance,
+            lineage.repair,
+            {
+              ...lineage.boundary,
+              integrationMergeCommit: missingBase,
+            },
+          ),
+        ).toThrow("conformance_integration_parent_mismatch");
+      });
+    });
+
+    it("does not enter integrated mode when the fixed integration commit is not an ancestor", () => {
+      withTempGitRepository((repository) => {
+        const lineage = createIntegratedConformanceLineage(repository);
+        const result = resolveConformanceExecutionEndpoint(
+          repository.git,
+          lineage.conformance,
+          lineage.conformance,
+          lineage.repair,
+          lineage.boundary,
+        );
+
+        expect(result.mode).toBe("direct_conformance");
+      });
+    });
+
+    it("still rejects pre-integration non-linear history when a valid integration boundary exists elsewhere", () => {
+      withTempGitRepository((repository) => {
+        const lineage = createIntegratedConformanceLineage(repository);
+        repository.git([
+          "checkout",
+          "--quiet",
+          "-b",
+          "pre-left",
+          lineage.conformance,
+        ]);
+        repository.write(targetTestPath, "pre-left\n");
+        repository.commit("pre-left");
+        repository.git([
+          "checkout",
+          "--quiet",
+          "-b",
+          "pre-right",
+          lineage.conformance,
+        ]);
+        repository.write("lineage/pre-right.txt", "pre-right\n");
+        repository.commit("pre-right");
+        createMerge(repository, "pre-left", "pre-right");
+        repository.git([
+          "checkout",
+          "--quiet",
+          "-b",
+          "pre-base",
+          lineage.commonRoot,
+        ]);
+        repository.write("lineage/pre-base.txt", "pre-base\n");
+        repository.commit("pre-base");
+        const preIntegrationHead = createMerge(
+          repository,
+          "pre-base",
+          "pre-left",
+        );
+
+        expect(() =>
+          resolveConformanceExecutionEndpoint(
+            repository.git,
+            preIntegrationHead,
+            lineage.conformance,
+            lineage.repair,
+            lineage.boundary,
+          ),
+        ).toThrow("conformance_history_non_linear");
+      });
+    });
+
+    it("does not accept a same-tree forged commit as the fixed integration merge", () => {
+      withTempGitRepository((repository) => {
+        const lineage = createIntegratedConformanceLineage(repository);
+        repository.git([
+          "checkout",
+          "--quiet",
+          "-b",
+          "forged",
+          lineage.integrationBase,
+        ]);
+        repository.git([
+          "merge",
+          "--quiet",
+          "--no-ff",
+          "-m",
+          "forged integration",
+          "pull-request",
+        ]);
+        const forged = repository.git(["rev-parse", "HEAD"]);
+
+        expect(forged).not.toBe(lineage.integrationMerge);
+        expect(repository.git(["rev-parse", `${forged}^{tree}`])).toBe(
+          repository.git([
+            "rev-parse",
+            `${lineage.integrationMerge}^{tree}`,
+          ]),
+        );
+
+        const result = resolveConformanceExecutionEndpoint(
+          repository.git,
+          forged,
+          lineage.conformance,
+          lineage.repair,
+          lineage.boundary,
+        );
+
+        expect(result.mode).not.toBe(
+          "integrated_conformance_descendant",
+        );
+      });
+    });
+
+    it("rejects extra paths in the final conformance scope", () => {
+      withTempGitRepository((repository) => {
+        const lineage = createConformanceLineage(repository);
+        repository.git(["checkout", "--quiet", "pull-request"]);
+        repository.write(targetTestPath, "phase-4-6 repair\n");
+        repository.write(
+          "src/infrastructure/github/out-of-scope.ts",
+          "out of scope\n",
+        );
+        const driftedFinal = repository.commit("final scope drift");
+        const integrationBase = createBaseChange(repository);
+        const integrationMerge = createMerge(
+          repository,
+          "base",
+          "pull-request",
+        );
+
+        expect(() =>
+          resolveConformanceScope(
+            repository.git,
+            integrationMerge,
+            lineage.conformance,
+            lineage.repair,
+            {
+              finalConformanceCommit: driftedFinal,
+              integrationBaseCommit: integrationBase,
+              integrationMergeCommit: integrationMerge,
+            },
+          ),
+        ).toThrow("post_conformance_scope_mismatch");
+      });
     });
   });
   },
