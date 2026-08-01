@@ -28,6 +28,7 @@
     "test:e2e:repository-fixture": "node scripts/run-repository-fixture-e2e.mjs",
     "test:e2e:repository-selection-fixture": "node scripts/run-repository-selection-fixture-e2e.mjs",
     "test:e2e:project-calibration-fixture": "node scripts/run-project-calibration-fixture-e2e.mjs",
+    "test:e2e:connected-onboarding-fixture": "node scripts/run-connected-onboarding-fixture-e2e.mjs",
     "test:e2e:preview": "node scripts/run-preview-e2e.mjs"
   },
   "dependencies": {

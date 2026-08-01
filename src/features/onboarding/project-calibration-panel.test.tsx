@@ -62,6 +62,9 @@ describe("ProjectCalibrationPanel", () => {
     }), { status: 200, headers: { "content-type": "application/json" } }));
 
     expect(await screen.findByRole("status")).toHaveTextContent("项目校准已保存");
+    expect(screen.getByTestId("project-stable-id")).toHaveTextContent(
+      "Project ID: 33333333-3333-4333-8333-333333333333",
+    );
     await waitFor(() => expect(screen.getByLabelText("核心目标")).toHaveValue(
       "Ship a trustworthy MVP",
     ));

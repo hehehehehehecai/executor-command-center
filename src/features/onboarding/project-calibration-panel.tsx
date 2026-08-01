@@ -206,6 +206,11 @@ export function ProjectCalibrationPanel() {
           </section>
           <section aria-label="项目校准" className="calibration-section">
             <h3>用户陈述</h3>
+            {selectedProject.calibration ? (
+              <p data-testid="project-stable-id">
+                Project ID: {selectedProject.calibration.id}
+              </p>
+            ) : null}
             <label>
               核心目标
               <textarea

@@ -282,7 +282,13 @@ function createFixtureServer() {
       request.method === "GET" &&
       requestUrl.pathname === "/rest/v1/selected_repositories"
     ) {
-      selectionReadCalls += 1;
+      if (
+        requestUrl.searchParams
+          .get("select")
+          ?.startsWith("github_repository_id,")
+      ) {
+        selectionReadCalls += 1;
+      }
       writeJson(response, 200, selectedRows.map(selectionProjection));
       return;
     }
