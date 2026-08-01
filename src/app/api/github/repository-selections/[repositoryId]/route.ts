@@ -24,7 +24,7 @@ export async function DELETE(
     },
     onFailure: (code, httpStatus) => {
       const record = {
-        contract_version: "github-repository-selection-failure.v1",
+        contract_version: "github-repository-selection-failure.v2",
         phase: "phase_5",
         failure_id: crypto.randomUUID(),
         request_id: crypto.randomUUID(),

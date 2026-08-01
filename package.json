@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --maxWorkers=1",
     "test:watch": "vitest",
     "env:check": "vitest run src/shared/configuration/environment-validation.ci.test.ts",
     "db:start": "supabase start",
@@ -27,6 +27,7 @@
     "test:e2e:installation-fixture": "node scripts/run-installation-fixture-e2e.mjs",
     "test:e2e:repository-fixture": "node scripts/run-repository-fixture-e2e.mjs",
     "test:e2e:repository-selection-fixture": "node scripts/run-repository-selection-fixture-e2e.mjs",
+    "test:e2e:project-calibration-fixture": "node scripts/run-project-calibration-fixture-e2e.mjs",
     "test:e2e:preview": "node scripts/run-preview-e2e.mjs"
   },
   "dependencies": {

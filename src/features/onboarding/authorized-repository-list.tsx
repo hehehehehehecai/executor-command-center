@@ -173,7 +173,7 @@ export function AuthorizedRepositoryList(input: {
     setDeselectionMutationStateByRepositoryId,
   ] = useState<ReadonlyMap<number, DeselectionMutationState>>(new Map());
   const [mutationError, setMutationError] = useState<
-    "selection" | "deselection" | null
+    "selection" | "deselection" | "deselection_conflict" | null
   >(null);
 
   const loadSelectedRepositories = useCallback(async () => {
@@ -310,6 +310,7 @@ export function AuthorizedRepositoryList(input: {
         next.delete(repositoryId);
         return next;
       });
+      window.dispatchEvent(new Event("selected-repositories-changed"));
     } catch {
       if (!mounted.current) return;
       setSelectionMutationStateByRepositoryId((current) => {
@@ -340,6 +341,9 @@ export function AuthorizedRepositoryList(input: {
           credentials: "same-origin",
         },
       );
+      if (response.status === 409) {
+        throw new Error("deselection_conflict");
+      }
       if (response.status !== 204 || (await response.text()) !== "") {
         throw new Error("deselection_failed");
       }
@@ -359,14 +363,19 @@ export function AuthorizedRepositoryList(input: {
         next.delete(repositoryId);
         return next;
       });
-    } catch {
+      window.dispatchEvent(new Event("selected-repositories-changed"));
+    } catch (error) {
       if (!mounted.current) return;
       setDeselectionMutationStateByRepositoryId((current) => {
         const next = new Map(current);
         next.set(repositoryId, "failed");
         return next;
       });
-      setMutationError("deselection");
+      setMutationError(
+        error instanceof Error && error.message === "deselection_conflict"
+          ? "deselection_conflict"
+          : "deselection",
+      );
     }
   };
 
@@ -490,6 +499,9 @@ export function AuthorizedRepositoryList(input: {
       ) : null}
       {mutationError === "deselection" ? (
         <p role="alert">取消仓库选择失败，请稍后重试。</p>
+      ) : null}
+      {mutationError === "deselection_conflict" ? (
+        <p role="alert">存在有效项目，无法取消选择。</p>
       ) : null}
 
       <section aria-label="已授权仓库">

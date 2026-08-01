@@ -44,8 +44,15 @@ export const githubRepositorySelectionPublicFailureCodes = [
   "github_repository_deselection_failed",
 ] as const;
 
+export const githubRepositorySelectionPhase6FailureContract =
+  "github-repository-selection-failure.v2" as const;
+export const githubRepositorySelectionPhase6PublicFailureCodes = [
+  ...githubRepositorySelectionPublicFailureCodes,
+  "github_repository_selection_active_project_conflict",
+] as const;
+
 const publicFailureCodes = new Set<string>(
-  githubRepositorySelectionPublicFailureCodes,
+  githubRepositorySelectionPhase6PublicFailureCodes,
 );
 
 const rateLimitCodes = new Set([
@@ -78,7 +85,8 @@ function statusForFailure(code: string): number {
     code === "github_installation_not_registered" ||
     code === "github_installation_suspended" ||
     code === "github_installation_revoked" ||
-    code === "github_repository_not_authorized"
+    code === "github_repository_not_authorized" ||
+    code === "github_repository_selection_active_project_conflict"
   ) {
     return 409;
   }

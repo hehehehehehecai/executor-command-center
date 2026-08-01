@@ -92,6 +92,28 @@ describe("DeselectSelectedGitHubRepository", () => {
       }).execute({ repositoryId: 9_600_001 }),
     ).rejects.toThrow("github_repository_deselection_failed");
   });
+
+  it("preserves the active project conflict without exposing database detail", async () => {
+    const writer = {
+      ensureSelected: vi.fn(),
+      removeSelection: vi
+        .fn()
+        .mockRejectedValue(
+          new Error("github_repository_selection_active_project_conflict"),
+        ),
+    };
+
+    await expect(
+      new DeselectSelectedGitHubRepository({
+        sessionReader: {
+          getVerifiedUserId: vi.fn().mockResolvedValue(userId),
+        },
+        writer,
+      }).execute({ repositoryId: 9_600_001 }),
+    ).rejects.toThrow(
+      "github_repository_selection_active_project_conflict",
+    );
+  });
 });
 
 describe("ListSelectedGitHubRepositories", () => {

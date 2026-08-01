@@ -3,6 +3,8 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   githubRepositorySelectionFailureContract,
+  githubRepositorySelectionPhase6FailureContract,
+  githubRepositorySelectionPhase6PublicFailureCodes,
   githubRepositorySelectionHttpContract,
   handleRepositoryDeselection,
   handleRepositorySelection,
@@ -262,6 +264,7 @@ describe("github-repository-selection-http.v1", () => {
     ["github_installation_suspended", 409],
     ["github_installation_revoked", 409],
     ["github_repository_not_authorized", 409],
+    ["github_repository_selection_active_project_conflict", 409],
     ["github_installation_token_rate_limited", 429],
     ["github_repository_list_rate_limited", 429],
     ["github_installation_token_timeout", 504],
@@ -351,6 +354,12 @@ describe("github-repository-selection-http.v1", () => {
   it("freezes the failure contract without hardcoding sensitive scans", () => {
     expect(githubRepositorySelectionFailureContract).toBe(
       "github-repository-selection-failure.v1",
+    );
+    expect(githubRepositorySelectionPhase6FailureContract).toBe(
+      "github-repository-selection-failure.v2",
+    );
+    expect(githubRepositorySelectionPhase6PublicFailureCodes).toContain(
+      "github_repository_selection_active_project_conflict",
     );
   });
 });

@@ -198,4 +198,20 @@ describe("SupabaseSelectedRepositoryWriter", () => {
       }),
     ).rejects.toThrow("github_repository_selection_storage_failed");
   });
+
+  it("preserves the explicit active project deselection conflict", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      Response.json(
+        { message: "github_repository_selection_active_project_conflict" },
+        { status: 400 },
+      ),
+    );
+
+    await expect(
+      createWriter(fetcher).removeSelection({
+        userId,
+        repositoryId: 960001,
+      }),
+    ).rejects.toThrow("github_repository_selection_active_project_conflict");
+  });
 });

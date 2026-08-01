@@ -33,6 +33,16 @@ export class DeselectSelectedGitHubRepository {
         repositoryId: input.repositoryId,
       });
     } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message ===
+          "github_repository_selection_active_project_conflict"
+      ) {
+        throw new Error(
+          "github_repository_selection_active_project_conflict",
+          { cause: error },
+        );
+      }
       throw new Error("github_repository_deselection_failed", {
         cause: error,
       });

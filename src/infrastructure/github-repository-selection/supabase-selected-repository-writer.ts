@@ -41,6 +41,7 @@ const allowedDatabaseFailures = new Set([
   "github_repository_selection_installation_not_active",
   "github_repository_selection_installation_mismatch",
   "github_repository_selection_storage_failed",
+  "github_repository_selection_active_project_conflict",
 ]);
 
 function responseMessage(value: unknown): string | null {
@@ -179,6 +180,18 @@ export class SupabaseSelectedRepositoryWriter
     );
 
     if (!response.ok) {
+      let payload: unknown;
+      try {
+        payload = await response.json();
+      } catch (error) {
+        throw storageFailure(error);
+      }
+      const message = responseMessage(payload);
+      if (
+        message === "github_repository_selection_active_project_conflict"
+      ) {
+        throw new Error(message);
+      }
       throw storageFailure();
     }
   }

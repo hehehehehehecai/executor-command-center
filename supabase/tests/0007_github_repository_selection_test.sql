@@ -10,7 +10,11 @@ select has_table(
   'selected_repositories table exists'
 );
 
-select hasnt_table('public', 'projects', 'projects table remains absent');
+select has_table(
+  'public',
+  'projects',
+  'Phase 6 projects table coexists without changing selected repository facts'
+);
 select hasnt_table(
   'public',
   'project_profiles',

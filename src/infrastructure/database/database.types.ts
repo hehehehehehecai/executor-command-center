@@ -38,7 +38,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      utf16_code_units: { Args: { value: string }; Returns: number }
     }
     Enums: {
       [_ in never]: never
@@ -174,6 +174,57 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "github_installations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          core_goal: string
+          created_at: string
+          current_blocker: string | null
+          current_stage_goal: string
+          id: string
+          selected_repository_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          core_goal: string
+          created_at?: string
+          current_blocker?: string | null
+          current_stage_goal: string
+          id?: string
+          selected_repository_id: string
+          status: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          core_goal?: string
+          created_at?: string
+          current_blocker?: string | null
+          current_stage_goal?: string
+          id?: string
+          selected_repository_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_selected_repository_id_fkey"
+            columns: ["selected_repository_id"]
+            isOneToOne: false
+            referencedRelation: "selected_repositories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -355,6 +406,17 @@ export type Database = {
       remove_selected_github_repository: {
         Args: { p_github_repository_id: number; p_user_id: string }
         Returns: undefined
+      }
+      save_project_calibration: {
+        Args: {
+          p_core_goal: string
+          p_current_blocker: string
+          p_current_stage_goal: string
+          p_selected_repository_id: string
+          p_status: string
+          p_user_id: string
+        }
+        Returns: Json
       }
     }
     Enums: {

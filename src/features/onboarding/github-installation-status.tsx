@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { AuthorizedRepositoryList } from "./authorized-repository-list";
+import { ProjectCalibrationPanel } from "./project-calibration-panel";
 
 export type GitHubInstallationUiStatus =
   | "not_registered"
@@ -42,9 +43,12 @@ export function GitHubInstallationStatus(input: {
       </dl>
       <p>{statusMessage[input.installationStatus]}</p>
       {input.authenticated ? (
-        <AuthorizedRepositoryList
-          installationStatus={input.installationStatus}
-        />
+        <>
+          <AuthorizedRepositoryList
+            installationStatus={input.installationStatus}
+          />
+          <ProjectCalibrationPanel />
+        </>
       ) : (
         <dl className="auth-state-list">
           <div>
