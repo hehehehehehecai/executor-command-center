@@ -332,10 +332,10 @@ function createFixtureServer() {
       return;
     }
 
-    if (request.method === "GET" && requestUrl.pathname === "/rest/v1/github_identities") {
-      const userId = queryUuid(requestUrl, "user_id");
-      const identity = userId ? identities.get(userId) : null;
-      writeJson(response, 200, identity ? [{ github_user_id: identity.github_user_id }] : []);
+    if (request.method === "POST" && requestUrl.pathname === "/rest/v1/rpc/read_current_github_identity") {
+      const body = JSON.parse(await readBody(request));
+      const identity = identities.get(body.p_user_id);
+      writeJson(response, 200, identity?.github_user_id ?? null);
       return;
     }
 
