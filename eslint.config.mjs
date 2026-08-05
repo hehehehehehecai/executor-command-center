@@ -47,6 +47,30 @@ export default defineConfig([
     },
   },
   {
+    files: ["src/application/**/*.{ts,tsx,js,jsx,mts,cts}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: ["inngest", "next", "supabase", "@supabase/supabase-js"].map(
+            (name) => ({
+              name,
+              message:
+                "Application modules own provider-neutral ports and cannot import framework or provider SDK types.",
+            }),
+          ),
+          patterns: [
+            {
+              group: ["inngest/*", "next/*", "@supabase/*"],
+              message:
+                "Application modules own provider-neutral ports and cannot import framework or provider SDK types.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ["src/features/**/*.{ts,tsx,js,jsx,mts,cts}"],
     rules: {
       "no-restricted-imports": [
