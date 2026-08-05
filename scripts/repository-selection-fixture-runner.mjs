@@ -267,6 +267,20 @@ function createFixtureServer() {
     }
 
     if (
+      request.method === "POST" &&
+      requestUrl.pathname ===
+        "/rest/v1/rpc/read_current_github_installation"
+    ) {
+      const body = JSON.parse(await readBody(request));
+      writeJson(
+        response,
+        200,
+        body.p_user_id === authUserId ? installationResponse("") : [],
+      );
+      return;
+    }
+
+    if (
       request.method === "GET" &&
       requestUrl.pathname === "/rest/v1/github_installations"
     ) {

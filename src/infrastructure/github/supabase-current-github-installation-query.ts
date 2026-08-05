@@ -34,22 +34,19 @@ export class SupabaseCurrentGitHubInstallationQuery
   async findByUserId(
     userId: string,
   ): Promise<CurrentGitHubInstallation | null> {
-    const query = new URLSearchParams({
-      select: "installation_id,repository_selection,status",
-      user_id: `eq.${userId}`,
-      limit: "2",
-    });
     const url =
       `${this.options.supabaseUrl.replace(/\/+$/, "")}` +
-      `/rest/v1/github_installations?${query.toString()}`;
+      "/rest/v1/rpc/read_current_github_installation";
 
     try {
       const response = await this.fetcher(url, {
-        method: "GET",
+        method: "POST",
         headers: {
           apikey: this.options.serviceRoleKey,
           authorization: `Bearer ${this.options.serviceRoleKey}`,
+          "content-type": "application/json",
         },
+        body: JSON.stringify({ p_user_id: userId }),
       });
 
       if (!response.ok) {

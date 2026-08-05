@@ -33,22 +33,38 @@ describe("Supabase current GitHub installation query", () => {
     });
 
     const [url, init] = fetcher.mock.calls[0]!;
-    const parsedUrl = new URL(String(url));
-    expect(parsedUrl.pathname).toBe("/rest/v1/github_installations");
-    expect(parsedUrl.searchParams.get("user_id")).toBe(
-      "eq.aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    expect(url).toBe(
+      "https://synthetic-project.supabase.co/rest/v1/rpc/read_current_github_installation",
     );
-    expect(parsedUrl.searchParams.get("select")).toBe(
-      "installation_id,repository_selection,status",
-    );
-    expect(parsedUrl.searchParams.get("limit")).toBe("2");
-    expect(init).toMatchObject({ method: "GET" });
-    expect(JSON.stringify(init)).not.toMatch(/body|POST|PATCH|DELETE/i);
+    expect(init).toMatchObject({
+      method: "POST",
+      headers: {
+        apikey: "synthetic-service-role",
+        authorization: "Bearer synthetic-service-role",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        p_user_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      }),
+    });
   });
 
-  it("returns null for no record and rejects duplicate/corrupt/cross-user results", async () => {
-    const responses = [
-      [],
+  it("returns null when the narrow RPC has no matching installation", async () => {
+    const query = new SupabaseCurrentGitHubInstallationQuery({
+      supabaseUrl: "https://synthetic-project.supabase.co",
+      serviceRoleKey: "synthetic-service-role",
+      fetcher: vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(new Response(JSON.stringify([]), { status: 200 })),
+    });
+
+    await expect(query.findByUserId("user-a")).resolves.toBeNull();
+  });
+
+  it.each([
+    ["non-array response", {}],
+    [
+      "multiple rows",
       [
         {
           installation_id: 81001,
@@ -61,6 +77,10 @@ describe("Supabase current GitHub installation query", () => {
           status: "active",
         },
       ],
+    ],
+    ["missing field", [{ installation_id: 81001, status: "active" }]],
+    [
+      "non-numeric installation id",
       [
         {
           installation_id: "forged",
@@ -68,27 +88,61 @@ describe("Supabase current GitHub installation query", () => {
           status: "active",
         },
       ],
-    ];
+    ],
+    [
+      "zero installation id",
+      [
+        {
+          installation_id: 0,
+          repository_selection: "selected",
+          status: "active",
+        },
+      ],
+    ],
+    [
+      "unsafe installation id",
+      [
+        {
+          installation_id: Number.MAX_SAFE_INTEGER + 1,
+          repository_selection: "selected",
+          status: "active",
+        },
+      ],
+    ],
+    [
+      "invalid repository selection",
+      [
+        {
+          installation_id: 81001,
+          repository_selection: "partial",
+          status: "active",
+        },
+      ],
+    ],
+    [
+      "invalid status",
+      [
+        {
+          installation_id: 81001,
+          repository_selection: "selected",
+          status: "unknown",
+        },
+      ],
+    ],
+  ])("rejects a %s from the narrow RPC", async (_case, payload) => {
+    const query = new SupabaseCurrentGitHubInstallationQuery({
+      supabaseUrl: "https://synthetic-project.supabase.co",
+      serviceRoleKey: "synthetic-service-role",
+      fetcher: vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(
+          new Response(JSON.stringify(payload), { status: 200 }),
+        ),
+    });
 
-    for (const payload of responses) {
-      const query = new SupabaseCurrentGitHubInstallationQuery({
-        supabaseUrl: "https://synthetic-project.supabase.co",
-        serviceRoleKey: "synthetic-service-role",
-        fetcher: vi
-          .fn<typeof fetch>()
-          .mockResolvedValue(
-            new Response(JSON.stringify(payload), { status: 200 }),
-          ),
-      });
-
-      if (payload.length === 0) {
-        await expect(query.findByUserId("user-a")).resolves.toBeNull();
-      } else {
-        await expect(query.findByUserId("user-a")).rejects.toThrow(
-          "github_installation_lookup_failed",
-        );
-      }
-    }
+    await expect(query.findByUserId("user-a")).rejects.toThrow(
+      "github_installation_lookup_failed",
+    );
   });
 
   it("maps HTTP and malformed JSON failures without exposing the body", async () => {

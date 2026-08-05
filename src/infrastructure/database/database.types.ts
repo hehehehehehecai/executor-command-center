@@ -393,6 +393,14 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: number
       }
+      read_current_github_installation: {
+        Args: { p_user_id: string }
+        Returns: {
+          installation_id: number
+          repository_selection: string
+          status: string
+        }[]
+      }
       register_verified_github_installation: {
         Args: {
           p_account_type: string
