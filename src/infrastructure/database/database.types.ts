@@ -401,6 +401,14 @@ export type Database = {
           status: string
         }[]
       }
+      read_current_github_selection_installation: {
+        Args: { p_user_id: string }
+        Returns: {
+          id: string
+          installation_id: number
+          status: string
+        }[]
+      }
       register_verified_github_installation: {
         Args: {
           p_account_type: string

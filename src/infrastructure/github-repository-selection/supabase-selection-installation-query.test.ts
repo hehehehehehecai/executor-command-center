@@ -12,7 +12,7 @@ function query(fetcher: typeof fetch) {
 }
 
 describe("SupabaseSelectionInstallationQuery", () => {
-  it("reads only internal UUID, external ID, and status for the server user", async () => {
+  it("posts only the server user id to the narrow selection installation RPC", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
       Response.json(
         [
@@ -35,18 +35,18 @@ describe("SupabaseSelectionInstallationQuery", () => {
 
     const [url, init] = fetcher.mock.calls[0]!;
     const parsed = new URL(String(url));
-    expect(parsed.pathname).toBe("/rest/v1/github_installations");
-    expect(parsed.searchParams.get("select")).toBe(
-      "id,installation_id,status",
+    expect(parsed.pathname).toBe(
+      "/rest/v1/rpc/read_current_github_selection_installation",
     );
-    expect(parsed.searchParams.get("user_id")).toBe(`eq.${userId}`);
-    expect(parsed.searchParams.get("limit")).toBe("2");
+    expect(parsed.search).toBe("");
     expect(init).toMatchObject({
-      method: "GET",
+      method: "POST",
       headers: {
         apikey: "fixture-service-role-key",
         authorization: "Bearer fixture-service-role-key",
+        "content-type": "application/json",
       },
+      body: JSON.stringify({ p_user_id: userId }),
     });
   });
 
@@ -64,6 +64,9 @@ describe("SupabaseSelectionInstallationQuery", () => {
       vi
         .fn<typeof fetch>()
         .mockResolvedValue(Response.json({}, { status: 500 })),
+      vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(Response.json({}, { status: 200 })),
       vi.fn<typeof fetch>().mockResolvedValue(
         Response.json(
           [
@@ -85,9 +88,46 @@ describe("SupabaseSelectionInstallationQuery", () => {
         Response.json(
           [
             {
+              id: "a5100000-0000-4000-8000-000000000001",
+              installation_id: 9_800_001,
+            },
+          ],
+          { status: 200 },
+        ),
+      ),
+      vi.fn<typeof fetch>().mockResolvedValue(
+        Response.json(
+          [
+            {
               id: "not-a-uuid",
               installation_id: 9_800_001,
               status: "active",
+            },
+          ],
+          { status: 200 },
+        ),
+      ),
+      ...[0, Number.MAX_SAFE_INTEGER + 1].map((installationId) =>
+        vi.fn<typeof fetch>().mockResolvedValue(
+          Response.json(
+            [
+              {
+                id: "a5100000-0000-4000-8000-000000000001",
+                installation_id: installationId,
+                status: "active",
+              },
+            ],
+            { status: 200 },
+          ),
+        ),
+      ),
+      vi.fn<typeof fetch>().mockResolvedValue(
+        Response.json(
+          [
+            {
+              id: "a5100000-0000-4000-8000-000000000001",
+              installation_id: 9_800_001,
+              status: "unknown",
             },
           ],
           { status: 200 },

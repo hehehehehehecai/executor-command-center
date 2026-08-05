@@ -382,6 +382,29 @@ function createFixtureServer() {
       return;
     }
 
+    if (
+      request.method === "POST" &&
+      requestUrl.pathname ===
+        "/rest/v1/rpc/read_current_github_selection_installation"
+    ) {
+      const body = JSON.parse(await readBody(request));
+      const record = installations.get(body.p_user_id);
+      writeJson(
+        response,
+        200,
+        record
+          ? [
+              {
+                id: record.id,
+                installation_id: record.installationId,
+                status: record.status,
+              },
+            ]
+          : [],
+      );
+      return;
+    }
+
     if (request.method === "GET" && requestUrl.pathname === "/rest/v1/github_installations") {
       const userId = queryUuid(requestUrl, "user_id") ?? bearerUserId(request);
       const record = userId ? installations.get(userId) : null;
