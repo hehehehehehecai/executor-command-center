@@ -49,6 +49,103 @@ export type Database = {
   }
   public: {
     Tables: {
+      github_commits: {
+        Row: {
+          author_login: string | null
+          authored_at: string | null
+          committed_at: string
+          created_at: string
+          github_object_id: string
+          id: string
+          message: string
+          project_id: string
+          source_updated_at: string
+          source_version: string
+          updated_at: string
+        }
+        Insert: {
+          author_login?: string | null
+          authored_at?: string | null
+          committed_at: string
+          created_at?: string
+          github_object_id: string
+          id?: string
+          message: string
+          project_id: string
+          source_updated_at: string
+          source_version: string
+          updated_at?: string
+        }
+        Update: {
+          author_login?: string | null
+          authored_at?: string | null
+          committed_at?: string
+          created_at?: string
+          github_object_id?: string
+          id?: string
+          message?: string
+          project_id?: string
+          source_updated_at?: string
+          source_version?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "github_commits_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      github_document_snapshots: {
+        Row: {
+          content_fingerprint: string
+          created_at: string
+          document_kind: string
+          document_path: string
+          github_object_id: string
+          id: string
+          project_id: string
+          source_updated_at: string
+          source_version: string
+          updated_at: string
+        }
+        Insert: {
+          content_fingerprint: string
+          created_at?: string
+          document_kind: string
+          document_path: string
+          github_object_id: string
+          id?: string
+          project_id: string
+          source_updated_at: string
+          source_version: string
+          updated_at?: string
+        }
+        Update: {
+          content_fingerprint?: string
+          created_at?: string
+          document_kind?: string
+          document_path?: string
+          github_object_id?: string
+          id?: string
+          project_id?: string
+          source_updated_at?: string
+          source_version?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "github_document_snapshots_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       github_identities: {
         Row: {
           avatar_url: string | null
@@ -177,6 +274,286 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      github_issues: {
+        Row: {
+          author_login: string | null
+          closed_at: string | null
+          created_at: string
+          github_object_id: string
+          id: string
+          issue_number: number
+          project_id: string
+          source_updated_at: string
+          source_version: string
+          state: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author_login?: string | null
+          closed_at?: string | null
+          created_at?: string
+          github_object_id: string
+          id?: string
+          issue_number: number
+          project_id: string
+          source_updated_at: string
+          source_version: string
+          state: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author_login?: string | null
+          closed_at?: string | null
+          created_at?: string
+          github_object_id?: string
+          id?: string
+          issue_number?: number
+          project_id?: string
+          source_updated_at?: string
+          source_version?: string
+          state?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "github_issues_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      github_pull_requests: {
+        Row: {
+          base_ref: string
+          created_at: string
+          github_object_id: string
+          head_sha: string
+          id: string
+          is_draft: boolean
+          merged_at: string | null
+          project_id: string
+          pull_request_number: number
+          source_updated_at: string
+          source_version: string
+          state: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          base_ref: string
+          created_at?: string
+          github_object_id: string
+          head_sha: string
+          id?: string
+          is_draft: boolean
+          merged_at?: string | null
+          project_id: string
+          pull_request_number: number
+          source_updated_at: string
+          source_version: string
+          state: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          base_ref?: string
+          created_at?: string
+          github_object_id?: string
+          head_sha?: string
+          id?: string
+          is_draft?: boolean
+          merged_at?: string | null
+          project_id?: string
+          pull_request_number?: number
+          source_updated_at?: string
+          source_version?: string
+          state?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "github_pull_requests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      github_releases: {
+        Row: {
+          created_at: string
+          github_object_id: string
+          id: string
+          is_draft: boolean
+          is_prerelease: boolean
+          name: string | null
+          project_id: string
+          published_at: string | null
+          source_updated_at: string
+          source_version: string
+          tag_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          github_object_id: string
+          id?: string
+          is_draft: boolean
+          is_prerelease: boolean
+          name?: string | null
+          project_id: string
+          published_at?: string | null
+          source_updated_at: string
+          source_version: string
+          tag_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          github_object_id?: string
+          id?: string
+          is_draft?: boolean
+          is_prerelease?: boolean
+          name?: string | null
+          project_id?: string
+          published_at?: string | null
+          source_updated_at?: string
+          source_version?: string
+          tag_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "github_releases_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      github_repository_snapshots: {
+        Row: {
+          created_at: string
+          default_branch: string
+          github_object_id: string
+          id: string
+          is_archived: boolean
+          is_disabled: boolean
+          is_fork: boolean
+          is_private: boolean
+          project_id: string
+          repository_full_name: string
+          source_updated_at: string
+          source_version: string
+          updated_at: string
+          visibility: string
+        }
+        Insert: {
+          created_at?: string
+          default_branch: string
+          github_object_id: string
+          id?: string
+          is_archived: boolean
+          is_disabled: boolean
+          is_fork: boolean
+          is_private: boolean
+          project_id: string
+          repository_full_name: string
+          source_updated_at: string
+          source_version: string
+          updated_at?: string
+          visibility: string
+        }
+        Update: {
+          created_at?: string
+          default_branch?: string
+          github_object_id?: string
+          id?: string
+          is_archived?: boolean
+          is_disabled?: boolean
+          is_fork?: boolean
+          is_private?: boolean
+          project_id?: string
+          repository_full_name?: string
+          source_updated_at?: string
+          source_version?: string
+          updated_at?: string
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "github_repository_snapshots_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      github_workflow_runs: {
+        Row: {
+          conclusion: string | null
+          created_at: string
+          event_name: string
+          github_object_id: string
+          head_sha: string
+          id: string
+          project_id: string
+          run_number: number
+          source_updated_at: string
+          source_version: string
+          status: string
+          updated_at: string
+          workflow_id: string
+        }
+        Insert: {
+          conclusion?: string | null
+          created_at?: string
+          event_name: string
+          github_object_id: string
+          head_sha: string
+          id?: string
+          project_id: string
+          run_number: number
+          source_updated_at: string
+          source_version: string
+          status: string
+          updated_at?: string
+          workflow_id: string
+        }
+        Update: {
+          conclusion?: string | null
+          created_at?: string
+          event_name?: string
+          github_object_id?: string
+          head_sha?: string
+          id?: string
+          project_id?: string
+          run_number?: number
+          source_updated_at?: string
+          source_version?: string
+          status?: string
+          updated_at?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "github_workflow_runs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]

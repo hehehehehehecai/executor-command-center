@@ -1,0 +1,69 @@
+{
+  "batchId": "explorer-stage3-task1-bootstrap-cf95a270",
+  "capturedAt": "2026-08-05T18:06:01.2775249+08:00",
+  "repository": {
+    "root": "D:\\AI workplace\\探索者号",
+    "remote": "github.com/hehehehehehecai/executor-command-center",
+    "branch": "test/phase-7-connected-onboarding",
+    "head": "ab01e96bc1814849d2edd12ab73a9707501abddf",
+    "worktree": "clean; git reported only an unreadable global ignore warning"
+  },
+  "migrationFileHashes": {
+    "20260718082522_create_baseline.sql": "fe3cfe18c4b495a93d44b37d2385d4757d45dfc5604c2699d1ae30439eb099e1",
+    "20260722090000_create_internal_user_identity.sql": "3ca89a40dacc5abee8abc30aaa2336c2459af22fb3273bae2754d795515551fa",
+    "20260722111000_fix_concurrent_user_identity_ensure.sql": "6b6e897bf832dfb96810b23e5e02a8340711a952846bde08eae7ba808406346d",
+    "20260723120000_create_github_installation_registration.sql": "fcfbef97c5da062171943695277e368794b31676bb22cf9afe28f5baf9b67545",
+    "20260729090000_create_github_repository_selection.sql": "03d928738a7d7a488faa2ff5fcab579efbf3c981896ac0921bc7385b9609bf6a",
+    "20260801091000_create_project_calibration.sql": "01eb5155d903862cf938aea601b7b6eb0b9f584e5617acd066ebdf228a72e2e9",
+    "20260804173000_create_github_identity_read_rpc.sql": "9067b5397fea5c43ad8baad135cbeff6a3c929449d2b598eb06719b5a524681c",
+    "20260805093000_create_github_installation_query_rpc.sql": "ffe6042d8b9ecf5588727e428d3459f24682ecb848bd5e0e79df28b582a5724e",
+    "20260805132000_create_github_selection_installation_query_rpc.sql": "9b2c46a4438ccbead469f988c4cd7f125f02eaa169c61d65acdd80842f485b2d"
+  },
+  "databaseTypesSha256": "ce39262c6ec77cf0736f5a8032e0f8d3d69fd9561e9876f8d9683fa7ce434d23",
+  "plannedMigration": {
+    "file": "20260805181000_create_github_activity_snapshots.sql",
+    "logicalMigrationId": "0010"
+  },
+  "plannedTables": [
+    "github_repository_snapshots",
+    "github_commits",
+    "github_issues",
+    "github_pull_requests",
+    "github_releases",
+    "github_workflow_runs",
+    "github_document_snapshots"
+  ],
+  "plannedContracts": {
+    "uniqueKey": "unique(project_id, github_object_id) on every table",
+    "ownership": "project_id references public.projects(id) on delete cascade",
+    "readBoundary": "authenticated can select only rows whose project belongs to auth.uid()",
+    "writeBoundary": "no direct anon, authenticated, or service_role table writes",
+    "provenance": "source_updated_at or a controlled source_version/fingerprint plus created_at and updated_at",
+    "rawResponse": "no raw GitHub API response column"
+  },
+  "plannedTests": [
+    "static migration and generated type contract",
+    "seven-table pgTAP schema and privilege contract",
+    "same-project duplicate rejection",
+    "cross-project same-object coexistence",
+    "missing-project rejection",
+    "cross-user RLS isolation",
+    "blank identifier rejection",
+    "raw response column absence"
+  ],
+  "prohibitedScope": [
+    "SyncRun, SyncStatus, FreshnessStatus",
+    "JobDispatcher or Inngest",
+    "GitHub Reader or live GitHub API calls",
+    "first sync, webhook, reconciliation, manual resync, freshness UI",
+    "tokens, credentials, full raw responses, source code or diffs",
+    "remote migration, staging or production writes",
+    "Push, Merge, deployment, Task 2"
+  ],
+  "toolVersions": {
+    "git": "2.54.0.windows.1",
+    "node": "24.14.0",
+    "pnpm": "11.9.0",
+    "supabase": "unavailable during freeze because sandbox blocked the CLI telemetry file"
+  }
+}
