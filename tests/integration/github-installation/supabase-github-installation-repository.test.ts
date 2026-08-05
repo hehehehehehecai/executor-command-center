@@ -148,6 +148,15 @@ describe("github-installation-storage.v1 with Local Supabase", () => {
     authUserIds.clear();
   });
 
+  it("reads the current GitHub identity with the callback service role", async () => {
+    const identity = createIdentity(7_400_000);
+    const repository = createRepository();
+
+    await expect(
+      repository.findByUserId(identity.userId),
+    ).resolves.toEqual({ githubUserId: identity.githubUserId });
+  });
+
   it("fulfills every concurrent identical registration with one stable record", async () => {
     const identity = createIdentity(7_400_001);
     const repository = createRepository();

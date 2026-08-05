@@ -98,7 +98,7 @@ describe("Supabase GitHub installation repository", () => {
   it("reads only the current user's stable numeric GitHub identity", async () => {
     const fetcher = vi
       .fn<typeof fetch>()
-      .mockResolvedValue(jsonResponse([{ github_user_id: 71001 }]));
+      .mockResolvedValue(jsonResponse(71001));
     const repository = new SupabaseGitHubInstallationRepository({
       ...options,
       fetcher,
@@ -112,9 +112,41 @@ describe("Supabase GitHub installation repository", () => {
 
     const [url, init] = fetcher.mock.calls[0]!;
     expect(url).toBe(
-      "https://fixture-project.supabase.co/rest/v1/github_identities?select=github_user_id&user_id=eq.11111111-1111-4111-8111-111111111111&limit=1",
+      "https://fixture-project.supabase.co/rest/v1/rpc/read_current_github_identity",
     );
-    expect(init).toMatchObject({ method: "GET" });
+    expect(init).toMatchObject({
+      method: "POST",
+      body: JSON.stringify({
+        p_user_id: "11111111-1111-4111-8111-111111111111",
+      }),
+    });
+  });
+
+  it("returns null when the narrow identity RPC has no matching user", async () => {
+    const repository = new SupabaseGitHubInstallationRepository({
+      ...options,
+      fetcher: vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(null)),
+    });
+
+    await expect(
+      repository.findByUserId("22222222-2222-4222-8222-222222222222"),
+    ).resolves.toBeNull();
+  });
+
+  it.each([
+    ["non-2xx", jsonResponse({ message: "database-detail" }, 403)],
+    ["string", jsonResponse("71001")],
+    ["zero", jsonResponse(0)],
+    ["unsafe integer", jsonResponse(Number.MAX_SAFE_INTEGER + 1)],
+  ])("fails closed for a %s identity RPC response", async (_case, response) => {
+    const repository = new SupabaseGitHubInstallationRepository({
+      ...options,
+      fetcher: vi.fn<typeof fetch>().mockResolvedValue(response),
+    });
+
+    await expect(
+      repository.findByUserId("33333333-3333-4333-8333-333333333333"),
+    ).rejects.toThrow("current_github_identity_read_failed");
   });
 
   it("registers only already-verified fields through the atomic storage RPC", async () => {

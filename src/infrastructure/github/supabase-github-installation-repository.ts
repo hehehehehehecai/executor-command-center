@@ -118,46 +118,28 @@ export class SupabaseGitHubInstallationRepository
   }
 
   async findByUserId(userId: string) {
-    const query = new URLSearchParams({
-      select: "github_user_id",
-      user_id: `eq.${userId}`,
-      limit: "1",
-    });
-    const response = await this.fetcher(
-      `${this.baseUrl}github_identities?${query.toString()}`,
-      {
-        method: "GET",
-        headers: this.headers(),
-      },
+    const { response, payload } = await this.rpc(
+      "read_current_github_identity",
+      { p_user_id: userId },
     );
-    let payload: unknown;
-
-    try {
-      payload = await response.json();
-    } catch {
-      payload = undefined;
-    }
 
     if (!response.ok) {
       throw new Error("current_github_identity_read_failed");
     }
 
-    if (!Array.isArray(payload) || payload.length === 0) {
+    if (payload === null) {
       return null;
     }
 
-    const githubUserId = (payload[0] as { github_user_id?: unknown })
-      .github_user_id;
-
     if (
-      typeof githubUserId !== "number" ||
-      !Number.isSafeInteger(githubUserId) ||
-      githubUserId <= 0
+      typeof payload !== "number" ||
+      !Number.isSafeInteger(payload) ||
+      payload <= 0
     ) {
       throw new Error("current_github_identity_read_failed");
     }
 
-    return { githubUserId };
+    return { githubUserId: payload };
   }
 
   async registerVerified(

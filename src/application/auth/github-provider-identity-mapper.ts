@@ -8,6 +8,7 @@ export interface VerifiedGitHubAuthIdentity {
 }
 
 export interface SupabaseProviderIdentitySnapshot {
+  readonly id?: string;
   readonly provider?: string;
   readonly provider_id?: string;
   readonly identity_data?: Readonly<Record<string, unknown>>;
@@ -43,7 +44,7 @@ export function mapVerifiedGitHubAuthIdentity(
   }
 
   const identity = githubIdentities[0];
-  const providerId = identity?.provider_id;
+  const providerId = identity?.id ?? identity?.provider_id;
 
   if (!providerId || !/^\d+$/.test(providerId)) {
     throw new GitHubProviderIdentityError("invalid_github_user_id");

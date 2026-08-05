@@ -180,6 +180,51 @@ h1 {
   cursor: pointer;
 }
 
+.calibration-shell {
+  display: grid;
+  gap: 1rem;
+  margin: 2rem 0;
+}
+
+.calibration-section {
+  display: grid;
+  gap: 1rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 1rem;
+}
+
+.calibration-section label {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 700;
+}
+
+.calibration-section textarea,
+.calibration-section select {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 0.65rem;
+  color: var(--foreground);
+  font: inherit;
+}
+
+.calibration-section textarea {
+  min-height: 6rem;
+  resize: vertical;
+}
+
+.calibration-section button {
+  width: fit-content;
+  border: 1px solid var(--accent);
+  background: var(--surface);
+  padding: 0.65rem 0.9rem;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 700;
+}
+
 .project-summary {
   display: grid;
   gap: 1.5rem;

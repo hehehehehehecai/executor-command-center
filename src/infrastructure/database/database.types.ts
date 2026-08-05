@@ -38,7 +38,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      utf16_code_units: { Args: { value: string }; Returns: number }
     }
     Enums: {
       [_ in never]: never
@@ -181,6 +181,129 @@ export type Database = {
           },
         ]
       }
+      projects: {
+        Row: {
+          core_goal: string
+          created_at: string
+          current_blocker: string | null
+          current_stage_goal: string
+          id: string
+          selected_repository_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          core_goal: string
+          created_at?: string
+          current_blocker?: string | null
+          current_stage_goal: string
+          id?: string
+          selected_repository_id: string
+          status: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          core_goal?: string
+          created_at?: string
+          current_blocker?: string | null
+          current_stage_goal?: string
+          id?: string
+          selected_repository_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_selected_repository_id_fkey"
+            columns: ["selected_repository_id"]
+            isOneToOne: false
+            referencedRelation: "selected_repositories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      selected_repositories: {
+        Row: {
+          created_at: string
+          default_branch: string
+          full_name: string
+          github_installation_id: string
+          github_repository_id: number
+          id: string
+          is_archived: boolean
+          is_disabled: boolean
+          is_fork: boolean
+          is_private: boolean
+          name: string
+          owner_login: string
+          selected_at: string
+          updated_at: string
+          user_id: string
+          visibility: string
+        }
+        Insert: {
+          created_at?: string
+          default_branch: string
+          full_name: string
+          github_installation_id: string
+          github_repository_id: number
+          id?: string
+          is_archived: boolean
+          is_disabled: boolean
+          is_fork: boolean
+          is_private: boolean
+          name: string
+          owner_login: string
+          selected_at?: string
+          updated_at?: string
+          user_id: string
+          visibility: string
+        }
+        Update: {
+          created_at?: string
+          default_branch?: string
+          full_name?: string
+          github_installation_id?: string
+          github_repository_id?: number
+          id?: string
+          is_archived?: boolean
+          is_disabled?: boolean
+          is_fork?: boolean
+          is_private?: boolean
+          name?: string
+          owner_login?: string
+          selected_at?: string
+          updated_at?: string
+          user_id?: string
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "selected_repositories_github_installation_id_fkey"
+            columns: ["github_installation_id"]
+            isOneToOne: false
+            referencedRelation: "github_installations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "selected_repositories_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           created_at: string
@@ -217,6 +340,46 @@ export type Database = {
         }
         Returns: string
       }
+      ensure_selected_github_repository: {
+        Args: {
+          p_default_branch: string
+          p_full_name: string
+          p_github_installation_id: string
+          p_github_repository_id: number
+          p_is_archived: boolean
+          p_is_disabled: boolean
+          p_is_fork: boolean
+          p_is_private: boolean
+          p_name: string
+          p_owner_login: string
+          p_user_id: string
+          p_visibility: string
+        }
+        Returns: {
+          created_at: string
+          default_branch: string
+          full_name: string
+          github_installation_id: string
+          github_repository_id: number
+          id: string
+          is_archived: boolean
+          is_disabled: boolean
+          is_fork: boolean
+          is_private: boolean
+          name: string
+          owner_login: string
+          selected_at: string
+          updated_at: string
+          user_id: string
+          visibility: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "selected_repositories"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       ensure_user_identity: {
         Args: {
           p_auth_user_id: string
@@ -225,6 +388,26 @@ export type Database = {
           p_github_user_id: number
         }
         Returns: string
+      }
+      read_current_github_identity: {
+        Args: { p_user_id: string }
+        Returns: number
+      }
+      read_current_github_installation: {
+        Args: { p_user_id: string }
+        Returns: {
+          installation_id: number
+          repository_selection: string
+          status: string
+        }[]
+      }
+      read_current_github_selection_installation: {
+        Args: { p_user_id: string }
+        Returns: {
+          id: string
+          installation_id: number
+          status: string
+        }[]
       }
       register_verified_github_installation: {
         Args: {
@@ -239,6 +422,21 @@ export type Database = {
           p_verified_at: string
         }
         Returns: string
+      }
+      remove_selected_github_repository: {
+        Args: { p_github_repository_id: number; p_user_id: string }
+        Returns: undefined
+      }
+      save_project_calibration: {
+        Args: {
+          p_core_goal: string
+          p_current_blocker: string
+          p_current_stage_goal: string
+          p_selected_repository_id: string
+          p_status: string
+          p_user_id: string
+        }
+        Returns: Json
       }
     }
     Enums: {
