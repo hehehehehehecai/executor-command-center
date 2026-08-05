@@ -681,6 +681,68 @@ export type Database = {
           },
         ]
       }
+      sync_runs: {
+        Row: {
+          created_at: string
+          error_code: string | null
+          error_summary: string | null
+          finished_at: string | null
+          id: string
+          idempotency_key: string
+          last_progress_at: string | null
+          progress_cursor: string | null
+          project_id: string
+          queued_at: string
+          started_at: string | null
+          status: string
+          trigger_source: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          error_code?: string | null
+          error_summary?: string | null
+          finished_at?: string | null
+          id?: string
+          idempotency_key: string
+          last_progress_at?: string | null
+          progress_cursor?: string | null
+          project_id: string
+          queued_at?: string
+          started_at?: string | null
+          status?: string
+          trigger_source: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          error_code?: string | null
+          error_summary?: string | null
+          finished_at?: string | null
+          id?: string
+          idempotency_key?: string
+          last_progress_at?: string | null
+          progress_cursor?: string | null
+          project_id?: string
+          queued_at?: string
+          started_at?: string | null
+          status?: string
+          trigger_source?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_runs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           created_at: string
@@ -716,6 +778,14 @@ export type Database = {
           p_user_id: string
         }
         Returns: string
+      }
+      create_sync_run: {
+        Args: {
+          p_idempotency_key: string
+          p_project_id: string
+          p_trigger_source: string
+        }
+        Returns: Json
       }
       ensure_selected_github_repository: {
         Args: {
@@ -766,6 +836,7 @@ export type Database = {
         }
         Returns: string
       }
+      get_latest_sync_run: { Args: { p_project_id: string }; Returns: Json }
       read_current_github_identity: {
         Args: { p_user_id: string }
         Returns: number
@@ -812,6 +883,20 @@ export type Database = {
           p_selected_repository_id: string
           p_status: string
           p_user_id: string
+        }
+        Returns: Json
+      }
+      transition_sync_run: {
+        Args: {
+          p_error_code: string
+          p_error_summary: string
+          p_expected_status: string
+          p_expected_version: number
+          p_progress_cursor: string
+          p_project_id: string
+          p_run_id: string
+          p_target_status: string
+          p_transitioned_at: string
         }
         Returns: Json
       }

@@ -25,7 +25,11 @@ select hasnt_table(
   'repository_snapshots',
   'repository_snapshots table remains absent'
 );
-select hasnt_table('public', 'sync_runs', 'sync_runs table remains absent');
+select has_table(
+  'public',
+  'sync_runs',
+  'Stage 3 Task 2 sync_runs coexists without changing selected repository facts'
+);
 select hasnt_table(
   'public',
   'webhook_deliveries',
