@@ -1,0 +1,72 @@
+{
+  "batch_id": "explorer-stage3-phase6-5debbbf4",
+  "prompt_instance_id": "explorer-stage3-phase6-webhook-5debbbf4",
+  "authorization_envelope_id": "workflow-authorization.v1:5debbbf46bd94786",
+  "baseline": { "branch": "feature/stage3-phase5-first-sync", "commit": "b740a1c86c3f9226d832b8f5bb15bec5f5b398f7", "tree": "00ba38370895bf72a84f0dae4d81cc3deacee1f7", "parent": "283e62f897ab24fb5037b4539a0257da79f6fe73", "worktree": "clean", "remote": "github.com/hehehehehehecai/executor-command-center" },
+  "contracts": { "signature": "github-webhook-signature.v1", "delivery": "github-webhook-delivery.v1", "event": "github-webhook-event.v1", "ingestion": "github-webhook-ingestion.v1", "dispatcher": "github-webhook-dispatcher.v1", "snapshots": "github-activity-snapshots.v1", "snapshot_writer": "github-activity-snapshot-writer.v1", "synchronization_state": "synchronization-state.v1", "sync_runs": "sync-runs.v1", "background_job": "background-job.v1", "job_dispatcher": "job-dispatcher.v1" },
+  "artifact_sha256": {
+    "package_json": "f9a6ab717fa98c452d290a69374e30b00b09b23f5253699d9900c935dd349468",
+    "pnpm_lock": "a087993aad1ff9993627e09050e70d61d22fcc2e9c33909074b52b00528c8eef",
+    "background_job": "4af2b1ac4fa5aa515480a776d96966495457abb33d3ba2e5fcb339c1dc516ac1",
+    "job_dispatcher": "ef7664743ba370fb5e1220c8222e1120619d7a641f7c109847de9259e3f9475b",
+    "first_sync": "09c3519cb039b8fc48c289b0b7ea243b8dd022f499efc8090a3f7008990de506",
+    "first_sync_store": "110ed74ae3b747121d235a5167375c24a8a3f098199b457bef941df121751846",
+    "phase5_migration": "c309bffc9d7ffe613622fcff07df1c2d817d86c733c96fd5efba1ca0de47a64d",
+    "database_types": "e5ce1638a7cb48b0fb5f0b74679b2d796eed13d643590a83a2448930a0bc2dc5"
+  },
+  "signature": {
+    "algorithm": "HMAC-SHA256", "input": "exact raw request bytes", "header": "x-hub-signature-256",
+    "canonical_format": "sha256=<64 lowercase hex characters>", "multiple_values": "rejected", "uppercase_hex": "rejected",
+    "comparison": "format and equal-length precheck followed by constant-time comparison", "max_body_bytes": 1048576,
+    "verification_order": ["body-size", "required-header-shape", "signature-verification", "json-parse", "delivery-repository", "dispatcher"]
+  },
+  "headers": { "delivery_id": "canonical UUID, exactly 36 characters", "event": "lowercase snake_case, 1-64 characters", "action": "optional lowercase snake_case, 1-64 characters" },
+  "supported_events": {
+    "push": [null],
+    "issues": ["opened", "edited", "closed", "reopened", "deleted"],
+    "pull_request": ["opened", "edited", "closed", "reopened", "synchronize", "converted_to_draft", "ready_for_review"],
+    "release": ["created", "edited", "deleted", "published", "unpublished", "prereleased", "released"],
+    "workflow_run": ["requested", "in_progress", "completed"],
+    "repository": ["edited", "renamed", "transferred", "publicized", "privatized", "archived", "unarchived", "deleted"],
+    "installation": ["deleted", "suspend", "unsuspend"]
+  },
+  "minimal_payload": {
+    "common_repository_events": ["installation.id", "repository.id", "repository.full_name"], "push": ["after"], "issues": ["issue.id"],
+    "pull_request": ["pull_request.id"], "release": ["release.id"], "workflow_run": ["workflow_run.id"], "repository": ["repository.id"], "installation": ["installation.id"]
+  },
+  "decision_matrix": {
+    "accepted": { "http_status": 202, "persisted": true, "dispatched": "supported active repository events or recovered pending delivery" },
+    "duplicate": { "http_status": 200, "persisted": "existing row only", "dispatched": false },
+    "ignored": { "http_status": 200, "persisted": true, "dispatched": false },
+    "rejected_bad_request": { "http_status": 400, "persisted": false, "dispatched": false },
+    "rejected_signature": { "http_status": 401, "persisted": false, "dispatched": false },
+    "rejected_conflict": { "http_status": 409, "persisted": "original row unchanged", "dispatched": false },
+    "rejected_oversized": { "http_status": 413, "persisted": false, "dispatched": false },
+    "rejected_unavailable": { "http_status": 503, "persisted": "pending row may exist", "dispatched": false }
+  },
+  "delivery_schema": {
+    "table": "github_webhook_deliveries", "unique_key": "delivery_id", "statuses": ["pending", "dispatching", "dispatched", "ignored", "completed"],
+    "body_storage": "sha256 digest only", "version": "optimistic bigint", "dispatch_lease_seconds": 60,
+    "replay": "completed states are no-op; expired dispatching lease may be reclaimed with the same internal event identity",
+    "conflict": "same delivery id with different digest/event/action/installation/repository is rejected without overwrite"
+  },
+  "alignment": {
+    "repository_events": "installation.id + repository.id -> github_installations + selected_repositories + projects",
+    "payload_project_id": "ignored and never trusted", "installation_deleted": "installation status revoked and all later repository dispatch blocked",
+    "installation_suspend": "installation status suspended and dispatch blocked", "installation_unsuspend": "installation status active",
+    "internal_event_id": "github-webhook:<delivery-id>", "dispatcher_idempotency_key": "github-webhook:<delivery-id>"
+  },
+  "crash_window": {
+    "order": ["persist delivery", "claim dispatch lease", "dispatch stable event", "persist provider receipt"],
+    "missing_receipt": "leave dispatching; replay after lease expiry reuses the same internal event id and idempotency key",
+    "concurrency": "database conditional update grants at most one unexpired dispatch lease"
+  },
+  "permissions": { "table_rls": true, "table_grants": "none for public, anon, authenticated, service_role", "rpc_execute": "service_role only", "browser_write": false },
+  "forbidden_storage_or_logging": ["webhook secret", "signature", "raw request body", "authorization header", "cookie", "installation token", "complete GitHub payload", "source code", "diff"],
+  "network_boundary": "all tests inject fake fetch/dispatcher; no real GitHub, Inngest or remote Supabase",
+  "forbidden_scope": ["Phase 7 reconciliation/manual resync", "Phase 8 freshness UI", "Phase 9 staging smoke", "GitHub writes", "remote deployment"],
+  "test_denominator": { "signature": 10, "result_kinds": 4, "supported_event_families": 7, "sequential_and_concurrent_replay": 2, "crash_recovery": 1, "trusted_alignment": 3, "invalid_zero_side_effect": 1, "sensitive_storage_and_logging": 1, "database_contract": 1, "no_new_test_skips": true },
+  "environment_contract": { "github_webhook_secret_field_exists": true, "secret_value_read_during_audit": false, "new_dependency_required": false },
+  "tools": { "node": "v24.14.0", "pnpm": "11.5.0", "typescript": "5.9.3", "supabase_cli": "2.109.1" },
+  "recorded_at": "2026-08-06T12:02:57.3288660+08:00"
+}

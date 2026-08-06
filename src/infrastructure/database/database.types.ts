@@ -510,6 +510,77 @@ export type Database = {
           },
         ]
       }
+      github_webhook_deliveries: {
+        Row: {
+          action: string | null
+          body_sha256: string
+          created_at: string
+          delivery_id: string
+          dispatch_lease_until: string | null
+          event_name: string
+          id: string
+          installation_id: number | null
+          internal_event_id: string
+          project_id: string | null
+          provider_receipt_id: string | null
+          received_at: string
+          repository_full_name: string | null
+          repository_id: number | null
+          safe_error_code: string | null
+          status: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          action?: string | null
+          body_sha256: string
+          created_at?: string
+          delivery_id: string
+          dispatch_lease_until?: string | null
+          event_name: string
+          id?: string
+          installation_id?: number | null
+          internal_event_id: string
+          project_id?: string | null
+          provider_receipt_id?: string | null
+          received_at: string
+          repository_full_name?: string | null
+          repository_id?: number | null
+          safe_error_code?: string | null
+          status: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          action?: string | null
+          body_sha256?: string
+          created_at?: string
+          delivery_id?: string
+          dispatch_lease_until?: string | null
+          event_name?: string
+          id?: string
+          installation_id?: number | null
+          internal_event_id?: string
+          project_id?: string | null
+          provider_receipt_id?: string | null
+          received_at?: string
+          repository_full_name?: string | null
+          repository_id?: number | null
+          safe_error_code?: string | null
+          status?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "github_webhook_deliveries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       github_workflow_runs: {
         Row: {
           conclusion: string | null
@@ -785,6 +856,32 @@ export type Database = {
         }
         Returns: Json
       }
+      claim_github_webhook_dispatch: {
+        Args: {
+          p_claimed_at: string
+          p_delivery_id: string
+          p_expected_version: number
+        }
+        Returns: Json
+      }
+      complete_github_webhook_dispatch: {
+        Args: {
+          p_completed_at: string
+          p_delivery_id: string
+          p_expected_version: number
+          p_provider_receipt_id: string
+        }
+        Returns: Json
+      }
+      complete_github_webhook_installation: {
+        Args: {
+          p_completed_at: string
+          p_delivery_id: string
+          p_expected_version: number
+          p_installation_state: string
+        }
+        Returns: Json
+      }
       consume_github_installation_state: {
         Args: { p_state_hash: string; p_user_id: string }
         Returns: string
@@ -881,6 +978,21 @@ export type Database = {
         }[]
       }
       read_first_sync_context: { Args: { p_project_id: string }; Returns: Json }
+      register_github_webhook_delivery: {
+        Args: {
+          p_action: string
+          p_body_sha256: string
+          p_delivery_id: string
+          p_event_name: string
+          p_installation_id: number
+          p_internal_event_id: string
+          p_received_at: string
+          p_repository_full_name: string
+          p_repository_id: number
+          p_supported: boolean
+        }
+        Returns: Json
+      }
       register_verified_github_installation: {
         Args: {
           p_account_type: string
