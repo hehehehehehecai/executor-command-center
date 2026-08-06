@@ -1,0 +1,165 @@
+{
+  "batch_id": "explorer-stage3-phase4-3c3fb94b",
+  "authorization_envelope_id": "workflow-authorization.v1:3c3fb94b0e85a812",
+  "recorded_at": "2026-08-05T20:50:20.9745199+08:00",
+  "baseline": {
+    "branch": "feature/stage3-phase3-job-dispatcher-inngest",
+    "commit": "f7157eadc7b2d336a4ab9f8c092df29db3549b88",
+    "tree": "f52e9f5793236869097c2bb6c5ba89110653d454",
+    "worktree": "clean"
+  },
+  "baseline_fingerprints": {
+    "github_activity_snapshots_migration_sha256": "01645d46419adf5ccbde1313a1c0b589bf5b03e1ea0ee04e92c7b49fc34a2517",
+    "database_types_sha256": "46bc1280a10141c2c5961e593265a8c049c056fda6dd31321f1670aa7c09e774",
+    "synchronization_state_sha256": "ef9950e5f5760449c6ca03a7ef35bd5c146c5f8d08a074d936e3b92fa9a525a8",
+    "sync_run_use_cases_sha256": "36f989894d9591f54b73842d7dcd0af8eb8d8d13fa6a3009afefd5df7ed3fb5c",
+    "sync_run_adapter_sha256": "d556d803a045a4f9f36d7e5803d2a096959db42f9a5ea63f4381869027d8ab17",
+    "background_job_sha256": "4af2b1ac4fa5aa515480a776d96966495457abb33d3ba2e5fcb339c1dc516ac1",
+    "job_dispatcher_sha256": "ef7664743ba370fb5e1220c8222e1120619d7a641f7c109847de9259e3f9475b",
+    "inngest_adapter_sha256": "478c82419c15e0b3a250a9d72a2a976fe6298d091bad5222f8cca0e2a4ec914d",
+    "package_json_sha256": "f9a6ab717fa98c452d290a69374e30b00b09b23f5253699d9900c935dd349468",
+    "pnpm_lock_sha256": "a087993aad1ff9993627e09050e70d61d22fcc2e9c33909074b52b00528c8eef"
+  },
+  "pre_existing_state": {
+    "typed_activity_reader": false,
+    "octokit_dependency": false,
+    "fetch_injection_pattern": true,
+    "installation_token_boundary": "GitHubInstallationTokenClient creates and revokes an opaque installation token; Phase 4 only receives the token at its controlled infrastructure call boundary."
+  },
+  "contracts": {
+    "reader": "github-activity-reader.v1",
+    "commit": "github-commit-read-model.v1",
+    "issue": "github-issue-read-model.v1",
+    "pull_request": "github-pull-request-read-model.v1",
+    "release": "github-release-read-model.v1",
+    "workflow_check": "github-workflow-check-read-model.v1",
+    "errors": "github-activity-reader-errors.v1",
+    "snapshots": "github-activity-snapshots.v1",
+    "synchronization": "synchronization-state.v1",
+    "sync_runs": "sync-runs.v1",
+    "jobs": "background-job.v1",
+    "job_dispatcher": "job-dispatcher.v1",
+    "inngest_adapter": "inngest-job-dispatcher.v1"
+  },
+  "reader_methods": {
+    "listCommits": "(request: GitHubActivityReadRequest) => Promise<GitHubCommitReadModel[]>",
+    "listIssues": "(request: GitHubActivityReadRequest) => Promise<GitHubIssueReadModel[]>",
+    "listPullRequests": "(request: GitHubActivityReadRequest) => Promise<GitHubPullRequestReadModel[]>",
+    "listReleases": "(request: GitHubActivityReadRequest) => Promise<GitHubReleaseReadModel[]>",
+    "listWorkflowRuns": "(request: GitHubActivityReadRequest) => Promise<GitHubWorkflowRunReadModel[]>",
+    "listChecks": "(request: GitHubCheckReadRequest) => Promise<GitHubCheckReadModel[]>"
+  },
+  "request_fields": [
+    "repository.owner",
+    "repository.name",
+    "installationToken",
+    "since",
+    "pagination.maxPages",
+    "pagination.maxObjects",
+    "signal"
+  ],
+  "check_request_additional_fields": ["ref"],
+  "read_model_fields": {
+    "common": ["repositoryFullName", "githubObjectId", "objectType", "sourceUpdatedAt", "sourceVersion"],
+    "commit": ["message", "authoredAt", "committedAt", "authorLogin"],
+    "issue": ["number", "title", "state", "authorLogin", "closedAt"],
+    "pull_request": ["number", "title", "state", "isDraft", "headSha", "baseRef", "mergedAt"],
+    "release": ["tagName", "name", "isDraft", "isPrerelease", "publishedAt"],
+    "workflow_run": ["workflowId", "runNumber", "status", "conclusion", "eventName", "headSha", "runAttempt"],
+    "check": ["name", "status", "conclusion", "headSha", "startedAt", "completedAt"]
+  },
+  "endpoints": {
+    "commit": "GET /repos/{owner}/{repository}/commits",
+    "issue": "GET /repos/{owner}/{repository}/issues",
+    "pull_request": "GET /repos/{owner}/{repository}/pulls",
+    "release": "GET /repos/{owner}/{repository}/releases",
+    "workflow_run": "GET /repos/{owner}/{repository}/actions/runs",
+    "check": "GET /repos/{owner}/{repository}/commits/{ref}/check-runs"
+  },
+  "http_contract": {
+    "origin": "https://api.github.com",
+    "accept": "application/vnd.github+json",
+    "api_version_source": "validated YYYY-MM-DD restApiVersion option",
+    "authorization": "Bearer opaque installation token",
+    "redirect": "error",
+    "page_size": 100,
+    "maximum_pages": 100,
+    "maximum_objects": 10000,
+    "timeout_milliseconds_default": 5000
+  },
+  "pagination_contract": {
+    "authority": "Only a validated Link rel=next URL advances pagination; array length never predicts another page.",
+    "next_url_requirements": [
+      "https protocol",
+      "api.github.com host",
+      "no credentials or fragment",
+      "exact current resource path",
+      "same non-page query parameters",
+      "per_page=100",
+      "next page equals current page plus one",
+      "URL not previously visited"
+    ],
+    "duplicates": "A repeated mapped githubObjectId fails the entire read.",
+    "limits": "Caller limits may only narrow the frozen maximum pages and objects. Any excess fails the entire read."
+  },
+  "enum_strategy": "Known provider enum values map directly; any new non-empty provider value maps to the explicit read-model value unknown.",
+  "error_codes": [
+    "github_activity_authorization_revoked",
+    "github_activity_rate_limited",
+    "github_activity_not_found",
+    "github_activity_timeout",
+    "github_activity_aborted",
+    "github_activity_invalid_response",
+    "github_activity_pagination_invalid",
+    "github_activity_unavailable"
+  ],
+  "authorization_revoked": "HTTP 401 and non-rate-limit HTTP 403.",
+  "rate_limit": "HTTP 429 or HTTP 403 with Retry-After or X-RateLimit-Remaining=0.",
+  "forbidden_fields": [
+    "token",
+    "authorization",
+    "cookie",
+    "serviceRoleKey",
+    "rawPayload",
+    "rawResponse",
+    "sourceCode",
+    "diff"
+  ],
+  "network_boundary": "Every test injects a synthetic fetcher and a failing global fetch spy; no GitHub or Inngest request is permitted.",
+  "forbidden_scope": [
+    "snapshot persistence",
+    "SyncRun transition",
+    "JobDispatcher invocation",
+    "Inngest invocation",
+    "first sync",
+    "webhook",
+    "reconciliation",
+    "manual sync",
+    "Freshness UI",
+    "Staging smoke"
+  ],
+  "test_checklist": [
+    "six typed outputs across five contract families",
+    "runtime schema per page and object",
+    "single page, multi page, first-page empty and final empty page",
+    "stable ids and provenance mapping",
+    "nullable and unknown enum strategy",
+    "Link next host, path, query and monotonic page validation",
+    "loop, duplicate id, repeated page and caller limits",
+    "401, 403, 429, 404, 5xx and unexpected 2xx",
+    "invalid JSON, schema mismatch and oversized page",
+    "timeout and caller abort separation",
+    "no partial return after any page failure",
+    "safe errors, zero real network and no forbidden payload fields",
+    "application/domain module boundaries",
+    "Phase 1 field compatibility and Phase 2-3 regression",
+    "full suite"
+  ],
+  "tool_versions": {
+    "git": "2.54.0.windows.1",
+    "node": "24.14.0",
+    "pnpm_runtime": "11.9.0",
+    "package_manager_declared": "pnpm@11.5.0",
+    "typescript": "5.9.3"
+  }
+}

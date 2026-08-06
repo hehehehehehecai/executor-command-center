@@ -16,6 +16,9 @@ export default defineConfig([
             "next",
             "supabase",
             "octokit",
+            "@octokit/rest",
+            "undici",
+            "node-fetch",
             "inngest",
             "ai",
             "openai",
@@ -52,7 +55,16 @@ export default defineConfig([
       "no-restricted-imports": [
         "error",
         {
-          paths: ["inngest", "next", "supabase", "@supabase/supabase-js"].map(
+          paths: [
+            "inngest",
+            "next",
+            "supabase",
+            "@supabase/supabase-js",
+            "octokit",
+            "@octokit/rest",
+            "undici",
+            "node-fetch",
+          ].map(
             (name) => ({
               name,
               message:
