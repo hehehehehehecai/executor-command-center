@@ -637,6 +637,69 @@ export type Database = {
           },
         ]
       }
+      project_sync_dispatches: {
+        Row: {
+          created_at: string
+          dispatch_status: string
+          dispatched_at: string | null
+          id: string
+          lease_expires_at: string | null
+          project_id: string
+          provider_job_id: string | null
+          request_identity: string
+          requested_at: string
+          sync_run_id: string
+          trigger_source: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          dispatch_status?: string
+          dispatched_at?: string | null
+          id?: string
+          lease_expires_at?: string | null
+          project_id: string
+          provider_job_id?: string | null
+          request_identity: string
+          requested_at: string
+          sync_run_id: string
+          trigger_source: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          dispatch_status?: string
+          dispatched_at?: string | null
+          id?: string
+          lease_expires_at?: string | null
+          project_id?: string
+          provider_job_id?: string | null
+          request_identity?: string
+          requested_at?: string
+          sync_run_id?: string
+          trigger_source?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_sync_dispatches_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_sync_dispatches_sync_run_id_fkey"
+            columns: ["sync_run_id"]
+            isOneToOne: true
+            referencedRelation: "sync_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           core_goal: string
@@ -864,6 +927,15 @@ export type Database = {
         }
         Returns: Json
       }
+      claim_project_sync_dispatch: {
+        Args: {
+          p_claimed_at: string
+          p_expected_version: number
+          p_project_id: string
+          p_sync_run_id: string
+        }
+        Returns: Json
+      }
       complete_github_webhook_dispatch: {
         Args: {
           p_completed_at: string
@@ -879,6 +951,16 @@ export type Database = {
           p_delivery_id: string
           p_expected_version: number
           p_installation_state: string
+        }
+        Returns: Json
+      }
+      complete_project_sync_dispatch: {
+        Args: {
+          p_completed_at: string
+          p_expected_version: number
+          p_project_id: string
+          p_provider_job_id: string
+          p_sync_run_id: string
         }
         Returns: Json
       }
@@ -957,6 +1039,10 @@ export type Database = {
         Returns: Json
       }
       get_latest_sync_run: { Args: { p_project_id: string }; Returns: Json }
+      list_reconciliation_projects: {
+        Args: { p_snapshot_since: string }
+        Returns: Json
+      }
       read_current_github_identity: {
         Args: { p_user_id: string }
         Returns: number
@@ -1010,6 +1096,16 @@ export type Database = {
       remove_selected_github_repository: {
         Args: { p_github_repository_id: number; p_user_id: string }
         Returns: undefined
+      }
+      request_project_sync: {
+        Args: {
+          p_actor_user_id: string
+          p_project_id: string
+          p_request_identity: string
+          p_requested_at: string
+          p_trigger_source: string
+        }
+        Returns: Json
       }
       save_project_calibration: {
         Args: {
