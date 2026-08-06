@@ -1,0 +1,93 @@
+{
+  "record_type": "phase6.1.1-fix-freeze",
+  "recorded_at": "2026-08-06T13:05:41.0571594+08:00",
+  "batch_id": "explorer-stage3-phase6-1-1-bfa8c57f",
+  "prompt_instance_id": "explorer-stage3-phase6-1-1-installation-ignored-bfa8c57f",
+  "authorization_envelope_id": "workflow-authorization.v1:bfa8c57f37bfbcf6",
+  "baseline": {
+    "branch": "feature/stage3-phase6-verified-github-webhook",
+    "commit": "42b5166c0140f8d75090b33b690ba916ac15ea1e",
+    "tree": "60619936e4413f05030887fb6e26c3786355dcc4",
+    "parent": "b740a1c86c3f9226d832b8f5bb15bec5f5b398f7",
+    "worktree": "clean"
+  },
+  "source_evidence": {
+    "phase6_review_ticket": "sha256:60c46711ca2d8e06bfdb10ff0a81aaf0a06e8a3b595db622b71ad3f425368b8d",
+    "independent_review_evidence": "sha256:838ea8918e82902a8c8352f3f0ff905f3fae78fd7dbe9a900e1f1b993f94c8aa",
+    "phase6_freeze_path": "tests/fixtures/webhooks/stage3-phase6-pre-run-freeze.json",
+    "phase6_freeze_sha256": "13a501fb0b76c3cfcd2053b95305ed00db922ee530906aebd5d34abd772af7ce"
+  },
+  "pre_fix_fingerprints": {
+    "migration_sha256": "3cb1667f5795f4c41915301b33644035544a8a6e44af4ceec8ff974662176a27",
+    "pgtap_sha256": "41c1c6e1216e95fd266814836bbe391985a0f42d7bee61bca045abd0262f2151",
+    "application_adapter_test_sha256": "2530d219a8ed1fc8001e97ce3f1509c0cfdc9e63f0503ce88364ea20c2478d2c",
+    "package_json_sha256": "f9a6ab717fa98c452d290a69374e30b00b09b23f5253699d9900c935dd349468",
+    "pnpm_lock_sha256": "a087993aad1ff9993627e09050e70d61d22fcc2e9c33909074b52b00528c8eef"
+  },
+  "defect": {
+    "location": "public.register_github_webhook_delivery initial status branch",
+    "input": "event_name=installation, action=created, supported=false",
+    "independent_reproduction": {
+      "rpc_status": "pending",
+      "persisted_status": "pending"
+    },
+    "target": {
+      "rpc_status": "ignored",
+      "persisted_status": "ignored",
+      "claim_succeeds": false,
+      "dispatcher_calls": 0
+    }
+  },
+  "sql_priority": [
+    "not p_supported -> ignored",
+    "supported installation -> pending",
+    "other supported event -> pending or trusted-project mapping result"
+  ],
+  "new_test_denominator": {
+    "pgtap_assertions": [
+      "unsupported installation first register outcome=new",
+      "unsupported installation first register returned status=ignored",
+      "unsupported installation persisted status=ignored",
+      "unsupported installation row count=1",
+      "ignored delivery claim returns claimed=false",
+      "exact replay outcome=duplicate",
+      "exact replay returned status=ignored",
+      "exact replay leaves one row",
+      "ordinary unsupported event persists ignored"
+    ],
+    "application_adapter_cases": [
+      "installation/created returns ignored with HTTP 200",
+      "adapter sends supported=false and minimal lineage",
+      "dispatcher call count remains zero"
+    ],
+    "supported_installation_control": "existing installation/deleted pending assertion remains",
+    "new_required_skips": 0
+  },
+  "allowed_files": [
+    "supabase/migrations/20260806123000_create_github_webhook_delivery_inbox.sql",
+    "supabase/tests/0015_github_webhook_delivery_test.sql",
+    "tests/integration/webhooks/github-webhook-boundaries.test.ts",
+    "tests/fixtures/webhooks/stage3-phase6-1-1-pre-run-freeze.json"
+  ],
+  "forbidden_changes": [
+    "tests/fixtures/webhooks/stage3-phase6-pre-run-freeze.json",
+    "HMAC and canonical signature",
+    "Route response contract and body limits",
+    "supported installation actions",
+    "lease, claim, completion, permissions, RLS, and RPC surface",
+    "Phase 1-5 contracts and artifacts",
+    "package.json and pnpm-lock.yaml",
+    "Phase 7-9 implementation",
+    "real GitHub, Inngest, remote Supabase, push, merge, deploy, or other C-class actions"
+  ],
+  "commit_policy": {
+    "count": 1,
+    "parent": "42b5166c0140f8d75090b33b690ba916ac15ea1e",
+    "amend_or_rebase": false
+  },
+  "tool_versions": {
+    "node": "v22.22.3",
+    "pnpm": "11.5.0",
+    "supabase_cli": "2.109.1"
+  }
+}

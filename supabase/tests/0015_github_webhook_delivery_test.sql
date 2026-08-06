@@ -31,6 +31,17 @@ select is(public.claim_github_webhook_dispatch('11111111-1111-4111-8111-11111111
 select is(public.claim_github_webhook_dispatch('11111111-1111-4111-8111-111111111111',2,'2026-08-06T04:01:01Z')->>'claimed','true','expired lease reclaimed');
 select lives_ok($$select public.complete_github_webhook_dispatch('11111111-1111-4111-8111-111111111111',3,'provider-1','2026-08-06T04:01:02Z')$$,'dispatch completed');
 select is((select status from public.github_webhook_deliveries where delivery_id='11111111-1111-4111-8111-111111111111'),'dispatched','terminal status persisted');
+create temporary table unsupported_installation_registration as select public.register_github_webhook_delivery('55555555-5555-4555-8555-555555555555','ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff','installation','created',81001,null,null,'github-webhook:55555555-5555-4555-8555-555555555555',false,'2026-08-06T04:30:00Z') value;
+select is((select value->>'outcome' from unsupported_installation_registration),'new','unsupported installation first delivery is new');
+select is((select value->>'status' from unsupported_installation_registration),'ignored','unsupported installation register returns ignored');
+select is((select status from public.github_webhook_deliveries where delivery_id='55555555-5555-4555-8555-555555555555'),'ignored','unsupported installation persists ignored');
+select is((select count(*)::text from public.github_webhook_deliveries where delivery_id='55555555-5555-4555-8555-555555555555'),'1','unsupported installation creates one delivery row');
+select is(public.claim_github_webhook_dispatch('55555555-5555-4555-8555-555555555555',1,'2026-08-06T04:30:01Z')->>'claimed','false','ignored installation delivery cannot be claimed');
+create temporary table unsupported_installation_replay as select public.register_github_webhook_delivery('55555555-5555-4555-8555-555555555555','ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff','installation','created',81001,null,null,'github-webhook:55555555-5555-4555-8555-555555555555',false,'2026-08-06T04:30:02Z') value;
+select is((select value->>'outcome' from unsupported_installation_replay),'duplicate','unsupported installation replay is duplicate');
+select is((select value->>'status' from unsupported_installation_replay),'ignored','unsupported installation replay remains ignored');
+select is((select count(*)::text from public.github_webhook_deliveries where delivery_id='55555555-5555-4555-8555-555555555555'),'1','unsupported installation replay keeps one delivery row');
+select is(public.register_github_webhook_delivery('66666666-6666-4666-8666-666666666666','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','issues','assigned',81001,91001,'owner/repo','github-webhook:66666666-6666-4666-8666-666666666666',false,'2026-08-06T04:45:00Z')->>'status','ignored','ordinary unsupported event remains ignored');
 select is(public.register_github_webhook_delivery('33333333-3333-4333-8333-333333333333','dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd','installation','deleted',81001,null,null,'github-webhook:33333333-3333-4333-8333-333333333333',true,'2026-08-06T05:00:00Z')->>'status','pending','installation revocation registered');
 select lives_ok($$select public.complete_github_webhook_installation('33333333-3333-4333-8333-333333333333',1,'revoked','2026-08-06T05:00:01Z')$$,'installation revoked');
 select is((select status from public.github_installations where installation_id=81001),'revoked','trusted installation status revoked');

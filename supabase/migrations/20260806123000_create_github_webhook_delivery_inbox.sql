@@ -33,8 +33,8 @@ create function public.register_github_webhook_delivery(p_delivery_id uuid,p_bod
 declare existing public.github_webhook_deliveries%rowtype; mapped_project uuid; initial_status text;
 begin
   if p_body_sha256 !~ '^[0-9a-f]{64}$' or p_event_name !~ '^[a-z][a-z0-9_]{0,63}$' or p_internal_event_id <> 'github-webhook:'||p_delivery_id::text then raise exception using message='github_webhook_delivery_invalid'; end if;
-  if p_event_name='installation' then initial_status:='pending';
-  elsif not p_supported then initial_status:='ignored';
+  if not p_supported then initial_status:='ignored';
+  elsif p_event_name='installation' then initial_status:='pending';
   else
     select p.id into mapped_project from public.github_installations gi join public.selected_repositories sr on sr.github_installation_id=gi.id join public.projects p on p.selected_repository_id=sr.id where gi.installation_id=p_installation_id and gi.status='active' and sr.github_repository_id=p_repository_id and sr.full_name=p_repository_full_name;
     initial_status:=case when mapped_project is null then 'ignored' else 'pending' end;
