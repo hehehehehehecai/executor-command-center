@@ -16,6 +16,8 @@ export async function POST(request: Request, context: RouteContext) {
   };
   return handleManualResyncRequest({
     request,
+    appOrigin: process.env.APP_ORIGIN,
+    responseHeaders,
     projectId: (await context.params).projectId,
     requestedAt: async () => (await getDependencies()).clock.now().toISOString(),
     execute: async (input) => (await getDependencies()).manual.execute(input),
