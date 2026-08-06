@@ -38,6 +38,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      first_sync_cursor_is_valid: {
+        Args: {
+          cursor_value: string
+          expected_project_id: string
+          expected_run_id: string
+        }
+        Returns: boolean
+      }
       utf16_code_units: { Args: { value: string }; Returns: number }
     }
     Enums: {
@@ -766,6 +774,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      checkpoint_first_sync_run: {
+        Args: {
+          p_checkpointed_at: string
+          p_expected_status: string
+          p_expected_version: number
+          p_progress_cursor: string
+          p_project_id: string
+          p_run_id: string
+        }
+        Returns: Json
+      }
       consume_github_installation_state: {
         Args: { p_state_hash: string; p_user_id: string }
         Returns: string
@@ -836,6 +855,10 @@ export type Database = {
         }
         Returns: string
       }
+      get_first_sync_run: {
+        Args: { p_project_id: string; p_run_id: string }
+        Returns: Json
+      }
       get_latest_sync_run: { Args: { p_project_id: string }; Returns: Json }
       read_current_github_identity: {
         Args: { p_user_id: string }
@@ -857,6 +880,7 @@ export type Database = {
           status: string
         }[]
       }
+      read_first_sync_context: { Args: { p_project_id: string }; Returns: Json }
       register_verified_github_installation: {
         Args: {
           p_account_type: string
@@ -898,6 +922,10 @@ export type Database = {
           p_target_status: string
           p_transitioned_at: string
         }
+        Returns: Json
+      }
+      upsert_github_activity_snapshot_group: {
+        Args: { p_group_name: string; p_items: Json; p_project_id: string }
         Returns: Json
       }
     }
