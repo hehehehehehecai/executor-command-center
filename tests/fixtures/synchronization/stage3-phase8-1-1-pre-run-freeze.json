@@ -1,0 +1,138 @@
+{
+  "recordType": "stage3-phase8-1-1-pre-run-freeze",
+  "recordedAt": "2026-08-06T08:49:53.444Z",
+  "contractVersion": "phase8-freeze-diff-conformance.v1",
+  "batchId": "explorer-stage3-phase8-1-1-scope-04292614",
+  "promptInstanceId": "explorer-stage3-phase8-1-1-freeze-conformance-04292614",
+  "authorization": {
+    "policy": "workflow-authorization.v1",
+    "envelopeId": "workflow-authorization.v1:04292614fd363b59"
+  },
+  "sourceReview": {
+    "planVersion": "fe5902",
+    "ticket": "sha256:b49f74c752e668889b24e874ef2c6c898ce4fb017ae025c8a1724e27fab5d1e9",
+    "independentEvidence": "sha256:cdeb8ab179676f8673bc3b3c7d432e29e74d2d28413d571366d39a2cf1ad716f"
+  },
+  "baseline": {
+    "branch": "feature/stage3-phase8-data-freshness-ui",
+    "commit": "bf6abf137153e67f5211e7817b65ed9d23f3a1e1",
+    "tree": "a9460d736ea2d2ddfb894165ea752774d6948ce3",
+    "parent": "1d0f7b428a5e9de3061d1ca3d66170667efd6266",
+    "worktree": "clean",
+    "nextEnvBlob": "9edff1c7cacb3bfac9a1eadcf6f51eaa99565e38"
+  },
+  "immutablePhase8Freeze": {
+    "path": "tests/fixtures/synchronization/stage3-phase8-pre-run-freeze.json",
+    "sha256": "f9f2499b20ace66ec6f5a92b81bb897f422e6d65b6bb1f8dc17449ea30603891",
+    "mustNotBeRewritten": true
+  },
+  "problemFact": {
+    "actualPhase8DiffPathCount": 11,
+    "originalFreezeCoveredPathCount": 9,
+    "lateDiscoveredPathCount": 2,
+    "description": "The immutable Phase 8 Freeze did not pre-authorize two paths that were later added to the Phase 8 commit.",
+    "priorReportAcknowledgement": "The Phase 8 execution report explicitly described index.ts and the E2E adjustment as Freeze-post additions; this correction preserves that history and does not reinterpret them as pre-authorized."
+  },
+  "originalAllowedPaths": [
+    "src/features/project-galaxy/SyncStatusBadge.tsx",
+    "src/features/project-galaxy/freshness-presentation.ts",
+    "src/features/project-galaxy/*.test.ts",
+    "src/features/project-galaxy/*.test.tsx",
+    "src/features/command-deck/command-deck-page.tsx",
+    "src/features/command-deck/command-deck-page.test.tsx",
+    "src/content/demo-data/command-deck-preview-fixture.ts",
+    "src/app/globals.css",
+    "tests/fixtures/synchronization/stage3-phase8-pre-run-freeze.json"
+  ],
+  "expectedPathDenominator": {
+    "allPhase8DiffPaths": 11,
+    "frozenPaths": 9,
+    "lateDiscoveredPaths": 2,
+    "intersection": 0,
+    "duplicates": 0
+  },
+  "lateDiscoveredFacts": [
+    {
+      "path": "src/features/project-galaxy/index.ts",
+      "classification": "late_discovered_not_pre_authorized_by_phase8_freeze",
+      "reason": "public_feature_boundary"
+    },
+    {
+      "path": "tests/e2e/command-deck.spec.ts",
+      "classification": "late_discovered_not_pre_authorized_by_phase8_freeze",
+      "reason": "direct_360px_e2e"
+    }
+  ],
+  "manifestRequiredFields": [
+    "contractVersion",
+    "phase8BaselineCommit",
+    "phase8Commit",
+    "phase8Tree",
+    "phase8Parent",
+    "phase8FreezeSha256",
+    "sourceReviewTicket",
+    "sourceIndependentEvidence",
+    "allPhase8DiffPaths",
+    "frozenPaths",
+    "lateDiscoveredPaths",
+    "phase8FileBlobs"
+  ],
+  "negativeCases": {
+    "unknownPath": "src/features/project-galaxy/unplanned-third-path.ts",
+    "duplicatePath": "src/app/globals.css",
+    "unknownPathMustFail": true,
+    "duplicatePathMustFail": true
+  },
+  "phase8FileBlobs": {
+    "src/app/globals.css": "167781adf4dd49cb5975b2e213c8b303d0d9ec17",
+    "src/content/demo-data/command-deck-preview-fixture.ts": "b5a934c60fa52710a4b58bbfc2646d6041896e16",
+    "src/features/command-deck/command-deck-page.test.tsx": "9d36970e9541104c4eafe3692354e4c5587fc676",
+    "src/features/command-deck/command-deck-page.tsx": "dfb3b5c85b75b150a68ddc80a6c99b6cd18f1c57",
+    "src/features/project-galaxy/SyncStatusBadge.test.tsx": "6c35d57f4de1dfa2d1d604e64b76b68815939886",
+    "src/features/project-galaxy/SyncStatusBadge.tsx": "3d17ae5394ea14d0161408721b1690b8ebb62ddb",
+    "src/features/project-galaxy/freshness-presentation.test.ts": "ad9b3b1e1f06a038853ca7ad72ff28a227389d7b",
+    "src/features/project-galaxy/freshness-presentation.ts": "653e476d740fddf537200d41fae5dd413699dfae",
+    "src/features/project-galaxy/index.ts": "8cede53a6b93401a7286a9378f33249046302696",
+    "tests/e2e/command-deck.spec.ts": "0b7d62e9732cdde6d597eb8d2f4489934c9e63ed",
+    "tests/fixtures/synchronization/stage3-phase8-pre-run-freeze.json": "6308ab0e8fc6a4f1fb36b7c5bd3ad60f960f5ccc"
+  },
+  "baselineFingerprints": {
+    "package.json": "sha256:f9a6ab717fa98c452d290a69374e30b00b09b23f5253699d9900c935dd349468",
+    "pnpm-lock.yaml": "sha256:a087993aad1ff9993627e09050e70d61d22fcc2e9c33909074b52b00528c8eef",
+    "synchronization-state.ts": "sha256:ef9950e5f5760449c6ca03a7ef35bd5c146c5f8d08a074d936e3b92fa9a525a8",
+    "database.types.ts": "sha256:6d5d0a032e3ff52ceea812e06213622abd904f36d74e4741d5f1ffe08b71b264",
+    "phase7Freeze": "sha256:731ed3191cdf49a19653ce4430deb9d81c7c2e22594a932c9cf64fdb6ff2094e",
+    "phase7_1_1Freeze": "sha256:499dab7ff3e0b8e636a9bf9af9cfa33b1464c355e28c2e180d6c99f4cae212a8",
+    "migrationAndDatabaseTestTree": "sha256:4360014dc9b95c32d6f24eaa11012574e5b6c205"
+  },
+  "strictAllowedNewFiles": [
+    "tests/fixtures/synchronization/stage3-phase8-1-1-pre-run-freeze.json",
+    "tests/fixtures/synchronization/stage3-phase8-scope-reconciliation.json",
+    "src/features/project-galaxy/phase8-scope-conformance.test.ts"
+  ],
+  "testDenominator": {
+    "positiveManifestConformance": 1,
+    "unknownPathRejection": 1,
+    "duplicatePathRejection": 1,
+    "exactSetAndLineageAssertions": true,
+    "requiredNewSkipped": 0,
+    "phase8Regression": true,
+    "fullUnitRegressionMinimum": 920,
+    "applicationIntegrationMinimum": 59,
+    "databaseAssertionsMinimum": 487,
+    "e2eMinimum": 2
+  },
+  "forbidden": [
+    "modifying any Phase 8 product, UI, CSS, fixture, E2E or Freeze file",
+    "modifying Domain, Application, database, package, lockfile, CI or scripts",
+    "amend, rebase, reset or rewriting bf6abf1",
+    "Phase 9 implementation",
+    "real services, credentials, push, merge, PR or deployment"
+  ],
+  "commitPolicy": "Exactly one independent local Phase 8.1.1 commit with parent bf6abf137153e67f5211e7817b65ed9d23f3a1e1.",
+  "toolVersions": {
+    "git": "2.54.0.windows.1",
+    "node": "24.14.0",
+    "pnpm": "11.16.0"
+  }
+}
