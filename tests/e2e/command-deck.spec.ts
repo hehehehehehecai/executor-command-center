@@ -18,7 +18,7 @@ test("shows the fictional Command Deck without non-local requests at narrow widt
     }
   });
 
-  await page.setViewportSize({ width: 390, height: 844 });
+  await page.setViewportSize({ width: 360, height: 800 });
   await page.goto("/");
   await page.waitForLoadState("networkidle");
 
@@ -32,8 +32,11 @@ test("shows the fictional Command Deck without non-local requests at narrow widt
   await expect(
     page.getByRole("heading", { level: 2, name: "Command Deck" }),
   ).toBeVisible();
-  await expect(page.getByText("演示数据 · 完全虚构")).toBeVisible();
-  await expect(page.getByText("演示数据版本 1.0.0")).toBeVisible();
+  const previewContract = page.getByLabel("Preview 数据说明");
+  await expect(
+    previewContract.getByText("演示数据 · 完全虚构"),
+  ).toBeVisible();
+  await expect(previewContract.getByText("演示数据版本 1.1.0")).toBeVisible();
 
   const panels = page.getByRole("article");
   const links = page.getByRole("link", { name: /^打开.+演示入口$/ });

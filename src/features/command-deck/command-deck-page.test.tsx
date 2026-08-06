@@ -69,8 +69,8 @@ describe("CommandDeckPage", () => {
       screen.getByRole("heading", { level: 2, name: "Command Deck" }),
     ).toBeInTheDocument();
     expect(screen.getByText("舰桥预览")).toBeInTheDocument();
-    expect(screen.getByText("演示数据 · 完全虚构")).toBeInTheDocument();
-    expect(screen.getByText("演示数据版本 1.0.0")).toBeInTheDocument();
+    expect(screen.getAllByText("演示数据 · 完全虚构")).toHaveLength(2);
+    expect(screen.getByText("演示数据版本 1.1.0")).toBeInTheDocument();
   });
 
   it("renders exactly five panel entries in Registry order", () => {
@@ -131,6 +131,18 @@ describe("CommandDeckPage", () => {
     render(<CommandDeckPage />);
 
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("renders deterministic demo freshness without claiming a real sync", () => {
+    render(<CommandDeckPage />);
+
+    expect(screen.getByText("Syncing")).toBeVisible();
+    expect(screen.getByText("running · 33333333…")).toBeVisible();
+    expect(screen.getByText("2026-08-06 00:00:00 UTC")).toHaveAttribute(
+      "dateTime",
+      "2026-08-06T00:00:00.000Z",
+    );
+    expect(screen.queryByText(/33333333-3333/)).not.toBeInTheDocument();
   });
 
   it("does not claim a real connection or successful sync", () => {

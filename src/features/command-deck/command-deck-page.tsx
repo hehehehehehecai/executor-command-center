@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { commandDeckPreviewFixture } from "@/content/demo-data/command-deck-preview-fixture";
 import { GitHubSignInLink } from "@/features/onboarding";
+import { SyncStatusBadge } from "@/features/project-galaxy";
 import { featureRegistry } from "@/shared/features/feature-registry";
 
 export function CommandDeckPage() {
@@ -46,6 +47,8 @@ export function CommandDeckPage() {
           </div>
         </dl>
       </section>
+
+      <SyncStatusBadge input={project.freshness} />
 
       <nav className="panel-navigation" aria-label="Command Deck 面板入口">
         <ol className="panel-grid">
