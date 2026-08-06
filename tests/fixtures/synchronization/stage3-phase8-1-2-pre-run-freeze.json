@@ -1,0 +1,101 @@
+{
+  "recordType": "stage3-phase8-1-2-pre-run-freeze",
+  "recordedAt": "2026-08-06T09:28:11.317Z",
+  "contractVersion": "phase8-freeze-diff-conformance.v1",
+  "batchId": "explorer-stage3-phase8-1-2-durable-c36d2ce7",
+  "promptInstanceId": "explorer-stage3-phase8-1-2-fixed-commit-c36d2ce7",
+  "authorization": {
+    "policy": "workflow-authorization.v1",
+    "envelopeId": "workflow-authorization.v1:c36d2ce7cca05289"
+  },
+  "sourceReview": {
+    "planVersion": "fe5902",
+    "ticket": "sha256:97e3cbb441dd60a0b3a2dea0e556c0b7138d3f2718bfe784c10939077c652ddb",
+    "independentEvidence": "sha256:c2235ef6f52bbb30c98d70a70f7fb4dbf89a3b0e62949e46b924d7f8a2808d89"
+  },
+  "baseline": {
+    "branch": "feature/stage3-phase8-data-freshness-ui",
+    "commit": "4c80e9cd5b383c7a85fb0c5cde55a6d404c7c42f",
+    "tree": "5c5dae72a1446b4b44a8190abc6305e943573f3c",
+    "parent": "bf6abf137153e67f5211e7817b65ed9d23f3a1e1",
+    "worktree": "clean",
+    "nextEnvBlob": "9edff1c7cacb3bfac9a1eadcf6f51eaa99565e38"
+  },
+  "fixedCorrectionLineage": {
+    "phase8Commit": "bf6abf137153e67f5211e7817b65ed9d23f3a1e1",
+    "phase8CorrectionCommit": "4c80e9cd5b383c7a85fb0c5cde55a6d404c7c42f",
+    "phase8CorrectionTree": "5c5dae72a1446b4b44a8190abc6305e943573f3c",
+    "phase8CorrectionParent": "bf6abf137153e67f5211e7817b65ed9d23f3a1e1",
+    "exactCorrectionPaths": [
+      "src/features/project-galaxy/phase8-scope-conformance.test.ts",
+      "tests/fixtures/synchronization/stage3-phase8-1-1-pre-run-freeze.json",
+      "tests/fixtures/synchronization/stage3-phase8-scope-reconciliation.json"
+    ]
+  },
+  "immutableAssets": {
+    "phase8FreezeSha256": "f9f2499b20ace66ec6f5a92b81bb897f422e6d65b6bb1f8dc17449ea30603891",
+    "phase8_1_1FreezeSha256": "80df551ba8d3edf50a39ac9496b68a87b11e3cf80a80a989508ee096b2653dba",
+    "scopeReconciliationManifestSha256": "ac27d3b4076b620d7ba65cd6c3315c73b09f50db5adefc2a915cb0a2375bd9b6",
+    "oldConformanceTestSha256": "eecd45aecb56c437e34ed267994073494ba5f327c345abb4c4e74173bdf2bc4d",
+    "oldConformanceTestBlob": "e5dd469d4b2ef427a99156214e79e6ed643bb2b4"
+  },
+  "defects": [
+    {
+      "code": "future_head_historical_binding",
+      "evidence": "The old test compares HEAD:<phase8-path> with historical manifest blobs.",
+      "oldDependencyCount": 1,
+      "requiredDependencyCount": 0,
+      "durableReplacement": "Compare the fixed correction commit 4c80e9c:<phase8-path> with manifest.phase8FileBlobs."
+    },
+    {
+      "code": "empty_worktree_scope_vacuous_truth",
+      "evidence": "The old test derives changedPaths from git status and every([]) is true after commit.",
+      "oldDependencyCount": 1,
+      "requiredDependencyCount": 0,
+      "durableReplacement": "Compare the fixed commit range bf6abf1..4c80e9c with the exact three correction paths."
+    }
+  ],
+  "phase8FileBlobs": {
+    "src/app/globals.css": "167781adf4dd49cb5975b2e213c8b303d0d9ec17",
+    "src/content/demo-data/command-deck-preview-fixture.ts": "b5a934c60fa52710a4b58bbfc2646d6041896e16",
+    "src/features/command-deck/command-deck-page.test.tsx": "9d36970e9541104c4eafe3692354e4c5587fc676",
+    "src/features/command-deck/command-deck-page.tsx": "dfb3b5c85b75b150a68ddc80a6c99b6cd18f1c57",
+    "src/features/project-galaxy/SyncStatusBadge.test.tsx": "6c35d57f4de1dfa2d1d604e64b76b68815939886",
+    "src/features/project-galaxy/SyncStatusBadge.tsx": "3d17ae5394ea14d0161408721b1690b8ebb62ddb",
+    "src/features/project-galaxy/freshness-presentation.test.ts": "ad9b3b1e1f06a038853ca7ad72ff28a227389d7b",
+    "src/features/project-galaxy/freshness-presentation.ts": "653e476d740fddf537200d41fae5dd413699dfae",
+    "src/features/project-galaxy/index.ts": "8cede53a6b93401a7286a9378f33249046302696",
+    "tests/e2e/command-deck.spec.ts": "0b7d62e9732cdde6d597eb8d2f4489934c9e63ed",
+    "tests/fixtures/synchronization/stage3-phase8-pre-run-freeze.json": "6308ab0e8fc6a4f1fb36b7c5bd3ad60f960f5ccc"
+  },
+  "strictAllowedChanges": [
+    "tests/fixtures/synchronization/stage3-phase8-1-2-pre-run-freeze.json",
+    "src/features/project-galaxy/phase8-scope-conformance.test.ts"
+  ],
+  "testDenominator": {
+    "existingConformanceCasesMinimum": 7,
+    "fixedCommitDiffPaths": 3,
+    "fixedHistoricalBlobComparisons": 11,
+    "currentHeadHistoricalBindings": 0,
+    "worktreeScopeProofs": 0,
+    "requiredNewSkipped": 0,
+    "fullUnitRegressionMinimum": 927,
+    "applicationIntegrationMinimum": 59,
+    "databaseAssertionsMinimum": 487,
+    "e2eMinimum": 2
+  },
+  "forbidden": [
+    "modifying the Phase 8 or Phase 8.1.1 Freeze",
+    "modifying the scope reconciliation manifest",
+    "modifying Phase 8 product, UI, CSS, demo fixture or E2E files",
+    "modifying Domain, Application, database, generated types, package, lockfile, CI, scripts or next-env.d.ts",
+    "amend, rebase, reset or historical rewrite",
+    "Phase 9 implementation, real services, credentials, push, merge, PR or deployment"
+  ],
+  "commitPolicy": "Exactly one independent local Phase 8.1.2 commit with parent 4c80e9cd5b383c7a85fb0c5cde55a6d404c7c42f.",
+  "toolVersions": {
+    "git": "2.54.0.windows.1",
+    "node": "22.22.3",
+    "pnpm": "11.16.0"
+  }
+}

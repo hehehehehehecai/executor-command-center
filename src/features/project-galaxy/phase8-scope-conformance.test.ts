@@ -21,6 +21,8 @@ const phase8FreezePath = resolve(
 const phase8BaselineCommit = "1d0f7b428a5e9de3061d1ca3d66170667efd6266";
 const phase8Commit = "bf6abf137153e67f5211e7817b65ed9d23f3a1e1";
 const phase8Tree = "a9460d736ea2d2ddfb894165ea752774d6948ce3";
+const phase8CorrectionCommit = "4c80e9cd5b383c7a85fb0c5cde55a6d404c7c42f";
+const phase8CorrectionTree = "5c5dae72a1446b4b44a8190abc6305e943573f3c";
 const phase8FreezeSha256 =
   "f9f2499b20ace66ec6f5a92b81bb897f422e6d65b6bb1f8dc17449ea30603891";
 const correctionFreezeSha256 =
@@ -77,11 +79,11 @@ const expectedOriginalAllowedPaths = [
   "tests/fixtures/synchronization/stage3-phase8-pre-run-freeze.json",
 ] as const;
 
-const allowedCorrectionPaths = new Set([
+const expectedCorrectionPaths = [
   "src/features/project-galaxy/phase8-scope-conformance.test.ts",
   "tests/fixtures/synchronization/stage3-phase8-1-1-pre-run-freeze.json",
   "tests/fixtures/synchronization/stage3-phase8-scope-reconciliation.json",
-]);
+] as const;
 
 interface ScopeReconciliationManifest {
   readonly contractVersion: string;
@@ -235,22 +237,24 @@ describe("phase8-freeze-diff-conformance.v1", () => {
       expect(manifest.phase8FileBlobs[path]).toBe(
         git(["rev-parse", `${phase8Commit}:${path}`]),
       );
-      expect(git(["rev-parse", `HEAD:${path}`])).toBe(
+      expect(git(["rev-parse", `${phase8CorrectionCommit}:${path}`])).toBe(
         manifest.phase8FileBlobs[path],
       );
     }
   });
 
-  it("allows only the three Phase 8.1.1 paths in the correction worktree", () => {
-    const status = git(["status", "--porcelain", "--untracked-files=all"]);
-    const changedPaths = status === ""
-      ? []
-      : status.split(/\r?\n/u).map((line) => line.slice(3));
-
-    expect(changedPaths.every((path) => allowedCorrectionPaths.has(path))).toBe(true);
-    expect(changedPaths.some((path) => expectedAllPaths.includes(path as never))).toBe(
-      false,
+  it("binds the correction scope to the fixed Phase 8.1.1 commit", () => {
+    expect(git(["rev-parse", `${phase8CorrectionCommit}^`])).toBe(phase8Commit);
+    expect(git(["rev-parse", `${phase8CorrectionCommit}^{tree}`])).toBe(
+      phase8CorrectionTree,
     );
+    expect(
+      git([
+        "diff",
+        "--name-only",
+        `${phase8Commit}..${phase8CorrectionCommit}`,
+      ]).split(/\r?\n/u),
+    ).toEqual(expectedCorrectionPaths);
   });
 
   it("rejects any third path even when it shares an allowed directory prefix", () => {
