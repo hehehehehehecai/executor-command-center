@@ -521,6 +521,7 @@ export type Database = {
           id: string
           installation_id: number | null
           internal_event_id: string
+          processing_lease_until: string | null
           project_id: string | null
           provider_receipt_id: string | null
           received_at: string
@@ -528,6 +529,7 @@ export type Database = {
           repository_id: number | null
           safe_error_code: string | null
           status: string
+          sync_run_id: string | null
           updated_at: string
           version: number
         }
@@ -541,6 +543,7 @@ export type Database = {
           id?: string
           installation_id?: number | null
           internal_event_id: string
+          processing_lease_until?: string | null
           project_id?: string | null
           provider_receipt_id?: string | null
           received_at: string
@@ -548,6 +551,7 @@ export type Database = {
           repository_id?: number | null
           safe_error_code?: string | null
           status: string
+          sync_run_id?: string | null
           updated_at?: string
           version?: number
         }
@@ -561,6 +565,7 @@ export type Database = {
           id?: string
           installation_id?: number | null
           internal_event_id?: string
+          processing_lease_until?: string | null
           project_id?: string | null
           provider_receipt_id?: string | null
           received_at?: string
@@ -568,6 +573,7 @@ export type Database = {
           repository_id?: number | null
           safe_error_code?: string | null
           status?: string
+          sync_run_id?: string | null
           updated_at?: string
           version?: number
         }
@@ -577,6 +583,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "github_webhook_deliveries_sync_run_fkey"
+            columns: ["sync_run_id"]
+            isOneToOne: false
+            referencedRelation: "sync_runs"
             referencedColumns: ["id"]
           },
         ]
@@ -927,6 +940,15 @@ export type Database = {
         }
         Returns: Json
       }
+      claim_github_webhook_processing: {
+        Args: {
+          p_claimed_at: string
+          p_delivery_id: string
+          p_expected_version: number
+          p_sync_run_id: string
+        }
+        Returns: Json
+      }
       claim_project_sync_dispatch: {
         Args: {
           p_claimed_at: string
@@ -951,6 +973,15 @@ export type Database = {
           p_delivery_id: string
           p_expected_version: number
           p_installation_state: string
+        }
+        Returns: Json
+      }
+      complete_github_webhook_processing: {
+        Args: {
+          p_completed_at: string
+          p_delivery_id: string
+          p_expected_version: number
+          p_sync_run_id: string
         }
         Returns: Json
       }
@@ -1033,6 +1064,16 @@ export type Database = {
           p_github_user_id: number
         }
         Returns: string
+      }
+      fail_github_webhook_processing: {
+        Args: {
+          p_delivery_id: string
+          p_expected_version: number
+          p_failed_at: string
+          p_safe_error_code: string
+          p_sync_run_id: string
+        }
+        Returns: Json
       }
       get_first_sync_run: {
         Args: { p_project_id: string; p_run_id: string }

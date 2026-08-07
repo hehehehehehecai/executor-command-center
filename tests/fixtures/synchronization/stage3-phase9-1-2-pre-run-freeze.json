@@ -1,0 +1,141 @@
+{
+  "recordType": "stage3-phase9-1-2-pre-run-freeze",
+  "recordedAt": "2026-08-07T04:28:39.516Z",
+  "batchId": "explorer-stage3-phase9-1-2-delivery-e7068167",
+  "promptInstanceId": "explorer-stage3-phase9-1-2-delivery-terminal-e7068167",
+  "authorization": {
+    "policy": "workflow-authorization.v1",
+    "envelopeId": "workflow-authorization.v1:668ffae1ff054f02",
+    "sourceReviewTicket": "sha256:5e316e757948c2f4f658c627a686cfd62eaae9d2f5d49773372061689aa5f229",
+    "sourcePrompt": "sha256:9f34f510a8f12f326059dfec7a0e5668a1df886d405f6ef3c9f5a237e08a51e6",
+    "sourceExecutionReport": "sha256:69f98f75080857d1922bc571e0480eb5b104e5dec98e0df5b1411a05db06a4b0",
+    "sourceIndependentEvidence": "sha256:dc791a0636a0f1be14e15e3af55a165ea9e66333b57cb6ee63416bb2c5b3e6de",
+    "blockerFingerprint": "sha256:e7068167810eb8ddf65b7f33b587a97e4ba198ff5e16647e5bebc47ac354aa30",
+    "blockerRound": "1/5",
+    "planVersion": "fe5902"
+  },
+  "baseline": {
+    "branch": "feature/stage3-phase8-data-freshness-ui",
+    "commit": "c2e56bb4c14bad37d82e2334864c9cb65f4f51c6",
+    "tree": "68d2896d23c078f164c07d12c016336f4a924975",
+    "parent": "223ba41333d029940aeba6cf5f7524e42bfeaadc",
+    "worktree": "clean",
+    "migrationCount": 14,
+    "latestLogicalMigrationId": "0014"
+  },
+  "existingFacts": {
+    "deliveryHasSyncRunId": false,
+    "completedRetainsProviderReceipt": false,
+    "ordinaryProcessingRpcCount": 0,
+    "serviceRoleDirectTableWrite": false,
+    "installationCompletionReusableForOrdinaryDelivery": false,
+    "requestProjectSyncSupportsWebhook": true,
+    "syncRunSuccessfulStatusesForCompletion": ["completed", "partial"]
+  },
+  "contract": {
+    "new": "github-webhook-delivery-processing.v1",
+    "preserved": [
+      "github-webhook-delivery.v1",
+      "github-webhook-ingestion.v1",
+      "synchronization-state.v1",
+      "sync-runs.v1",
+      "repository-reconciliation.v1"
+    ]
+  },
+  "migration": {
+    "file": "supabase/migrations/20260807122000_extend_github_webhook_delivery_processing.sql",
+    "logicalMigrationId": "0015",
+    "newColumns": ["sync_run_id", "processing_lease_until"],
+    "newForeignKeys": ["github_webhook_deliveries_sync_run_fkey"],
+    "newIndexes": ["github_webhook_deliveries_processing_recovery_idx"],
+    "statusValues": ["pending", "dispatching", "dispatched", "processing", "failed", "ignored", "completed"],
+    "rpcs": [
+      "claim_github_webhook_processing(uuid,uuid,bigint,timestamptz)",
+      "complete_github_webhook_processing(uuid,uuid,bigint,timestamptz)",
+      "fail_github_webhook_processing(uuid,uuid,bigint,text,timestamptz)"
+    ]
+  },
+  "processingRules": {
+    "claimable": ["dispatched", "expired processing", "failed"],
+    "activeLease": "returns claimed=false without mutation",
+    "bindRule": "delivery.project_id equals sync_runs.project_id and sync_runs.trigger_source equals webhook",
+    "completionRule": "matching processing delivery and SyncRun status completed or partial",
+    "duplicateCompletion": "same delivery and sync_run returns duplicate without version or receipt mutation",
+    "providerReceipt": "retained from dispatched through processing, failed and completed",
+    "installationDelivery": "never claimable by ordinary processing RPCs",
+    "leaseDurationSeconds": 300,
+    "optimisticConcurrency": "expected version required for every mutating transition"
+  },
+  "safeErrorCodes": [
+    "github_activity_rate_limited",
+    "github_activity_timeout",
+    "github_activity_unavailable",
+    "github_activity_snapshot_write_failed",
+    "sync_run_concurrency_conflict",
+    "github_webhook_processing_failed"
+  ],
+  "permissions": {
+    "tableDirectWrite": {"public": false, "anon": false, "authenticated": false, "service_role": false},
+    "rpcExecute": {"public": false, "anon": false, "authenticated": false, "service_role": true},
+    "rlsRemainsEnabled": true,
+    "rpcSecurity": "security definer, owner postgres, search_path empty"
+  },
+  "testDenominator": {
+    "schemaColumnForeignKeyIndexConstraint": 1,
+    "claimSuccess": 1,
+    "activeLeaseDuplicate": 1,
+    "expiredReclaim": 1,
+    "completeSuccess": 1,
+    "completeDuplicate": 1,
+    "completeWrongVersion": 1,
+    "completeWrongStatus": 1,
+    "completeNonSuccessfulSyncRun": 1,
+    "failSafeCode": 1,
+    "failIllegalCode": 1,
+    "failedRetry": 1,
+    "eventualComplete": 1,
+    "sameProject": 1,
+    "crossProject": 1,
+    "nonWebhookTriggers": 3,
+    "installationIgnoredPendingDispatchingRejected": 4,
+    "permissionMatrix": 4,
+    "requiredSkipped": 0
+  },
+  "tddRed": {
+    "testFile": "supabase/tests/0017_github_webhook_delivery_processing_test.sql",
+    "expectedReason": "sync_run_id, processing_lease_until and three processing RPCs do not exist before logical migration 0015"
+  },
+  "exactAllowedPaths": [
+    "tests/fixtures/synchronization/stage3-phase9-1-2-pre-run-freeze.json",
+    "supabase/migrations/20260807122000_extend_github_webhook_delivery_processing.sql",
+    "supabase/tests/0017_github_webhook_delivery_processing_test.sql",
+    "src/infrastructure/database/database.types.ts",
+    "src/application/webhooks/ingest-github-webhook.ts",
+    "src/infrastructure/webhooks/supabase-github-webhook-delivery-repository.ts",
+    "src/infrastructure/webhooks/supabase-github-webhook-delivery-repository.test.ts"
+  ],
+  "protectedFingerprints": {
+    "packageJsonSha256": "f9a6ab717fa98c452d290a69374e30b00b09b23f5253699d9900c935dd349468",
+    "pnpmLockSha256": "a087993aad1ff9993627e09050e70d61d22fcc2e9c33909074b52b00528c8eef",
+    "nextEnvSha256": "4e4da12aa061aac172fb1bcb48e9b6e4b293080d2f494327925fdba8f39632ac",
+    "databaseTypesSha256": "6d5d0a032e3ff52ceea812e06213622abd904f36d74e4741d5f1ffe08b71b264",
+    "pgtap0015Sha256": "9f6e985bf40990d98cded46e3d0c42a8a60a31e32000a6d62d34282e9478afdc",
+    "pgtap0016Sha256": "62f934cfa5306ccc63c431d170054a27d9238c8102ade3d22e60e0338a7ef1b7",
+    "deliveryMigrationSha256": "ad0b397ba227639c5dca302ca1c1d9d34dae54db6fe949e8ea31b7c565ba5648",
+    "reconciliationMigrationSha256": "5b820e5eb5c896befd37a269ab50b3c01d673e92f5dea15a2dd80c9f8ebc1928",
+    "syncRunsMigrationSha256": "6fc92bc0ce971c665fbf689f689f3d48a5a4a60f0959eba3985f5ff52173c8fe",
+    "migrationTree": "6f34643c35a88f0436cbc2fb2016e2a36e004a38",
+    "sourceTree": "0c6e92005816c37b472f88c5ae4eebe7ef617fbc"
+  },
+  "forbidden": [
+    "historical migration or Phase artifact changes",
+    "Inngest route, serve, createFunction, consumer or cron",
+    "sync reader, writer or UI behavior",
+    "package, lock, environment contract or next-env changes",
+    "direct table grants",
+    "raw payload, signature, token, secret, authorization or cookie storage",
+    "remote database, provider, deployment or repository writes"
+  ],
+  "remoteActionsPermitted": false,
+  "commitPolicy": "exactly one independent local commit after all required gates pass"
+}

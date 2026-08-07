@@ -2,18 +2,31 @@ import { githubWebhookEventContract, parseGitHubWebhookEvent, parseGitHubWebhook
 
 export const githubWebhookIngestionContract = "github-webhook-ingestion.v1" as const;
 export const githubWebhookDispatcherContract = "github-webhook-dispatcher.v1" as const;
+export const githubWebhookDeliveryProcessingContract = "github-webhook-delivery-processing.v1" as const;
 export const githubWebhookMaxBodyBytes = 1_048_576;
 
 export type WebhookResult = { readonly result: "accepted" | "duplicate" | "ignored" | "rejected"; readonly code: string; readonly httpStatus: number };
 export type WebhookInternalEvent = { readonly version: typeof githubWebhookEventContract; readonly eventId: string; readonly idempotencyKey: string; readonly deliveryId: string; readonly kind: string; readonly action: string | null; readonly projectId: string; readonly installationId: number; readonly repositoryId: number; readonly githubObjectId: string; readonly receivedAt: string };
 export interface GitHubWebhookCryptography { verify(input: { body: Uint8Array; signature: string }): { valid: boolean; bodySha256: string }; }
 export interface GitHubWebhookDispatcher { dispatch(event: WebhookInternalEvent): Promise<{ providerReceiptId: string }>; }
-export type DeliveryStatus = "pending" | "dispatching" | "dispatched" | "ignored" | "completed";
+export type DeliveryStatus = "pending" | "dispatching" | "dispatched" | "processing" | "failed" | "ignored" | "completed";
+export type GitHubWebhookProcessingErrorCode =
+  | "github_activity_rate_limited"
+  | "github_activity_timeout"
+  | "github_activity_unavailable"
+  | "github_activity_snapshot_write_failed"
+  | "sync_run_concurrency_conflict"
+  | "github_webhook_processing_failed";
 export interface GitHubWebhookDeliveryRepository {
   register(input: { deliveryId: string; bodySha256: string; eventName: string; action: string | null; installationId: number | null; repositoryId: number | null; repositoryFullName: string | null; internalEventId: string; supported: boolean; receivedAt: string }): Promise<{ outcome: "new" | "duplicate" | "conflict"; status: DeliveryStatus; version: number; projectId: string | null }>;
   claimDispatch(input: { deliveryId: string; expectedVersion: number; claimedAt: string }): Promise<{ claimed: boolean; version: number }>;
   completeDispatch(input: { deliveryId: string; expectedVersion: number; providerReceiptId: string; completedAt: string }): Promise<void>;
   completeInstallation(input: { deliveryId: string; expectedVersion: number; installationState: GitHubWebhookInstallationState; completedAt: string }): Promise<void>;
+}
+export interface GitHubWebhookDeliveryProcessingRepository {
+  claimProcessing(input: { deliveryId: string; syncRunId: string; expectedVersion: number; claimedAt: string }): Promise<{ claimed: boolean; status: DeliveryStatus; version: number }>;
+  completeProcessing(input: { deliveryId: string; syncRunId: string; expectedVersion: number; completedAt: string }): Promise<{ outcome: "completed" | "duplicate"; status: "completed"; version: number }>;
+  failProcessing(input: { deliveryId: string; syncRunId: string; expectedVersion: number; safeErrorCode: GitHubWebhookProcessingErrorCode; failedAt: string }): Promise<{ outcome: "failed"; status: "failed"; version: number }>;
 }
 
 const canonicalTimestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
