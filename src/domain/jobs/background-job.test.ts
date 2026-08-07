@@ -25,13 +25,49 @@ const validJob = {
   requestedAt: "2026-08-05T12:00:00.000Z",
 } as const;
 
+const currentJob = {
+  ...validJob,
+  triggerSource: "manual",
+  webhookDelivery: null,
+} as const;
+
+const webhookJob = {
+  ...validJob,
+  triggerSource: "webhook",
+  webhookDelivery: {
+    deliveryId: "44444444-4444-4444-8444-444444444444",
+    bodySha256: "a".repeat(64),
+    eventName: "issues",
+    action: "opened",
+    installationId: 81_001,
+    repositoryId: 91_001,
+    repositoryFullName: "synthetic-owner/synthetic-repository",
+    internalEventId: "github-webhook:44444444-4444-4444-8444-444444444444",
+    processingVersion: 4,
+  },
+} as const;
+
 describe("background-job.v1", () => {
   it("parses the exact supported job into a JSON-serializable value", () => {
     expect(jobs.backgroundJobContract).toBe("background-job.v1");
     expect(jobs.backgroundJobTypes).toEqual(["project.sync.requested.v1"]);
     const parsed = jobs.parseBackgroundJob?.(validJob);
     expect(parsed).toEqual(validJob);
-    expect(JSON.parse(JSON.stringify(parsed))).toEqual(validJob);
+    expect(JSON.parse(JSON.stringify(jobs.parseBackgroundJob?.(currentJob)))).toEqual(currentJob);
+  });
+
+  it("strictly parses trusted Webhook delivery lineage", () => {
+    expect(jobs.parseBackgroundJob?.(webhookJob)).toEqual(webhookJob);
+  });
+
+  it.each([
+    ["missing lineage", { ...webhookJob, webhookDelivery: null }],
+    ["lineage on manual", { ...webhookJob, triggerSource: "manual" }],
+    ["unsafe digest", { ...webhookJob, webhookDelivery: { ...webhookJob.webhookDelivery, bodySha256: "bad" } }],
+    ["unsafe version", { ...webhookJob, webhookDelivery: { ...webhookJob.webhookDelivery, processingVersion: 0 } }],
+    ["extra lineage field", { ...webhookJob, webhookDelivery: { ...webhookJob.webhookDelivery, rawPayload: "forbidden" } }],
+  ])("rejects %s", (_label, value) => {
+    expect(() => jobs.parseBackgroundJob?.(value)).toThrow("background_job_invalid_request");
   });
 
   it("rejects an unknown version", () => {

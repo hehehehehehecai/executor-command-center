@@ -2,6 +2,7 @@ import type { JobDispatcher } from "@/application/jobs/job-dispatcher";
 import {
   backgroundJobContract,
   type BackgroundJob,
+  type WebhookDeliveryLineage,
 } from "@/domain/jobs/background-job";
 import {
   compareRepositoryFacts,
@@ -48,7 +49,7 @@ export type SyncRequestReceipt = {
 export interface SyncRequestStore {
   request(input: {
     readonly projectId: string;
-    readonly triggerSource: "reconciliation" | "manual";
+    readonly triggerSource: "webhook" | "reconciliation" | "manual";
     readonly requestIdentity: string;
     readonly actorUserId: string | null;
     readonly requestedAt: string;
@@ -68,7 +69,7 @@ export interface SyncRequestStore {
   }): Promise<void>;
 }
 
-type SyncRequestResult = {
+export type SyncRequestResult = {
   readonly result: "accepted" | "coalesced" | "duplicate" | "authorization_revoked" | "suspended" | "forbidden" | "not_found" | "failed";
   readonly code: string;
   readonly syncRunId: string | null;
@@ -108,10 +109,11 @@ export class ProjectSyncRequestCoordinator {
 
   async execute(input: {
     readonly projectId: string;
-    readonly triggerSource: "reconciliation" | "manual";
+    readonly triggerSource: "webhook" | "reconciliation" | "manual";
     readonly requestIdentity: string;
     readonly actorUserId: string | null;
     readonly requestedAt: string;
+    readonly webhookDelivery?: WebhookDeliveryLineage | null;
   }): Promise<SyncRequestResult> {
     const receipt = await this.dependencies.store.request(input);
     if (receipt.outcome === "authorization_revoked") return { result: "authorization_revoked", code: "manual_resync_authorization_revoked", syncRunId: null, providerJobId: null };
@@ -142,6 +144,8 @@ export class ProjectSyncRequestCoordinator {
       idempotencyKey: `sync-request:${input.requestIdentity}`,
       correlationId: `sync:${receipt.syncRunId}`,
       requestedAt: input.requestedAt,
+      triggerSource: input.triggerSource,
+      webhookDelivery: input.webhookDelivery ?? null,
     };
     let providerJobId: string;
     try {

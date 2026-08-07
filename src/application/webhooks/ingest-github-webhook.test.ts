@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { IngestGitHubWebhook, type GitHubWebhookDeliveryRepository, type GitHubWebhookDispatcher, type GitHubWebhookCryptography } from "./ingest-github-webhook";
+import { IngestGitHubWebhook, parseWebhookInternalEvent, type GitHubWebhookDeliveryRepository, type GitHubWebhookDispatcher, type GitHubWebhookCryptography } from "./ingest-github-webhook";
 
 const encoder = new TextEncoder();
 const deliveryId = "11111111-1111-4111-8111-111111111111";
@@ -31,7 +31,11 @@ describe("github-webhook-ingestion.v1", () => {
   it("accepts a supported event with stable minimal lineage", async () => {
     const f = fixture();
     await expect(f.useCase.execute(request())).resolves.toEqual({ result: "accepted", code: "github_webhook_accepted", httpStatus: 202 });
-    expect(f.dispatcher.dispatch).toHaveBeenCalledWith({ version: "github-webhook-event.v1", eventId: `github-webhook:${deliveryId}`, idempotencyKey: `github-webhook:${deliveryId}`, deliveryId, kind: "github.issue.v1", action: "opened", projectId, installationId: 81_001, repositoryId: 91_001, githubObjectId: "101", receivedAt: now });
+    const event = { version: "github-webhook-event.v1", eventId: `github-webhook:${deliveryId}`, idempotencyKey: `github-webhook:${deliveryId}`, deliveryId, bodySha256: "b".repeat(64), eventName: "issues", kind: "github.issue.v1", action: "opened", projectId, installationId: 81_001, repositoryId: 91_001, repositoryFullName: "synthetic-owner/synthetic-repository", githubObjectId: "101", receivedAt: now, processingVersion: 2 } as const;
+    expect(f.dispatcher.dispatch).toHaveBeenCalledWith(event);
+    expect(parseWebhookInternalEvent(event)).toEqual(event);
+    expect(() => parseWebhookInternalEvent({ ...event, rawPayload: {} })).toThrow("github_webhook_event_invalid");
+    expect(() => parseWebhookInternalEvent({ ...event, version: "github-webhook-event.v2" })).toThrow("github_webhook_event_invalid");
     expect(JSON.stringify(vi.mocked(f.repository.register).mock.calls[0])).not.toMatch(/discard-me|attacker-controlled|raw|signature/i);
   });
 

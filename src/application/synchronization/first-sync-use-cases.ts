@@ -258,6 +258,8 @@ export class StartFirstRepositorySync {
       idempotencyKey,
       correlationId: `first-sync:${run.id}`,
       requestedAt: window.windowEnd,
+      triggerSource: "first_sync",
+      webhookDelivery: null,
     };
     const provider = await this.dependencies.dispatcher.dispatch(job);
     const cursor = createFirstSyncCursor({

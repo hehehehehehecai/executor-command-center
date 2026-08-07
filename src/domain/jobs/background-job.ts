@@ -4,6 +4,21 @@ export const backgroundJobTypes = ["project.sync.requested.v1"] as const;
 
 export type BackgroundJobType = (typeof backgroundJobTypes)[number];
 
+export const syncTriggerSources = ["first_sync", "webhook", "reconciliation", "manual"] as const;
+export type SyncTriggerSource = (typeof syncTriggerSources)[number];
+
+export type WebhookDeliveryLineage = {
+  deliveryId: string;
+  bodySha256: string;
+  eventName: string;
+  action: string | null;
+  installationId: number;
+  repositoryId: number;
+  repositoryFullName: string;
+  internalEventId: string;
+  processingVersion: number;
+};
+
 export type BackgroundJob = {
   version: typeof backgroundJobContract;
   jobType: BackgroundJobType;
@@ -13,6 +28,8 @@ export type BackgroundJob = {
   idempotencyKey: string;
   correlationId: string;
   requestedAt: string;
+  triggerSource?: SyncTriggerSource;
+  webhookDelivery?: WebhookDeliveryLineage | null;
 };
 
 const backgroundJobKeys = [
@@ -26,10 +43,15 @@ const backgroundJobKeys = [
   "requestedAt",
 ] as const;
 
+const currentBackgroundJobKeys = [...backgroundJobKeys, "triggerSource", "webhookDelivery"] as const;
+const webhookLineageKeys = ["deliveryId", "bodySha256", "eventName", "action", "installationId", "repositoryId", "repositoryFullName", "internalEventId", "processingVersion"] as const;
+
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const safeIdentifierPattern = /^[A-Za-z0-9][A-Za-z0-9:._-]{0,127}$/;
 const canonicalTimestampPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+const sha256Pattern = /^[0-9a-f]{64}$/;
+const repositoryFullNamePattern = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 
 function invalidRequest(): never {
   throw new Error("background_job_invalid_request");
@@ -54,11 +76,35 @@ export function parseBackgroundJob(value: unknown): BackgroundJob {
   }
 
   const keys = Object.keys(value).sort();
-  const expectedKeys = [...backgroundJobKeys].sort();
+  const legacy = keys.length === backgroundJobKeys.length;
+  const expectedKeys = [...(legacy ? backgroundJobKeys : currentBackgroundJobKeys)].sort();
   if (
     keys.length !== expectedKeys.length
     || keys.some((key, index) => key !== expectedKeys[index])
   ) {
+    return invalidRequest();
+  }
+
+  const triggerSource = legacy ? "first_sync" : value.triggerSource;
+  const webhookDelivery = legacy ? null : value.webhookDelivery;
+  if (!syncTriggerSources.includes(triggerSource as SyncTriggerSource)) return invalidRequest();
+  if (triggerSource === "webhook") {
+    if (!isRecord(webhookDelivery)) return invalidRequest();
+    const lineageKeys = Object.keys(webhookDelivery).sort();
+    const expectedLineageKeys = [...webhookLineageKeys].sort();
+    if (lineageKeys.length !== expectedLineageKeys.length || lineageKeys.some((key, index) => key !== expectedLineageKeys[index])) return invalidRequest();
+    if (
+      typeof webhookDelivery.deliveryId !== "string" || !safeIdentifierPattern.test(webhookDelivery.deliveryId)
+      || typeof webhookDelivery.bodySha256 !== "string" || !sha256Pattern.test(webhookDelivery.bodySha256)
+      || typeof webhookDelivery.eventName !== "string" || !safeIdentifierPattern.test(webhookDelivery.eventName)
+      || (webhookDelivery.action !== null && (typeof webhookDelivery.action !== "string" || !safeIdentifierPattern.test(webhookDelivery.action)))
+      || !Number.isSafeInteger(webhookDelivery.installationId) || Number(webhookDelivery.installationId) <= 0
+      || !Number.isSafeInteger(webhookDelivery.repositoryId) || Number(webhookDelivery.repositoryId) <= 0
+      || typeof webhookDelivery.repositoryFullName !== "string" || !repositoryFullNamePattern.test(webhookDelivery.repositoryFullName)
+      || typeof webhookDelivery.internalEventId !== "string" || !safeIdentifierPattern.test(webhookDelivery.internalEventId)
+      || !Number.isSafeInteger(webhookDelivery.processingVersion) || Number(webhookDelivery.processingVersion) <= 0
+    ) return invalidRequest();
+  } else if (webhookDelivery !== null) {
     return invalidRequest();
   }
 
@@ -86,7 +132,7 @@ export function parseBackgroundJob(value: unknown): BackgroundJob {
     return invalidRequest();
   }
 
-  return {
+  const base = {
     version: value.version,
     jobType: value.jobType as BackgroundJobType,
     jobId: value.jobId,
@@ -96,4 +142,6 @@ export function parseBackgroundJob(value: unknown): BackgroundJob {
     correlationId: value.correlationId,
     requestedAt: value.requestedAt,
   };
+  if (legacy) return base;
+  return { ...base, triggerSource: triggerSource as SyncTriggerSource, webhookDelivery: webhookDelivery as WebhookDeliveryLineage | null };
 }

@@ -115,6 +115,8 @@ describe("RunDailyRepositoryReconciliation", () => {
       idempotencyKey: "sync-request:reconciliation:2026-08-06",
       correlationId: `sync:${runA}`,
       requestedAt: scheduledAt,
+      triggerSource: "reconciliation",
+      webhookDelivery: null,
     });
   });
 

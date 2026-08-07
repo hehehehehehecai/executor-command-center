@@ -333,6 +333,7 @@ describe("StartFirstRepositorySync", () => {
     expect(replay).toEqual({ ...first, reused: true });
     expect(fixture.runs.runs).toHaveLength(1);
     expect(fixture.dispatcher.dispatch).toHaveBeenCalledTimes(1);
+    expect(fixture.dispatcher.dispatch).toHaveBeenCalledWith(expect.objectContaining({ triggerSource: "first_sync", webhookDelivery: null }));
   });
 
   it("isolates the same requestId across projects", async () => {
