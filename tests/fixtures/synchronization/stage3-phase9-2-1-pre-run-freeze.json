@@ -1,0 +1,131 @@
+{
+  "contractVersion": "phase9-2-1-first-sync-production-entry-freeze.v1",
+  "recordedAt": "2026-08-10T08:32:45.145Z",
+  "batchId": "explorer-stage3-phase9-2-1-first-sync-entry-3beb8401",
+  "promptInstanceId": "explorer-stage3-phase9-2-1-first-sync-production-entry-3beb8401",
+  "authorization": {
+    "policy": "workflow-authorization.v1",
+    "envelopeId": "workflow-authorization.v1:12cb31ca728764bf",
+    "remoteActionsAllowed": false
+  },
+  "sourceEvidence": {
+    "reviewTicket": "sha256:3beb84017a6338c66ce70bf4dcd664fdd25d155ada80a49552fe1c824693f863",
+    "originalPrompt": "sha256:5c8b232f65ed309aeddafa417ff4efac4395b068c57e554ca3d7ccd84c1f205e",
+    "executionReport": "sha256:7c9bcf7c3babba7b120975be93fb79c33dfe8232db8c6364da55b720a2e7efa5",
+    "independentReview": "sha256:b26b0cd54a20f111989cbb7d3b914cea48fd3ff94522734ab08480c1b7097058",
+    "blockerFingerprint": "sha256:775f90ac46ee542655f0296ffdca273610f153411782de078399f5397be9b0e3",
+    "blockerRound": "1/5"
+  },
+  "baseline": {
+    "branch": "feature/stage3-phase8-data-freshness-ui",
+    "commit": "6f1e54be2a336a63a16dea7c762ac4ff12c800ef",
+    "tree": "3a63072a3fb1c22012a2e1ad79f1c0ef899b3319",
+    "parent": "fe5ad75cdd33f6b442605c4cfc1629207529899b",
+    "worktree": "clean",
+    "remote": "ssh://git@ssh.github.com:443/hehehehehehecai/executor-command-center.git"
+  },
+  "phase9_2Evidence": {
+    "freezeBlob": "f8661daca98c93567620049edf48956a012a1ae0",
+    "freezeSha256": "a90f6c0c13fe00fefe96a00fe0f0b0af44a98a852da32155c2e9b95e3963e91b",
+    "evidenceBlob": "609006560a7d20339728fb43770f0824e3735fe6",
+    "evidenceSha256": "996a8a7a43d6ffeaadd51c60935d188419f747902087164c3010ac0d9897e70d",
+    "evidenceCommit": "6f1e54be2a336a63a16dea7c762ac4ff12c800ef",
+    "observedProjectSyncRuns": 0,
+    "observedSnapshotRows": 0
+  },
+  "auditFacts": {
+    "firstSyncContract": "first-repository-sync.v1",
+    "startUseCaseIdempotency": "first-sync:<requestId>",
+    "startUseCaseProductionInstantiationBefore": 0,
+    "productionFirstSyncRouteBefore": 0,
+    "firstSyncStoreCapabilities": ["createQueued", "checkpoint", "getByProjectId"],
+    "dispatcher": "InngestJobDispatcher / inngest-job-dispatcher.v1",
+    "session": "SupabaseVerifiedSessionReader / supabase-session.v1",
+    "ownership": "session-scoped public.projects SELECT protected by projects_select_own RLS, additionally matched on id and user_id",
+    "schemaChangeRequired": false,
+    "environmentVariableChangeRequired": false
+  },
+  "httpContract": {
+    "version": "first-sync-http.v1",
+    "method": "POST",
+    "path": "/api/projects/{projectId}/first-sync",
+    "body": { "requestId": "stable caller identity" },
+    "origin": "exact canonical APP_ORIGIN",
+    "contentType": "application/json",
+    "newDispatchStatus": 202,
+    "replayStatus": 200,
+    "cacheControl": "private, no-store, max-age=0",
+    "pragma": "no-cache",
+    "vary": ["Cookie", "Origin"]
+  },
+  "lineage": [
+    "authenticated same-origin request",
+    "verified Supabase user",
+    "session-RLS Project ownership",
+    "StartFirstRepositorySync",
+    "durable first_sync SyncRun and 90-day cursor",
+    "InngestJobDispatcher",
+    "executor/project.sync.requested.v1",
+    "existing first_sync consumer"
+  ],
+  "exactAllowedPaths": [
+    "tests/fixtures/synchronization/stage3-phase9-2-1-pre-run-freeze.json",
+    "src/application/synchronization/first-sync-production-entry.ts",
+    "src/application/synchronization/first-sync-production-entry.test.ts",
+    "src/infrastructure/synchronization/first-sync-http.ts",
+    "src/infrastructure/synchronization/first-sync-http.test.ts",
+    "src/infrastructure/synchronization/supabase-first-sync-project-ownership-reader.ts",
+    "src/infrastructure/synchronization/supabase-first-sync-project-ownership-reader.test.ts",
+    "src/app/api/projects/[projectId]/first-sync/route.ts",
+    "src/app/api/projects/[projectId]/first-sync/route.test.ts",
+    "src/app/api/projects/[projectId]/first-sync/first-sync-route-dependencies.ts",
+    "src/app/api/projects/[projectId]/first-sync/first-sync-route-dependencies.test.ts"
+  ],
+  "protectedFingerprints": {
+    "packageJsonSha256": "f9a6ab717fa98c452d290a69374e30b00b09b23f5253699d9900c935dd349468",
+    "pnpmLockSha256": "a087993aad1ff9993627e09050e70d61d22fcc2e9c33909074b52b00528c8eef",
+    "nextEnvSha256": "4e4da12aa061aac172fb1bcb48e9b6e4b293080d2f494327925fdba8f39632ac",
+    "migrationTree": "f28fb75265d04f66347b4eca72061dceb327be3d",
+    "baselineSourceTree": "e6a01a9917e6a8b3ce924f657b36641ec149143e",
+    "startUseCaseBlob": "162700b6fb6adfb314e2770db2c13947de309bc6",
+    "firstSyncStoreBlob": "f95a316cd9cfd273a4c72b6c0dedaf97627832d1",
+    "inngestDispatcherBlob": "c4ca5bd0bc3a62f9399315537f7978f032e9f89e",
+    "manualResyncRouteBlob": "cc5015cba304b251e0c7b1ad05a422066814ced9",
+    "projectRlsMigrationBlob": "b83b60759162e759993fc94a7f1d019fef49900e",
+    "firstSyncMigrationBlob": "dd5c6ca9149427def97afd0ad775246c6772e09a"
+  },
+  "tddDenominator": {
+    "productionRouteReference": 1,
+    "productionStartInstantiation": 1,
+    "unauthenticatedZeroSideEffect": 1,
+    "foreignOrMissingProjectZeroSideEffect": 2,
+    "validInitialDispatch": 1,
+    "sameIdentityReplay": 1,
+    "httpGateRejections": 6,
+    "missingConfigurationFailClosed": 1,
+    "sessionCookieAndSecureHeaders": 2,
+    "secretLeakMatches": 0,
+    "requiredSkipped": 0
+  },
+  "tddRed": {
+    "expected": "new production entry modules and route do not exist before implementation",
+    "implementationBeforeTests": false
+  },
+  "tools": {
+    "node": "v24.14.0",
+    "pnpm": "11.16.0",
+    "powershell": "Windows PowerShell without Get-Date -AsUTC"
+  },
+  "forbidden": [
+    "remote actions",
+    "database migration or schema changes",
+    "generated database types",
+    "package or lockfile changes",
+    "next-env.d.ts changes",
+    "UI changes",
+    "Webhook, Reconciliation, Manual Resync or Inngest consumer semantic changes",
+    "historical Phase artifact rewrites",
+    "secret, Cookie, Authorization, raw provider payload or raw error persistence"
+  ],
+  "commitPolicy": "exactly one independent local commit after all required gates pass"
+}
