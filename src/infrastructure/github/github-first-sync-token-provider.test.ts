@@ -6,7 +6,7 @@ vi.mock("server-only", () => ({}));
 
 type Module = {
   GitHubFirstSyncTokenProvider: new (client: {
-    create(installationId: number, signal?: AbortSignal): Promise<{
+    createActivity(installationId: number, signal?: AbortSignal): Promise<{
       token: string;
       expiresAt: string;
       repositorySelection: "all" | "selected";
@@ -21,18 +21,20 @@ beforeAll(async () => {
 });
 
 describe("GitHubFirstSyncTokenProvider", () => {
-  it("returns only the ephemeral token and expiry", async () => {
-    const create = vi.fn().mockResolvedValue({
+  it("uses the activity-read profile and returns only the ephemeral token and expiry", async () => {
+    const createActivity = vi.fn().mockResolvedValue({
       token: "synthetic-ephemeral-token",
       expiresAt: "2026-08-06T03:00:00.000Z",
       repositorySelection: "selected",
     });
-    const provider = new adapter.GitHubFirstSyncTokenProvider({ create });
+    const provider = new adapter.GitHubFirstSyncTokenProvider({
+      createActivity,
+    });
     await expect(provider.issue({ installationId: 81_001 })).resolves.toEqual({
       token: "synthetic-ephemeral-token",
       expiresAt: "2026-08-06T03:00:00.000Z",
     });
-    expect(create).toHaveBeenCalledWith(81_001, undefined);
+    expect(createActivity).toHaveBeenCalledWith(81_001, undefined);
   });
 
   it.each([
@@ -44,7 +46,7 @@ describe("GitHubFirstSyncTokenProvider", () => {
     ["github_installation_token_unavailable", "github_activity_unavailable"],
   ])("maps %s to %s without a cause", async (source, target) => {
     const provider = new adapter.GitHubFirstSyncTokenProvider({
-      create: vi.fn().mockRejectedValue(new Error(source)),
+      createActivity: vi.fn().mockRejectedValue(new Error(source)),
     });
     const error = await provider.issue({ installationId: 81_001 }).catch((caught) => caught);
     expect(error).toEqual(new Error(target));

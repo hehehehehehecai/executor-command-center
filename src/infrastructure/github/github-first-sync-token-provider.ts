@@ -16,7 +16,10 @@ const errorMap = new Map([
 
 export class GitHubFirstSyncTokenProvider implements FirstSyncInstallationTokenProvider {
   constructor(
-    private readonly client: Pick<GitHubInstallationTokenClient, "create">,
+    private readonly client: Pick<
+      GitHubInstallationTokenClient,
+      "createActivity"
+    >,
   ) {}
 
   async issue(input: {
@@ -24,7 +27,10 @@ export class GitHubFirstSyncTokenProvider implements FirstSyncInstallationTokenP
     readonly signal?: AbortSignal;
   }): Promise<{ readonly token: string; readonly expiresAt: string }> {
     try {
-      const issued = await this.client.create(input.installationId, input.signal);
+      const issued = await this.client.createActivity(
+        input.installationId,
+        input.signal,
+      );
       return { token: issued.token, expiresAt: issued.expiresAt };
     } catch (error) {
       const source = error instanceof Error ? error.message : "";
