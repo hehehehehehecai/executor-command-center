@@ -336,6 +336,36 @@ describe("StartFirstRepositorySync", () => {
     expect(fixture.dispatcher.dispatch).toHaveBeenCalledWith(expect.objectContaining({ triggerSource: "first_sync", webhookDelivery: null }));
   });
 
+  it("preserves the persisted queued timestamp precision for the initial checkpoint", async () => {
+    const fixture = setup();
+    const persistedQueuedAt = "2026-08-11T01:30:16.518718Z";
+    const requestId = "request-precision";
+    fixture.runs.runs.set(
+      `${projectA}:first-sync:${requestId}`,
+      syncRun({
+        id: runA,
+        projectId: projectA,
+        idempotencyKey: `first-sync:${requestId}`,
+        queuedAt: persistedQueuedAt,
+        createdAt: persistedQueuedAt,
+        updatedAt: persistedQueuedAt,
+      }),
+    );
+    const checkpoint = vi.spyOn(fixture.runs, "checkpoint");
+
+    const receipt = await fixture.start.execute({ projectId: projectA, requestId });
+    const job = vi.mocked(fixture.dispatcher.dispatch).mock.calls[0]![0] as BackgroundJob;
+    const checkpointInput = checkpoint.mock.calls[0]![0];
+    const cursor = parseFirstSyncCursor(checkpointInput.progressCursor);
+
+    expect(fixture.dispatcher.dispatch).toHaveBeenCalledTimes(1);
+    expect(checkpoint).toHaveBeenCalledTimes(1);
+    expect(checkpointInput.checkpointedAt).toBe(persistedQueuedAt);
+    expect(receipt.windowEnd).toBe("2026-08-11T01:30:16.518Z");
+    expect(job.requestedAt).toBe("2026-08-11T01:30:16.518Z");
+    expect(cursor.windowEnd).toBe("2026-08-11T01:30:16.518Z");
+  });
+
   it("isolates the same requestId across projects", async () => {
     const fixture = setup();
     const first = await fixture.start.execute({ projectId: projectA, requestId: "request-001" });

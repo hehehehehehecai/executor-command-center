@@ -1,0 +1,72 @@
+{
+  "contractVersion": "stage3-phase9-2-5-checkpoint-time-freeze.v1",
+  "recordedAt": "2026-08-11T04:19:19.0781762Z",
+  "batch": {
+    "batchId": "explorer-stage3-phase9-2-5-checkpoint-time-07dfdfaa",
+    "promptInstanceId": "explorer-stage3-phase9-2-5-checkpoint-time-precision-07dfdfaa",
+    "authorizationEnvelopeId": "workflow-authorization.v1:07dfdfaa09588451",
+    "sourceTicket": "sha256:07dfdfaa095884512338042a662f3c0778c9d5c53f3e75952fc8ad3308495589",
+    "rootCauseSource": "Phase 9.2.4 staging read-only evidence"
+  },
+  "baseline": {
+    "branch": "feature/stage3-phase8-data-freshness-ui",
+    "commit": "d737fdfe21e733fc5bad59d21d551b138a63c6c6",
+    "tree": "384329d6f503462dfad2169deb9c61302b394fe8",
+    "parent": "f67bf836b8d0dd2826db6fb26178992263b3a1cc",
+    "message": "docs(sync): capture staging cursor forensic evidence",
+    "worktree": "clean"
+  },
+  "rootCause": {
+    "persistedQueuedAt": "2026-08-11T01:30:16.518718Z",
+    "javascriptCanonical": "2026-08-11T01:30:16.518Z",
+    "precisionLossMicroseconds": 718,
+    "databaseInvariant": "last_progress_at >= queued_at",
+    "currentFault": "The initial checkpoint uses canonical windowEnd and is therefore 718 microseconds earlier than the persisted queued_at.",
+    "stableExternalError": "first_sync_cursor_invalid"
+  },
+  "exactAllowedPaths": [
+    "tests/fixtures/synchronization/stage3-phase9-2-5-checkpoint-time-freeze.json",
+    "src/application/synchronization/first-sync-use-cases.test.ts",
+    "src/application/synchronization/first-sync-use-cases.ts",
+    "docs/runbooks/stage3-phase9-2-5-checkpoint-time-evidence.md"
+  ],
+  "protectedHashes": {
+    "package.json": "f9a6ab717fa98c452d290a69374e30b00b09b23f5253699d9900c935dd349468",
+    "pnpm-lock.yaml": "a087993aad1ff9993627e09050e70d61d22fcc2e9c33909074b52b00528c8eef",
+    "next-env.d.ts": "4e4da12aa061aac172fb1bcb48e9b6e4b293080d2f494327925fdba8f39632ac",
+    "supabase/migrations/20260806100000_create_first_sync_support.sql": "c309bffc9d7ffe613622fcff07df1c2d817d86c733c96fd5efba1ca0de47a64d",
+    "tests/fixtures/synchronization/stage3-phase9-2-4-staging-readonly-freeze.json": "0db31a7f3fb6f9985d6ec68342d297c94d4a91a85ca797b15026da0e94b1a9e8",
+    "docs/runbooks/stage3-phase9-2-4-staging-readonly-evidence.md": "005fb54327d714017fcaae748356f9490a034abd7b3f5b38da5f886b421c0477",
+    "src/domain/synchronization/first-sync.ts": "b8ee70ed85e1250f9efb0fc0c344314d176468024a4fc5bd8f3c50693b24b301",
+    "src/infrastructure/synchronization/supabase-first-sync-store.ts": "110ed74ae3b747121d235a5167375c24a8a3f098199b457bef941df121751846",
+    "src/infrastructure/jobs/inngest-job-dispatcher.ts": "478c82419c15e0b3a250a9d72a2a976fe6298d091bad5222f8cca0e2a4ec914d"
+  },
+  "tdd": {
+    "red": "A persisted queuedAt with six fractional digits dispatches once and checkpoints once, but the current checkpointedAt is the millisecond windowEnd instead of the original queuedAt.",
+    "green": "checkpointedAt equals the exact persisted queuedAt while windowEnd and job.requestedAt remain millisecond canonical.",
+    "postgres": "Within a rolled-back local transaction, the truncated timestamp violates ordering and the exact persisted timestamp checkpoints version 1 to 2 with a parseable cursor.",
+    "forbiddenWorkarounds": ["sleep", "add one millisecond", "current clock", "relax database constraint"]
+  },
+  "testDenominator": {
+    "vitestFilesAtFreeze": 117,
+    "databaseTestFilesAtFreeze": 17,
+    "microsecondBehaviorCases": 1,
+    "postgresOrderingCases": 2,
+    "replayCases": 1,
+    "requiredSkipped": 0,
+    "fullTestFallback": "If the single full run hits the fixed local resource ceiling, freeze the complete file manifest and execute mutually exclusive shards covering each file exactly once without changing tests or worker semantics."
+  },
+  "safety": {
+    "remoteConnectionsAndWritesAllowed": false,
+    "localSupabaseAllowed": true,
+    "historicalMigrationRewriteAllowed": false,
+    "newMigrationExpected": false,
+    "sensitiveDataPersistenceAllowed": false,
+    "remoteSideEffectsExpected": 0
+  },
+  "commitStrategy": {
+    "maximumCommits": 1,
+    "pushAllowed": false,
+    "message": "fix(sync): preserve queued timestamp precision"
+  }
+}

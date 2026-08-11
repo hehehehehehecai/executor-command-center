@@ -281,7 +281,7 @@ export class StartFirstRepositorySync {
       runId: run.id,
       expectedStatus: "queued",
       expectedVersion: run.version,
-      checkpointedAt: window.windowEnd,
+      checkpointedAt: run.queuedAt,
       progressCursor: serializeFirstSyncCursor(cursor),
     });
     return dispatchReceipt(parseFirstSyncCursor(run.progressCursor!), false);
