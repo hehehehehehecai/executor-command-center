@@ -1,0 +1,130 @@
+{
+  "contractVersion": "stage3-phase9-2-3-pre-run-freeze.v1",
+  "recordedAt": "2026-08-11T02:52:45.5033749Z",
+  "batch": {
+    "batchId": "explorer-stage3-phase9-2-3-first-sync-cursor-3f91a34e",
+    "promptInstanceId": "explorer-stage3-phase9-2-3-cursor-compatibility-3f91a34e",
+    "authorizationEnvelopeId": "workflow-authorization.v1:3f91a34e0858c30e",
+    "sourceTicket": "sha256:3f91a34e0858c30e6fc4c660edf8800f2ac76dfe1ebf113a613d24c8076c7961",
+    "blockerFingerprint": "sha256:1a42a9fdf352fa8aa451c28383e347315b4c7af4881f1d57d05ec1719074947a",
+    "blockerRound": "1/5"
+  },
+  "baseline": {
+    "branch": "feature/stage3-phase8-data-freshness-ui",
+    "commit": "984419866d809d8a9ef89451653847488b7d3f56",
+    "tree": "44e656c88c470155095eaf4c0930f9d9242c45da",
+    "parent": "4c94d970007820b9768cd41c46f0a93845500ef5",
+    "message": "test(sync): record blocked staging smoke retry",
+    "worktree": "clean"
+  },
+  "sourceEvidence": {
+    "phase922PromptSha256": "26660df8782923358b054c120aa9f18c3bf5545d8a768b11cc0ce2327c77b7c9",
+    "phase922ReportSha256": "6f6bf0680ab3aa6216111b9dafab2e6e0b100940ecd29876ad6bd15be951fc96",
+    "independentReviewSha256": "96c4151fad3aa4ce95c50f7a6dfaa3732c0b1776ffe7ecda192bdf0784d86990",
+    "phase922FreezeSha256": "f19a9b60f02e214cb651870e291bf3bc2a239460f03177b204b7fbb031b10ac0",
+    "phase922EvidenceSha256": "e1d619577b3dfbe5015c1ca572d6484614efdfb1bef2266812c465ac0aa4b96b"
+  },
+  "stagingFailureSafeFacts": {
+    "projectId": "81630aa3-a101-421c-b31e-dc16d1592c31",
+    "syncRunId": "06070d6a-23e2-44ba-8db2-90a4c644e8ea",
+    "requestId": "stage3-phase9-1ef8fde8-first-sync",
+    "repositoryFullName": "hehehehehehecai/explorer-staging-private-test-20260804",
+    "installationId": 151329457,
+    "syncRunStatus": "queued",
+    "syncRunVersion": 1,
+    "safeErrorCode": "first_sync_cursor_invalid",
+    "remoteMutationAllowed": false
+  },
+  "preModificationBisection": {
+    "typescript": {
+      "result": "accepted",
+      "serializedLength": 802,
+      "roundTripParsed": true,
+      "providerIdShape": "official Inngest ULID example shape"
+    },
+    "localSqlValidator": {
+      "result": "accepted",
+      "sameProjectRunRequestRepositoryInstallation": true
+    },
+    "localCheckpoint": {
+      "result": "accepted",
+      "versionBefore": 1,
+      "versionAfter": 2,
+      "cursorReturned": true,
+      "cursorLength": 836,
+      "transactionRolledBack": true
+    },
+    "historicalMigration": {
+      "introducedBy": "b740a1c86c3f9226d832b8f5bb15bec5f5b398f7",
+      "changedAfterIntroduction": false
+    },
+    "deterministicRedObtained": false,
+    "frozenDecision": "Do not modify validators, regexes, checkpoint RPC, cursor serialization, dispatcher, store, or migrations without a deterministic local RED. Produce a blocked evidence record."
+  },
+  "protectedHashes": {
+    "package.json": "f9a6ab717fa98c452d290a69374e30b00b09b23f5253699d9900c935dd349468",
+    "pnpm-lock.yaml": "a087993aad1ff9993627e09050e70d61d22fcc2e9c33909074b52b00528c8eef",
+    "next-env.d.ts": "4e4da12aa061aac172fb1bcb48e9b6e4b293080d2f494327925fdba8f39632ac",
+    "supabase/migrations/20260806100000_create_first_sync_support.sql": "c309bffc9d7ffe613622fcff07df1c2d817d86c733c96fd5efba1ca0de47a64d",
+    "supabase/tests/0014_first_sync_support_test.sql": "fd277f34b102e5075a136b8c19bbab20192e3fddea0ac7025dd3b6e80088f2e5",
+    "src/domain/synchronization/first-sync.ts": "b8ee70ed85e1250f9efb0fc0c344314d176468024a4fc5bd8f3c50693b24b301",
+    "src/application/synchronization/first-sync-use-cases.ts": "afc07312bb274920eb352d33639db83991977cc8117f0f334f573c4b0f6ab30e",
+    "src/infrastructure/jobs/inngest-job-dispatcher.ts": "478c82419c15e0b3a250a9d72a2a976fe6298d091bad5222f8cca0e2a4ec914d",
+    "src/infrastructure/synchronization/supabase-first-sync-store.ts": "110ed74ae3b747121d235a5167375c24a8a3f098199b457bef941df121751846",
+    "src/infrastructure/database/database.types.ts": "f00caab1bb436be624c1774a8535d692a682e48268ba98d3fd2ad315cf38f4ac"
+  },
+  "exactAllowedPaths": [
+    "tests/fixtures/synchronization/stage3-phase9-2-3-pre-run-freeze.json",
+    "docs/runbooks/stage3-phase9-2-3-first-sync-cursor-evidence.md"
+  ],
+  "protectedProductPaths": [
+    "src/domain/synchronization/first-sync.ts",
+    "src/domain/synchronization/first-sync.test.ts",
+    "src/application/synchronization/first-sync-use-cases.ts",
+    "src/application/synchronization/first-sync-use-cases.test.ts",
+    "src/infrastructure/jobs/inngest-job-dispatcher.ts",
+    "src/infrastructure/jobs/inngest-job-dispatcher.test.ts",
+    "src/infrastructure/synchronization/supabase-first-sync-store.ts",
+    "src/infrastructure/synchronization/supabase-first-sync-store.test.ts",
+    "supabase/migrations/20260806100000_create_first_sync_support.sql",
+    "supabase/tests/0014_first_sync_support_test.sql",
+    "src/infrastructure/database/database.types.ts"
+  ],
+  "tddGate": {
+    "requiredRed": "One of TS creation/serialization rejection, SQL validator/checkpoint rejection, or checkpoint readback parse rejection using the frozen safe staging field shape.",
+    "actual": "All layers accepted locally before any product modification.",
+    "implementationAuthorizedAfterAudit": false
+  },
+  "testDenominator": {
+    "diagnosticLayers": ["typescript-create-serialize-parse", "sql-validator", "checkpoint-readback"],
+    "requiredRedCases": 1,
+    "requiredRedObserved": 0,
+    "remoteCalls": 0,
+    "requiredSkipped": 0
+  },
+  "migrationRule": {
+    "newMigrationAllowedOnlyAfterSqlRed": true,
+    "sqlRedObserved": false,
+    "newMigrationSelected": false,
+    "historicalMigrationRewriteForbidden": true
+  },
+  "forbidden": [
+    "remote provider calls or writes",
+    "staging database reads, writes, or cleanup",
+    "push, PR, merge, deployment, OAuth, or GitHub test objects",
+    "broad regex or cursor validation relaxation",
+    "manual mutation of the failed queued SyncRun",
+    "secret, token, cookie, authorization, provider payload, or raw log persistence"
+  ],
+  "toolVersions": {
+    "node": "v24.14.0",
+    "pnpm": "11.5.0",
+    "supabaseCli": "2.109.1",
+    "dockerServer": "29.6.1"
+  },
+  "commitStrategy": {
+    "maximumCommits": 1,
+    "pushAllowed": false,
+    "message": "docs(sync): record unreproduced first sync cursor blocker"
+  }
+}
