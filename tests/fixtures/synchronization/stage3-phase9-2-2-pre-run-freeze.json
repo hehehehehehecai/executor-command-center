@@ -1,0 +1,281 @@
+{
+  "recordType": "stage3-phase9-2-2-pre-run-freeze",
+  "recordedAt": "2026-08-11T01:02:39.0136652Z",
+  "freezeOutcome": "READY_FOR_AUTHORIZED_REMOTE_WRITES",
+  "batchId": "explorer-stage3-phase9-2-2-staging-smoke-861b789f",
+  "promptInstanceId": "explorer-stage3-phase9-2-2-isolated-staging-smoke-861b789f",
+  "authorization": {
+    "policy": "workflow-authorization.v1",
+    "envelopeId": "workflow-authorization.v1:861b789f12efb0e8",
+    "sourceReviewTicket": "sha256:861b789f12efb0e8ed12a0c1a049505b76dc6d2dea033378a515ee15d176647e",
+    "phase921FreezeSha256": "75537db88ca85651c93d12121a16f3623b9703abd5cfcbddb53f4f630cf56b8e",
+    "phase921ExecutionReportSha256": "88367f2863d44acc0dc12a09c22157f5cee849b71e3ee77ec0bd7de9ad44a573",
+    "phase921IndependentEvidenceSha256": "7532097a1f1588899227467f213ed1f60cace92d8b37a31602a4a131bef7941a",
+    "originalPhase92BlockerFingerprint": "sha256:775f90ac46ee542655f0296ffdca273610f153411782de078399f5397be9b0e3",
+    "providerLoginResolution": {
+      "clarificationId": "explorer-stage3-phase9-2-2-verify-provider-logins-0611a17b",
+      "humanActionId": "sha256:0611a17bdd9426d6dd931eeada2ee2d8045c6507d18e89550060d7d3f390adbf",
+      "status": "HUMAN_ACTION_RESOLVED",
+      "verifiedByReadOnlyCdp": true
+    }
+  },
+  "runId": "stage3-phase9-smoke-20260811T010100Z-1ef8fde8",
+  "discardedUnfrozenCandidateRunIds": [
+    "stage3-phase9-smoke-20260810T100013Z-00000000",
+    "stage3-phase9-smoke-20260810T100027Z-e6e4dacd"
+  ],
+  "discardedHistoricalRunIds": [
+    "stage3-phase9-smoke-20260810T031204Z-7f417504",
+    "stage3-phase9-smoke-20260810T070930Z-75c0cf0b"
+  ],
+  "runIdCollisionAudit": {
+    "codeSearch": 0,
+    "issuesAndPullRequests": 0,
+    "branches": 0,
+    "tags": 0,
+    "releases": 0,
+    "workflowRuns": 0
+  },
+  "baseline": {
+    "branch": "feature/stage3-phase8-data-freshness-ui",
+    "commit": "4c94d970007820b9768cd41c46f0a93845500ef5",
+    "tree": "b69df236a25c11a4491942848e3a8cf6ae9cb057",
+    "parent": "6f1e54be2a336a63a16dea7c762ac4ff12c800ef",
+    "message": "feat(sync): add authenticated first sync entry",
+    "worktree": "clean",
+    "origin": "github.com/hehehehehehecai/executor-command-center",
+    "originDefaultBranch": "main",
+    "originDefaultHead": "01abfef14effbfd7e61aa370b254ad34d4182134",
+    "originStagingHead": "fe5ad75cdd33f6b442605c4cfc1629207529899b",
+    "stagingFastForwardEligible": true
+  },
+  "testRepository": {
+    "id": 1322569219,
+    "nodeId": "R_kgDOTtTOAw",
+    "owner": "hehehehehehecai",
+    "name": "explorer-staging-private-test-20260804",
+    "fullName": "hehehehehehecai/explorer-staging-private-test-20260804",
+    "visibility": "private",
+    "defaultBranch": "main",
+    "defaultHead": "4107e7210f5ae10920e5341d18d0cdd4565fb983",
+    "initialBranches": ["main"],
+    "initialIssuesAndPullRequests": 0,
+    "initialReleases": 0,
+    "initialWorkflowRuns": 0
+  },
+  "stagingAssets": {
+    "vercel": {
+      "accountId": "team_IDGruFjuEZmy1dJRsg0RYkKf",
+      "projectId": "prj_vRfWcuvLYn240SSuKyNH0g4ShpW8",
+      "projectName": "executor-command-center",
+      "gitRepositoryId": 1303716118,
+      "plan": "hobby",
+      "productionBranch": "main",
+      "environmentType": "branch-specific-preview",
+      "stagingAlias": "executor-command-center-git-staging-hehehehehehecais-projects.vercel.app",
+      "currentStagingDeploymentId": "dpl_HQxR75ghq7449NMLAYrQThWoWsN3",
+      "currentStagingDeploymentCommit": "fe5ad75cdd33f6b442605c4cfc1629207529899b",
+      "currentStagingDeploymentState": "READY",
+      "currentStagingDeploymentTarget": null,
+      "productionPromotionAllowed": false
+    },
+    "supabase": {
+      "projectId": "gsnuorsqdcdszjxtymhs",
+      "projectName": "executor-command-center-staging",
+      "region": "ap-northeast-2",
+      "status": "ACTIVE_HEALTHY",
+      "localMigrationCount": 15,
+      "remoteMigrationCount": 15,
+      "projectIdForSmoke": "81630aa3-a101-421c-b31e-dc16d1592c31",
+      "selectedRepositoryId": "1cb60818-33d7-4991-8354-370c319027bd",
+      "syncRunsBeforeSmoke": 0,
+      "snapshotRowsBeforeSmoke": 0,
+      "productionProjectAllowed": false
+    },
+    "githubApp": {
+      "appId": 4480141,
+      "appSlug": "executor-staging-hehehehehecai",
+      "installationId": 151329457,
+      "repositorySelection": "selected",
+      "selectedRepositoryCount": 1,
+      "selectedRepositoryId": 1322569219,
+      "installationStatus": "active",
+      "repositoryPermissions": {
+        "actions": "read",
+        "checks": "read",
+        "contents": "read",
+        "issues": "read",
+        "metadata": "read",
+        "pullRequests": "read"
+      },
+      "selectedRepositoryEvents": [
+        "issues",
+        "pull_request",
+        "push",
+        "release",
+        "repository",
+        "workflow_run"
+      ],
+      "installationLifecycle": "GitHub App lifecycle event; not a repository default-events checkbox",
+      "webhookActive": true,
+      "webhookSecretConfigured": true,
+      "webhookSecretReadOrPersisted": false,
+      "sslVerificationVisible": true
+    },
+    "inngest": {
+      "workspace": "hehehehehehecai",
+      "environmentId": "staging-7050a935",
+      "plan": "hobby",
+      "nextSubscriptionPayment": "free",
+      "functionIds": [
+        "executor-daily-reconciliation",
+        "executor-github-webhook-consumer",
+        "executor-project-sync-consumer"
+      ],
+      "dailyCron": "0 2 * * *",
+      "currentAppCommit": "fe5ad75cdd33f6b442605c4cfc1629207529899b",
+      "lastSync": "success",
+      "productionDataAllowed": false
+    }
+  },
+  "providerAuditConclusion": {
+    "identitiesUniquelyVerified": true,
+    "providerLoginsReadOnlyVerified": true,
+    "conflictingChangeDetected": false,
+    "paidOrTrialRequirementObserved": false,
+    "stagingApplicationSessionAuthenticatedBeforeFreeze": false,
+    "stagingApplicationSessionPlannedAction": "authenticate on the new branch Preview through the existing GitHub OAuth flow before invoking First Sync",
+    "remoteWritesExecutedBeforeFreeze": []
+  },
+  "runtimeEntrypoints": {
+    "firstSyncRoute": "POST /api/projects/{projectId}/first-sync",
+    "firstSyncAuthentication": "verified Supabase session + exact same-origin",
+    "receivingRoute": "/api/inngest",
+    "projectSyncFunction": {
+      "id": "executor-project-sync-consumer",
+      "event": "executor/project.sync.requested.v1"
+    },
+    "webhookFunction": {
+      "id": "executor-github-webhook-consumer",
+      "event": "executor/github.webhook.received.v1"
+    },
+    "dailyReconciliationFunction": {
+      "id": "executor-daily-reconciliation",
+      "cron": "0 2 * * *",
+      "timezone": "UTC",
+      "manualResyncSubstitutionAllowed": false
+    }
+  },
+  "contracts": {
+    "snapshots": "github-activity-snapshots.v1",
+    "synchronizationState": "synchronization-state.v1",
+    "syncRuns": "sync-runs.v1",
+    "webhookSignature": "github-webhook-signature.v1",
+    "webhookDelivery": "github-webhook-delivery.v1",
+    "webhookEvent": "github-webhook-event.v1",
+    "webhookIngestion": "github-webhook-ingestion.v1",
+    "webhookDispatcher": "github-webhook-dispatcher.v1",
+    "webhookDeliveryProcessing": "github-webhook-delivery-processing.v1",
+    "repositoryReconciliation": "repository-reconciliation.v1",
+    "reconciliationSchedule": "reconciliation-schedule.v1",
+    "manualResync": "manual-resync.v1",
+    "freshness": "freshness-status.v1",
+    "freshnessUi": "project-data-freshness-ui.v1",
+    "backgroundJob": "background-job.v1",
+    "inngestRuntime": "inngest-synchronization-runtime.v1",
+    "inngestRouteComposition": "inngest-route-composition.v1",
+    "firstSyncHttp": "first-repository-sync-http.v1"
+  },
+  "plannedObjects": [
+    {"type": "push", "identity": "stage3-phase9-smoke-20260811T010100Z-1ef8fde8-push"},
+    {"type": "issue", "identity": "stage3-phase9-smoke-20260811T010100Z-1ef8fde8-issue"},
+    {"type": "pull_request", "identity": "stage3-phase9-smoke-20260811T010100Z-1ef8fde8-pr"},
+    {"type": "prerelease", "identity": "stage3-phase9-smoke-20260811T010100Z-1ef8fde8-release"},
+    {"type": "workflow_dispatch", "identity": "stage3-phase9-smoke-20260811T010100Z-1ef8fde8-workflow"},
+    {"type": "missed_issue", "identity": "stage3-phase9-smoke-20260811T010100Z-1ef8fde8-missed-issue"}
+  ],
+  "workflowMainException": {
+    "authorized": true,
+    "repository": "hehehehehehecai/explorer-staging-private-test-20260804",
+    "branch": "main",
+    "path": ".github/workflows/stage3-phase9-smoke.yml",
+    "purpose": "workflow_dispatch Smoke for Phase 9.2.2 only",
+    "contentPolicy": "synthetic, secret-free, free capabilities only",
+    "allOtherMainPathsAllowed": false
+  },
+  "missedWebhookMethod": {
+    "precondition": "the staging GitHub App installation covers only repository 1322569219 and no other installation of that App receives the staging webhook",
+    "action": "temporarily disable only the staging GitHub App webhook, create exactly one run_id-tagged Issue, immediately re-enable the webhook",
+    "manualResyncForbidden": true
+  },
+  "lineageFields": [
+    "run_id",
+    "deployment_id",
+    "deployment_commit_sha",
+    "github_repository_id",
+    "github_object_type",
+    "github_object_id",
+    "github_object_url",
+    "github_event_action",
+    "github_delivery_id",
+    "body_sha256",
+    "internal_event_id",
+    "provider_job_id",
+    "project_id",
+    "sync_run_id",
+    "snapshot_or_freshness_evidence"
+  ],
+  "eligibleDenominators": {
+    "normalEvents": 5,
+    "completeLineageEvents": 5,
+    "duplicateReplay": 1,
+    "controlledMissedIssueAndReconciliation": 1,
+    "freshnessFinalAccuracy": 1,
+    "deploymentVersionBinding": 1,
+    "newRequiredSkipped": 0
+  },
+  "authorizedRemoteWritesAfterFreeze": [
+    "fast-forward commit 4c94d970007820b9768cd41c46f0a93845500ef5 only to origin refs/heads/staging without force",
+    "create only the six run_id-tagged Smoke objects in repository 1322569219",
+    "create or keep only .github/workflows/stage3-phase9-smoke.yml on the test repository main branch under the exact exception",
+    "redeliver exactly one eligible normal GitHub delivery",
+    "temporarily disable and immediately restore only GitHub App 4480141 webhook for exactly one missed Issue",
+    "use only existing Hobby/Free Vercel, Supabase and Inngest staging assets"
+  ],
+  "strictAllowedRepositoryFiles": [
+    "tests/fixtures/synchronization/stage3-phase9-2-2-pre-run-freeze.json",
+    "docs/runbooks/stage3-phase9-2-2-synchronization-smoke-evidence.md"
+  ],
+  "forbidden": [
+    "production deployment, promotion, database, GitHub App, Inngest environment or data",
+    "application origin main or master push, merge, force push or pull request",
+    "test repository main changes outside .github/workflows/stage3-phase9-smoke.yml",
+    "writes to any repository except hehehehehecai/explorer-staging-private-test-20260804",
+    "modifying product code, migrations, RLS, contracts, historical Freeze, manifest or evidence",
+    "modifying package.json, pnpm-lock.yaml or next-env.d.ts",
+    "manual database writes, forged Inngest jobs or Manual Resync as First Sync or Daily Reconciliation evidence",
+    "paid trials, plan upgrades or non-zero incremental cost",
+    "secrets, raw private payloads, cookies, Authorization headers or provider secret values in evidence or output",
+    "destructive cleanup of release, tag, branch, installation or test evidence"
+  ],
+  "failureAndCleanupRules": {
+    "preserveFirstFailure": true,
+    "sameSafeRetryMaximum": 1,
+    "ordinaryTimeoutIsNotAStopCondition": true,
+    "remoteAssetsRemainForReview": true
+  },
+  "costBoundary": {
+    "required": "zero incremental cost or existing plan only",
+    "observedVercelPlan": "hobby",
+    "observedInngestPlan": "hobby",
+    "observedInngestNextSubscriptionPayment": "free",
+    "paidActionsAllowed": false
+  },
+  "protectedFingerprints": {
+    "phase92FreezeSha256": "a90f6c0c13fe00fefe96a00fe0f0b0af44a98a852da32155c2e9b95e3963e91b",
+    "phase92EvidenceSha256": "996a8a7a43d6ffeaadd51c60935d188419f747902087164c3010ac0d9897e70d",
+    "packageJsonSha256": "f9a6ab717fa98c452d290a69374e30b00b09b23f5253699d9900c935dd349468",
+    "pnpmLockSha256": "a087993aad1ff9993627e09050e70d61d22fcc2e9c33909074b52b00528c8eef",
+    "nextEnvSha256": "4e4da12aa061aac172fb1bcb48e9b6e4b293080d2f494327925fdba8f39632ac"
+  }
+}
