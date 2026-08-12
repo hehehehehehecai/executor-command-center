@@ -17,6 +17,8 @@ export type WebhookDeliveryLineage = {
   repositoryFullName: string;
   internalEventId: string;
   processingVersion: number;
+  kind?: string;
+  pushAfterSha?: string | null;
 };
 
 export type BackgroundJob = {
@@ -44,7 +46,8 @@ const backgroundJobKeys = [
 ] as const;
 
 const currentBackgroundJobKeys = [...backgroundJobKeys, "triggerSource", "webhookDelivery"] as const;
-const webhookLineageKeys = ["deliveryId", "bodySha256", "eventName", "action", "installationId", "repositoryId", "repositoryFullName", "internalEventId", "processingVersion"] as const;
+const legacyWebhookLineageKeys = ["deliveryId", "bodySha256", "eventName", "action", "installationId", "repositoryId", "repositoryFullName", "internalEventId", "processingVersion"] as const;
+const webhookLineageKeys = [...legacyWebhookLineageKeys, "kind", "pushAfterSha"] as const;
 
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -52,6 +55,15 @@ const safeIdentifierPattern = /^[A-Za-z0-9][A-Za-z0-9:._-]{0,127}$/;
 const canonicalTimestampPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const sha256Pattern = /^[0-9a-f]{64}$/;
 const repositoryFullNamePattern = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+const commitShaPattern = /^(?!0{40}$)[0-9a-f]{40}$/;
+const webhookKindByEventName = {
+  push: "github.push.v1",
+  issues: "github.issue.v1",
+  pull_request: "github.pull_request.v1",
+  release: "github.release.v1",
+  workflow_run: "github.workflow_run.v1",
+  repository: "github.repository.v1",
+} as const;
 
 function invalidRequest(): never {
   throw new Error("background_job_invalid_request");
@@ -91,8 +103,11 @@ export function parseBackgroundJob(value: unknown): BackgroundJob {
   if (triggerSource === "webhook") {
     if (!isRecord(webhookDelivery)) return invalidRequest();
     const lineageKeys = Object.keys(webhookDelivery).sort();
-    const expectedLineageKeys = [...webhookLineageKeys].sort();
-    if (lineageKeys.length !== expectedLineageKeys.length || lineageKeys.some((key, index) => key !== expectedLineageKeys[index])) return invalidRequest();
+    const legacyLineage = lineageKeys.length === legacyWebhookLineageKeys.length
+      && lineageKeys.every((key, index) => key === [...legacyWebhookLineageKeys].sort()[index]);
+    const currentLineage = lineageKeys.length === webhookLineageKeys.length
+      && lineageKeys.every((key, index) => key === [...webhookLineageKeys].sort()[index]);
+    if (!legacyLineage && !currentLineage) return invalidRequest();
     if (
       typeof webhookDelivery.deliveryId !== "string" || !safeIdentifierPattern.test(webhookDelivery.deliveryId)
       || typeof webhookDelivery.bodySha256 !== "string" || !sha256Pattern.test(webhookDelivery.bodySha256)
@@ -104,6 +119,14 @@ export function parseBackgroundJob(value: unknown): BackgroundJob {
       || typeof webhookDelivery.internalEventId !== "string" || !safeIdentifierPattern.test(webhookDelivery.internalEventId)
       || !Number.isSafeInteger(webhookDelivery.processingVersion) || Number(webhookDelivery.processingVersion) <= 0
     ) return invalidRequest();
+    const expectedKind = webhookKindByEventName[webhookDelivery.eventName as keyof typeof webhookKindByEventName];
+    if (!expectedKind || (legacyLineage && webhookDelivery.eventName === "push")) return invalidRequest();
+    if (currentLineage && (
+      webhookDelivery.kind !== expectedKind
+      || (expectedKind === "github.push.v1"
+        ? typeof webhookDelivery.pushAfterSha !== "string" || !commitShaPattern.test(webhookDelivery.pushAfterSha)
+        : webhookDelivery.pushAfterSha !== null)
+    )) return invalidRequest();
   } else if (webhookDelivery !== null) {
     return invalidRequest();
   }

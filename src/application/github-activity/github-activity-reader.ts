@@ -27,8 +27,12 @@ export type GitHubCheckReadRequest = GitHubActivityReadRequest & {
   readonly ref: string;
 };
 
+export type GitHubCommitReadRequest = GitHubActivityReadRequest & {
+  readonly targetSha?: string;
+};
+
 export interface GitHubActivityReader {
-  listCommits(input: GitHubActivityReadRequest): Promise<GitHubCommitReadModel[]>;
+  listCommits(input: GitHubCommitReadRequest): Promise<GitHubCommitReadModel[]>;
   listIssues(input: GitHubActivityReadRequest): Promise<GitHubIssueReadModel[]>;
   listPullRequests(
     input: GitHubActivityReadRequest,

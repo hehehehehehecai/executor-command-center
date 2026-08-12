@@ -34,6 +34,15 @@ describe("github-webhook-event.v1", () => {
   });
 
   it.each([
+    ["uppercase SHA", "A".repeat(40)],
+    ["short SHA", "a".repeat(39)],
+    ["all-zero deletion SHA", "0".repeat(40)],
+  ])("rejects a Push with %s instead of silently reading the default branch", (_label, after) => {
+    expect(() => parseGitHubWebhookEvent("push", { installation, repository, after }))
+      .toThrow("github_webhook_payload_invalid");
+  });
+
+  it.each([
     [{ deliveryId: "", eventName: "push", signature: `sha256=${"a".repeat(64)}` }],
     [{ deliveryId: "not-a-uuid", eventName: "push", signature: `sha256=${"a".repeat(64)}` }],
     [{ deliveryId: "11111111-1111-4111-8111-111111111111", eventName: "Push", signature: `sha256=${"a".repeat(64)}` }],

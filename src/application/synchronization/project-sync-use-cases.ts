@@ -41,12 +41,19 @@ export class ExecuteProjectSynchronization {
     let token: string;
     try { token = (await this.dependencies.tokens.issue({ installationId: context.installation.installationId, signal: input.signal })).token; } catch (error) { return fail(error); }
     const request = { repository: { owner: context.repository.owner, name: context.repository.name }, installationToken: token, since: windowStart(job.requestedAt), pagination: { maxPages: 100, maxObjects: 10_000 }, signal: input.signal };
+    const pushAfterSha = job.webhookDelivery?.kind === "github.push.v1" && job.webhookDelivery.eventName === "push"
+      ? job.webhookDelivery.pushAfterSha
+      : null;
     for (const groupName of groups) {
       try {
         let items: readonly { githubObjectId: string }[];
         switch (groupName) {
           case "repository": items = [await this.dependencies.metadata.read({ context, readAt: now, signal: input.signal })]; break;
-          case "commit": items = unique(await this.dependencies.reader.listCommits(request), context.repository.fullName); break;
+          case "commit": {
+            items = unique(await this.dependencies.reader.listCommits(pushAfterSha ? { ...request, targetSha: pushAfterSha } : request), context.repository.fullName);
+            if (pushAfterSha && !items.some((item) => item.githubObjectId === pushAfterSha)) throw new Error("github_activity_not_found");
+            break;
+          }
           case "issue": items = unique(await this.dependencies.reader.listIssues(request), context.repository.fullName); break;
           case "pull_request": items = unique(await this.dependencies.reader.listPullRequests(request), context.repository.fullName); break;
           case "release": items = unique(await this.dependencies.reader.listReleases(request), context.repository.fullName); break;

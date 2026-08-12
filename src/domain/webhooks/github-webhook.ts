@@ -7,6 +7,7 @@ const eventNamePattern = /^[a-z][a-z0-9_]{0,63}$/;
 const signaturePattern = /^sha256=[0-9a-f]{64}$/;
 const actionPattern = /^[a-z][a-z0-9_]{0,63}$/;
 const fullNamePattern = /^[^\s/]+\/[^\s/]+$/;
+const commitShaPattern = /^(?!0{40}$)[0-9a-f]{40}$/;
 
 const actions = {
   issues: ["opened", "edited", "closed", "reopened", "deleted"],
@@ -79,7 +80,7 @@ export function parseGitHubWebhookEvent(eventName: string, value: unknown): Pars
   if (!installationId || !repositoryId || !repositoryFullName) return invalidPayload();
   let kind: SupportedGitHubWebhookFact["kind"];
   let objectId: string | null = null;
-  if (eventName === "push") { kind = "github.push.v1"; objectId = typeof payload.after === "string" && /^[0-9a-f]{40}$/.test(payload.after) ? payload.after : null; }
+  if (eventName === "push") { kind = "github.push.v1"; objectId = typeof payload.after === "string" && commitShaPattern.test(payload.after) ? payload.after : null; }
   else if (eventName === "issues") { kind = "github.issue.v1"; objectId = childId(payload.issue)?.toString() ?? null; }
   else if (eventName === "pull_request") { kind = "github.pull_request.v1"; objectId = childId(payload.pull_request)?.toString() ?? null; }
   else if (eventName === "release") { kind = "github.release.v1"; objectId = childId(payload.release)?.toString() ?? null; }

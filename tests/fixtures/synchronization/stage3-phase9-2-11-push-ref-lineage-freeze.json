@@ -1,0 +1,92 @@
+{
+  "contract": "stage3-phase9-2-11-pre-run-freeze.v1",
+  "recordedAt": "2026-08-12T03:36:27.980Z",
+  "batchId": "explorer-stage3-phase9-2-11-push-ref-lineage-2c491284",
+  "promptInstanceId": "explorer-stage3-phase9-2-11-push-ref-lineage-repair-2c491284",
+  "authorizationEnvelope": "workflow-authorization.v1:2c49128457f9a6d5",
+  "sourceReviewTicket": "sha256:2c49128457f9a6d540d09083fc24c296fcbda1aece5df239799f3b8e03b9fe37",
+  "blocker": {
+    "fingerprint": "sha256:c4ed9ac4539331e611b345ec6f69034cd59143fb280fca58f26a5cc7c8ed866d",
+    "round": "1/5"
+  },
+  "baseline": {
+    "branch": "feature/stage3-phase8-data-freshness-ui",
+    "commit": "f395153dbf6493dcad2cee1c7cfa26b2201d5d99",
+    "tree": "7d5328cb1c25ed1b1857bb378682f105950542dc",
+    "parent": "6b82a1a875ac86ba65041f82bed409b6a9714a2b",
+    "message": "test(sync): record blocked staging synchronization smoke",
+    "worktree": "clean"
+  },
+  "rootCause": {
+    "trustedSource": "WebhookInternalEvent.githubObjectId for github.push.v1",
+    "lostBoundary": "WebhookInternalEvent -> WebhookDeliveryLineage -> BackgroundJob -> ExecuteProjectSynchronization",
+    "readerGap": "GitHubActivityReader.listCommits has no typed target SHA and GitHub REST query omits sha",
+    "falseTerminal": "a non-default-branch push can refresh default-branch commits and mark SyncRun completed without the pushed after SHA"
+  },
+  "design": {
+    "field": "pushAfterSha",
+    "format": "exactly 40 lowercase hexadecimal characters and not the all-zero deletion sentinel",
+    "scope": "present only for github.push.v1 / push webhook lineage; null for every other webhook kind",
+    "reader": "GitHubCommitReadRequest accepts optional targetSha; other five readers retain GitHubActivityReadRequest",
+    "missingTarget": "fail the SyncRun with existing safe github_activity_not_found and keep delivery out of completed",
+    "databaseMigration": "forbidden and unnecessary"
+  },
+  "allowedPaths": [
+    "tests/fixtures/synchronization/stage3-phase9-2-11-push-ref-lineage-freeze.json",
+    "src/domain/webhooks/github-webhook.ts",
+    "src/domain/webhooks/github-webhook.test.ts",
+    "src/application/webhooks/ingest-github-webhook.test.ts",
+    "src/domain/jobs/background-job.ts",
+    "src/domain/jobs/background-job.test.ts",
+    "src/application/synchronization/webhook-sync-use-cases.ts",
+    "src/application/synchronization/webhook-sync-use-cases.test.ts",
+    "src/application/github-activity/github-activity-reader.ts",
+    "src/infrastructure/github/github-activity-reader.ts",
+    "src/infrastructure/github/github-activity-reader.test.ts",
+    "src/application/synchronization/project-sync-use-cases.ts",
+    "src/application/synchronization/project-sync-use-cases.test.ts",
+    "docs/runbooks/stage3-phase9-2-11-push-ref-lineage-evidence.md"
+  ],
+  "protectedPaths": {
+    "package.json": "f9a6ab717fa98c452d290a69374e30b00b09b23f5253699d9900c935dd349468",
+    "pnpm-lock.yaml": "a087993aad1ff9993627e09050e70d61d22fcc2e9c33909074b52b00528c8eef",
+    "next-env.d.ts": "4e4da12aa061aac172fb1bcb48e9b6e4b293080d2f494327925fdba8f39632ac",
+    "phase9210Freeze": "52787de6d5d35a7c9a8f719d4c781d16deef4319d23dc2d840f99f637bf0e2df",
+    "phase9210Evidence": "a823485b90f52c9d0cbaa3cf9322b95907797a157f653ef0107644fc429e95cd",
+    "migrationTree": "8343afc72903200790cfef0533fadb5e2c13564cf9dbe5a6ee286b537ae06890"
+  },
+  "tddRed": [
+    "reject uppercase, malformed and all-zero push after SHA",
+    "preserve strict internal-event exact keys while accepting a canonical push githubObjectId",
+    "derive pushAfterSha only for a consistent push kind/event pair",
+    "strictly parse new and legacy BackgroundJob lineage with non-push target null",
+    "add encoded sha only to commit endpoint when target exists",
+    "pass target only to commit group",
+    "fail SyncRun and delivery when target is absent from returned commits",
+    "complete and preserve replay semantics when target is present"
+  ],
+  "requiredGates": {
+    "directUnitAndIntegration": "all selected tests pass with no required skip",
+    "fullUnit": "all files and tests pass; report denominator and skip",
+    "applicationIntegration": "required skip 0, with at most one equivalent retry for a proven local environment failure",
+    "database": "full local pgTAP, db lint, generated types check and drift check pass",
+    "staticAndE2E": "lint, typecheck, module boundaries, production E2E and git diff check pass",
+    "secretScan": "0 strong-value matches"
+  },
+  "toolVersions": {
+    "node": "v24.14.0",
+    "pnpm": "11.16.0",
+    "git": "2.54.0.windows.1",
+    "supabasePackage": "2.109.1"
+  },
+  "forbidden": [
+    "remote provider or database access",
+    "Push, deployment, PR, release or workflow",
+    "migration, schema, RLS or generated database type changes",
+    "raw webhook payload, secret, token, cookie or authorization persistence",
+    "Phase 9.2.10 artifact rewrite",
+    "dependency, lockfile, UI or unrelated refactor"
+  ],
+  "remoteSideEffectBudget": 0,
+  "commitPolicy": "exactly one new local commit; no amend, rebase, force or Push"
+}

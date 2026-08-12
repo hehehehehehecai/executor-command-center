@@ -6,6 +6,7 @@ import {
   githubActivityReaderContract,
   type GitHubActivityReader,
   type GitHubActivityReadRequest,
+  type GitHubCommitReadRequest,
   type GitHubCheckReadRequest,
 } from "@/application/github-activity/github-activity-reader";
 import {
@@ -169,6 +170,7 @@ type ReaderOptions = {
 type ValidatedRequest = GitHubActivityReadRequest & {
   readonly repositoryFullName: string;
 };
+type ValidatedCommitRequest = ValidatedRequest & { readonly targetSha?: string };
 
 type PageResource<Provider, Output> = {
   readonly path: string;
@@ -229,6 +231,14 @@ function validateRequest(input: GitHubActivityReadRequest): ValidatedRequest {
     installationToken: token,
     repositoryFullName: `${owner}/${name}`,
   };
+}
+
+function validateCommitRequest(input: GitHubCommitReadRequest): ValidatedCommitRequest {
+  const request = validateRequest(input);
+  if (input.targetSha !== undefined && !/^(?!0{40}$)[0-9a-f]{40}$/.test(input.targetSha)) {
+    throw stableError("github_activity_invalid_response");
+  }
+  return { ...request, targetSha: input.targetSha };
 }
 
 function validateCheckRequest(input: GitHubCheckReadRequest): ValidatedRequest & {
@@ -502,12 +512,12 @@ export class GitHubRestActivityReader implements GitHubActivityReader {
   }
 
   async listCommits(
-    input: GitHubActivityReadRequest,
+    input: GitHubCommitReadRequest,
   ): Promise<GitHubCommitReadModel[]> {
-    const request = validateRequest(input);
+    const request = validateCommitRequest(input);
     return this.readAll(request, {
       path: `/repos/${encodeURIComponent(request.repository.owner)}/${encodeURIComponent(request.repository.name)}/commits`,
-      query: { per_page: String(pageSize), since: request.since },
+      query: { per_page: String(pageSize), since: request.since, ...(request.targetSha ? { sha: request.targetSha } : {}) },
       parsePage: (payload) => {
         const parsed = z.array(commitSchema).safeParse(payload);
         return parsed.success ? parsed.data : null;

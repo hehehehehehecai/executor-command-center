@@ -9,6 +9,7 @@ type ReadRequest = {
   pagination: { maxPages: number; maxObjects: number };
   signal?: AbortSignal;
   ref?: string;
+  targetSha?: string;
 };
 
 type Reader = {
@@ -322,6 +323,22 @@ describe("github activity reader contracts", () => {
       },
     ]);
     assertRequest(fetcher, 0, resources[0]!, 1);
+  });
+
+  it("adds only an encoded canonical target SHA to a targeted commit request", async () => {
+    const targetSha = "c".repeat(40);
+    const fetcher = fetchSequence(response([commit("c", "Targeted commit")]));
+    await expect(createReader(fetcher).listCommits({ ...baseRequest, targetSha })).resolves.toHaveLength(1);
+    const [url] = vi.mocked(fetcher).mock.calls[0]!;
+    expect(new URL(String(url)).searchParams.get("sha")).toBe(targetSha);
+    expect(new URL(String(url)).searchParams.get("since")).toBe(baseRequest.since);
+  });
+
+  it("keeps the legacy commit request query unchanged without a target", async () => {
+    const fetcher = fetchSequence(response([commit("a", "Default branch commit")]));
+    await createReader(fetcher).listCommits(baseRequest);
+    const [url] = vi.mocked(fetcher).mock.calls[0]!;
+    expect(new URL(String(url)).searchParams.has("sha")).toBe(false);
   });
 
   it("maps an Issue and excludes pull requests returned by the Issues endpoint", async () => {

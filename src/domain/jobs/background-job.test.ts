@@ -47,6 +47,27 @@ const webhookJob = {
   },
 } as const;
 
+const pushWebhookJob = {
+  ...validJob,
+  triggerSource: "webhook",
+  webhookDelivery: {
+    ...webhookJob.webhookDelivery,
+    eventName: "push",
+    action: null,
+    kind: "github.push.v1",
+    pushAfterSha: "c".repeat(40),
+  },
+} as const;
+
+const currentIssueWebhookJob = {
+  ...webhookJob,
+  webhookDelivery: {
+    ...webhookJob.webhookDelivery,
+    kind: "github.issue.v1",
+    pushAfterSha: null,
+  },
+} as const;
+
 describe("background-job.v1", () => {
   it("parses the exact supported job into a JSON-serializable value", () => {
     expect(jobs.backgroundJobContract).toBe("background-job.v1");
@@ -58,6 +79,17 @@ describe("background-job.v1", () => {
 
   it("strictly parses trusted Webhook delivery lineage", () => {
     expect(jobs.parseBackgroundJob?.(webhookJob)).toEqual(webhookJob);
+    expect(jobs.parseBackgroundJob?.(pushWebhookJob)).toEqual(pushWebhookJob);
+    expect(jobs.parseBackgroundJob?.(currentIssueWebhookJob)).toEqual(currentIssueWebhookJob);
+  });
+
+  it.each([
+    ["Push without a target", { ...pushWebhookJob, webhookDelivery: { ...pushWebhookJob.webhookDelivery, pushAfterSha: null } }],
+    ["Push with uppercase target", { ...pushWebhookJob, webhookDelivery: { ...pushWebhookJob.webhookDelivery, pushAfterSha: "C".repeat(40) } }],
+    ["non-Push with a target", { ...currentIssueWebhookJob, webhookDelivery: { ...currentIssueWebhookJob.webhookDelivery, pushAfterSha: "c".repeat(40) } }],
+    ["inconsistent kind", { ...currentIssueWebhookJob, webhookDelivery: { ...currentIssueWebhookJob.webhookDelivery, kind: "github.push.v1" } }],
+  ])("rejects %s", (_label, value) => {
+    expect(() => jobs.parseBackgroundJob?.(value)).toThrow("background_job_invalid_request");
   });
 
   it.each([

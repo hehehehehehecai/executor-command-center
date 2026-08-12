@@ -39,6 +39,13 @@ describe("github-webhook-ingestion.v1", () => {
     expect(JSON.stringify(vi.mocked(f.repository.register).mock.calls[0])).not.toMatch(/discard-me|attacker-controlled|raw|signature/i);
   });
 
+  it("keeps a canonical Push object id in the strict internal event without accepting extra lineage", () => {
+    const pushEvent = { version: "github-webhook-event.v1", eventId: `github-webhook:${deliveryId}`, idempotencyKey: `github-webhook:${deliveryId}`, deliveryId, bodySha256: "b".repeat(64), eventName: "push", kind: "github.push.v1", action: null, projectId, installationId: 81_001, repositoryId: 91_001, repositoryFullName: "synthetic-owner/synthetic-repository", githubObjectId: "c".repeat(40), receivedAt: now, processingVersion: 2 } as const;
+    expect(parseWebhookInternalEvent(pushEvent)).toEqual(pushEvent);
+    expect(() => parseWebhookInternalEvent({ ...pushEvent, pushAfterSha: pushEvent.githubObjectId }))
+      .toThrow("github_webhook_event_invalid");
+  });
+
   it("returns duplicate without dispatching completed delivery", async () => {
     const f = fixture({ registration: { outcome: "duplicate", status: "dispatched", version: 3, projectId } });
     await expect(f.useCase.execute(request())).resolves.toEqual({ result: "duplicate", code: "github_webhook_duplicate", httpStatus: 200 });

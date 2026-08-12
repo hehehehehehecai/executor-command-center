@@ -6,6 +6,14 @@ import { backgroundJobContract, parseBackgroundJob, type BackgroundJob, type Web
 
 export const webhookSynchronizationRuntimeContract = "github-webhook-synchronization-runtime.v1" as const;
 const processingErrors = new Set<GitHubWebhookProcessingErrorCode>(["github_activity_rate_limited", "github_activity_timeout", "github_activity_unavailable", "github_activity_snapshot_write_failed", "sync_run_concurrency_conflict", "github_webhook_processing_failed"]);
+const webhookKindByEventName = {
+  push: "github.push.v1",
+  issues: "github.issue.v1",
+  pull_request: "github.pull_request.v1",
+  release: "github.release.v1",
+  workflow_run: "github.workflow_run.v1",
+  repository: "github.repository.v1",
+} as const;
 
 function safeProcessingCode(error: unknown): GitHubWebhookProcessingErrorCode {
   const message = error instanceof Error ? error.message : "";
@@ -27,6 +35,8 @@ export class WebhookSynchronizationRuntime {
 
   async request(input: unknown): Promise<{ outcome: "accepted" | "duplicate" | "coalesced"; syncRunId: string | null; providerJobId: string | null }> {
     const event = parseWebhookInternalEvent(input);
+    const expectedKind = webhookKindByEventName[event.eventName as keyof typeof webhookKindByEventName];
+    if (!expectedKind || event.kind !== expectedKind || (expectedKind === "github.push.v1" && event.action !== null)) throw new Error("github_webhook_event_invalid");
     const observed = await this.observe(event);
     if (observed.outcome === "conflict" || observed.projectId !== event.projectId) throw new Error("github_webhook_delivery_conflict");
     if (observed.status === "completed") return { outcome: "duplicate", syncRunId: null, providerJobId: null };
@@ -43,7 +53,7 @@ export class WebhookSynchronizationRuntime {
     if (!dispatchClaim.claimed) return { outcome: "coalesced", syncRunId: receipt.syncRunId, providerJobId: null };
     const processingClaim = await this.dependencies.deliveries.claimProcessing({ deliveryId: event.deliveryId, syncRunId: receipt.syncRunId, expectedVersion: observed.version, claimedAt: event.receivedAt });
     if (!processingClaim.claimed) return { outcome: "duplicate", syncRunId: receipt.syncRunId, providerJobId: null };
-    const lineage: WebhookDeliveryLineage = { deliveryId: event.deliveryId, bodySha256: event.bodySha256, eventName: event.eventName, action: event.action, installationId: event.installationId, repositoryId: event.repositoryId, repositoryFullName: event.repositoryFullName, internalEventId: event.eventId, processingVersion: processingClaim.version };
+    const lineage: WebhookDeliveryLineage = { deliveryId: event.deliveryId, bodySha256: event.bodySha256, eventName: event.eventName, action: event.action, installationId: event.installationId, repositoryId: event.repositoryId, repositoryFullName: event.repositoryFullName, internalEventId: event.eventId, processingVersion: processingClaim.version, kind: event.kind, pushAfterSha: event.kind === "github.push.v1" && event.eventName === "push" ? event.githubObjectId : null };
     const job: BackgroundJob = { version: backgroundJobContract, jobType: "project.sync.requested.v1", jobId: receipt.syncRunId, projectId: event.projectId, syncRunId: receipt.syncRunId, idempotencyKey: `sync-request:${requestIdentity}`, correlationId: `sync:${receipt.syncRunId}`, requestedAt: event.receivedAt, triggerSource: "webhook", webhookDelivery: lineage };
     try {
       const provider = await this.dependencies.dispatcher.dispatch(job);
@@ -75,7 +85,10 @@ export class WebhookSynchronizationRuntime {
       throw new Error(safeProcessingCode(error), { cause: error });
     }
     if (observed.status === "completed") return result;
-    if (result.status === "completed" || (result.status === "partial" && !result.retryable)) {
+    const missingPushTarget = parsedJob.webhookDelivery.pushAfterSha !== null
+      && parsedJob.webhookDelivery.pushAfterSha !== undefined
+      && result.errorCode === "github_activity_not_found";
+    if (result.status === "completed" || (result.status === "partial" && !result.retryable && !missingPushTarget)) {
       await this.dependencies.deliveries.completeProcessing({ deliveryId: parsedJob.webhookDelivery.deliveryId, syncRunId: parsedJob.syncRunId, expectedVersion: processingVersion, completedAt: this.dependencies.clock.now().toISOString() });
       return result;
     }
