@@ -48,6 +48,7 @@ export class WebhookSynchronizationRuntime {
       throw new Error("github_webhook_sync_request_failed");
     }
     if (receipt.syncRunStatus !== "queued" && receipt.syncRunStatus !== "running" && receipt.syncRunStatus !== "partial") return { outcome: "duplicate", syncRunId: receipt.syncRunId, providerJobId: null };
+    if (receipt.outcome === "coalesced") throw new Error("github_webhook_sync_coalesced");
     if (receipt.dispatchVersion === null || receipt.dispatchState === null || receipt.dispatchState === "dispatched") return { outcome: "coalesced", syncRunId: receipt.syncRunId, providerJobId: null };
     const dispatchClaim = await this.dependencies.requests.claimDispatch({ projectId: event.projectId, syncRunId: receipt.syncRunId, expectedVersion: receipt.dispatchVersion, claimedAt: event.receivedAt });
     if (!dispatchClaim.claimed) return { outcome: "coalesced", syncRunId: receipt.syncRunId, providerJobId: null };

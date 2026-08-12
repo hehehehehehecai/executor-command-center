@@ -1,0 +1,84 @@
+{
+  "version": "stage3-phase9-2-15-release-consumer-freeze.v1",
+  "recordedAt": "2026-08-12T09:26:16.862Z",
+  "batchId": "explorer-stage3-phase9-2-15-release-consumer-14802702",
+  "promptInstanceId": "explorer-stage3-phase9-2-15-release-consumer-diagnosis-14802702",
+  "authorizationEnvelope": "workflow-authorization.v1:9d40fd841f42769e",
+  "sourceReviewTicket": "sha256:148027028e0cab0394e4aa65e13c198fc639f50b9327996c747f3b53037a697f",
+  "sourceClassification": "B/REPAIR_REQUIRED",
+  "blockerRound": "1/5",
+  "baseline": {
+    "commit": "9d40fd841f42769e94873a920a540c4a18a98fe8",
+    "tree": "fa56204cd1d1cf5ba66f8a45838160beaff7ad21",
+    "parent": "2a430601ff4796927291006b483abfc797806b88",
+    "message": "test(sync): record blocked post-race staging smoke",
+    "originStaging": "2a430601ff4796927291006b483abfc797806b88",
+    "worktree": "clean"
+  },
+  "sourceArtifacts": {
+    "phase9_2_14FreezeSha256": "801a707114e9a9b8ac35f7209f8128d5b17f982c4a78380092b84d99c8f056df",
+    "phase9_2_14EvidenceSha256": "4088f2efc2df273a47f6d194870e1ee60ffd0ef36303cafcb03372e60a3dda12"
+  },
+  "fixedRelease": {
+    "databaseId": "369085554",
+    "nodeId": "RE_kwDOTtTOA84V_8xy",
+    "deliveryId": "263e3250-9626-11f1-98f3-7a6dc91ee73f",
+    "internalEventId": "github-webhook:263e3250-9626-11f1-98f3-7a6dc91ee73f",
+    "eventName": "release",
+    "kind": "github.release.v1",
+    "action": "published",
+    "processingVersion": 2
+  },
+  "readOnlyRuntimeFacts": {
+    "fixedReleaseInngestRunId": "01KZTGQ5D9P64QSPSTPY9NGFR0",
+    "fixedReleaseFunction": "executor-command-center-executor-github-webhook-consumer",
+    "fixedReleaseFunctionStatus": "COMPLETED",
+    "fixedReleaseAttempt": 0,
+    "sleepStep": "completed",
+    "requestWebhookSyncStep": "completed",
+    "requestWebhookSyncRetryCount": 0,
+    "fixedReleaseDeliveryStatus": "dispatched",
+    "fixedReleaseDeliveryVersion": 3,
+    "fixedReleaseSyncRunId": null,
+    "concurrentCompletedSyncRunId": "e379b72b-bada-4c45-8efd-d8c3a12af9a4",
+    "concurrentCompletedDeliveryId": "26302890-9626-11f1-803c-6d8162d9e212",
+    "rootCause": "A distinct concurrent webhook request is coalesced onto an already dispatched active SyncRun. WebhookSynchronizationRuntime.request returns a successful coalesced result without claiming the delivery, so Inngest memoizes StepRun as completed while the delivery remains dispatched permanently."
+  },
+  "tddRed": {
+    "required": [
+      "a coalesced receipt with dispatchState=dispatched must reject with a stable retryable code instead of resolving",
+      "the delivery must remain unclaimed before retry",
+      "a later retry that receives outcome=new must claim and dispatch exactly once",
+      "the production-like Inngest execution must expose the first StepRun failure and complete after retry",
+      "Release published/created/prereleased and passed Push/Issue/PR shapes must share the same strict execution boundary",
+      "same event replay after successful StepRun must not repeat the business request",
+      "invalid exact-key, kind/eventName/action/object/timestamp/processingVersion inputs must fail before claim"
+    ],
+    "requiredSkipped": 0
+  },
+  "allowedPaths": [
+    "src/application/synchronization/webhook-sync-use-cases.ts",
+    "src/application/synchronization/webhook-sync-use-cases.test.ts",
+    "src/infrastructure/jobs/inngest-runtime.test.ts",
+    "tests/fixtures/synchronization/stage3-phase9-2-15-release-consumer-freeze.json",
+    "docs/runbooks/stage3-phase9-2-15-release-consumer-evidence.md"
+  ],
+  "protected": {
+    "package.json": "f9a6ab717fa98c452d290a69374e30b00b09b23f5253699d9900c935dd349468",
+    "pnpm-lock.yaml": "a087993aad1ff9993627e09050e70d61d22fcc2e9c33909074b52b00528c8eef",
+    "next-env.d.ts": "4e4da12aa061aac172fb1bcb48e9b6e4b293080d2f494327925fdba8f39632ac",
+    "supabase/migrations": "5c28bd588e2c2c8d0722698fe9d14f04fd793439a599dcd6ed129a0dd07e1aee"
+  },
+  "forbidden": [
+    "remote writes",
+    "GitHub redelivery",
+    "Manual Resync",
+    "database mutation",
+    "provider configuration changes",
+    "dependency or lockfile changes",
+    "migration/schema/RLS/RPC changes",
+    "secret or raw payload persistence"
+  ],
+  "remoteSideEffectBudget": 0,
+  "commitPolicy": "one local commit only after all required gates pass"
+}

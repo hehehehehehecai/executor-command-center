@@ -9,11 +9,11 @@ const at = "2026-08-07T02:00:00.000Z";
 const deliveryId = "33333333-3333-4333-8333-333333333333";
 const job = (triggerSource: "first_sync" | "webhook" | "reconciliation" | "manual") => ({ version: "background-job.v1", jobType: "project.sync.requested.v1", jobId: runId, projectId, syncRunId: runId, idempotencyKey: `sync-request:${triggerSource}`, correlationId: `sync:${runId}`, requestedAt: at, triggerSource, webhookDelivery: triggerSource === "webhook" ? { deliveryId: "33333333-3333-4333-8333-333333333333", bodySha256: "a".repeat(64), eventName: "issues", action: "opened", installationId: 81_001, repositoryId: 91_001, repositoryFullName: "synthetic/repository", internalEventId: "github-webhook:33333333-3333-4333-8333-333333333333", processingVersion: 4 } : null });
 function fixture() { const firstSync = { execute: vi.fn(async () => "first") }; const projectSync = { execute: vi.fn(async () => "project") }; const webhooks = { request: vi.fn(async () => "webhook-request"), execute: vi.fn(async () => "webhook-execute") }; const daily = { handle: vi.fn(async () => "daily") }; return { dependencies: { firstSync, projectSync, webhooks, daily }, firstSync, projectSync, webhooks, daily }; }
-const webhookEvent = () => ({ version: "github-webhook-event.v1", eventId: `github-webhook:${deliveryId}`, idempotencyKey: `github-webhook:${deliveryId}`, deliveryId, bodySha256: "a".repeat(64), eventName: "push", kind: "github.push.v1", action: null, projectId, installationId: 151_329_457, repositoryId: 1_322_569_219, repositoryFullName: "synthetic/repository", githubObjectId: "3".repeat(40), receivedAt: at, processingVersion: 3 });
+const webhookEvent = (overrides: Record<string, unknown> = {}) => ({ version: "github-webhook-event.v1", eventId: `github-webhook:${deliveryId}`, idempotencyKey: `github-webhook:${deliveryId}`, deliveryId, bodySha256: "a".repeat(64), eventName: "push", kind: "github.push.v1", action: null, projectId, installationId: 151_329_457, repositoryId: 1_322_569_219, repositoryFullName: "synthetic/repository", githubObjectId: "3".repeat(40), receivedAt: at, processingVersion: 3, ...overrides });
 type SdkExecutionResult = { type: string; steps?: Array<{ id: string; op: string; data?: unknown }>; step?: { id: string; op: string; data?: unknown } };
 type ExecutableInngestFunction = { createExecution(input: { partialOptions: Record<string, unknown> }): { start(): Promise<SdkExecutionResult> } };
-const executeSdkFunction = async (client: Inngest, fn: unknown, stepState: Record<string, IncomingOp> = {}, stepCompletionOrder: string[] = [], requestedRunStep?: string) => {
-  const event = { id: `event:${deliveryId}`, name: "executor/github.webhook.received.v1", data: webhookEvent(), ts: Date.parse(at) };
+const executeSdkFunction = async (client: Inngest, fn: unknown, stepState: Record<string, IncomingOp> = {}, stepCompletionOrder: string[] = [], requestedRunStep?: string, eventData: Record<string, unknown> = webhookEvent()) => {
+  const event = { id: `event:${deliveryId}`, name: "executor/github.webhook.received.v1", data: eventData, ts: Date.parse(at) };
   const execution = (fn as ExecutableInngestFunction).createExecution({ partialOptions: { client, reqArgs: [], runId: "01J4SYNTHETICWEBHOOKRUN000", data: { event, events: [event], runId: "01J4SYNTHETICWEBHOOKRUN000", attempt: 0 }, stepState, stepCompletionOrder, stepMode: StepMode.AsyncCheckpointing, headers: {}, requestedRunStep } });
   return execution.start();
 };
@@ -53,6 +53,35 @@ describe("inngest-synchronization-runtime.v1", () => {
     expect(request).toBeDefined();
     const replay = await executeSdkFunction(client, webhook, { [sleep!.id]: { id: sleep!.id, data: null }, [request!.id]: { id: request!.id, data: request!.data } }, [sleep!.id, request!.id]);
     expect(replay).toMatchObject({ type: "steps-found", steps: [{ op: "RunComplete", data: "webhook-request" }] });
+    expect(f.webhooks.request).toHaveBeenCalledTimes(1);
+  });
+  it.each(["published", "created", "prereleased"])("executes a production-like Release %s event through Sleep and StepRun exactly once", async (action) => {
+    const f = fixture();
+    const client = new Inngest({ id: "synthetic-runtime", eventKey: "synthetic-event-key", signingKey: "signkey-test-synthetic", checkpointing: true });
+    const webhook = createInngestSynchronizationFunctions(client, f.dependencies)[1];
+    const release = webhookEvent({ eventName: "release", kind: "github.release.v1", action, githubObjectId: "369085554" });
+    const discovery = await executeSdkFunction(client, webhook, {}, [], undefined, release);
+    const sleep = discovery.steps?.[0];
+    expect(sleep).toMatchObject({ op: "Sleep" });
+    const requestDiscovery = await executeSdkFunction(client, webhook, { [sleep!.id]: { id: sleep!.id, data: null } }, [sleep!.id], undefined, release);
+    expect(requestDiscovery).toMatchObject({ type: "steps-found", steps: [{ op: "StepRun" }] });
+    expect(f.webhooks.request).toHaveBeenCalledTimes(1);
+    expect(f.webhooks.request).toHaveBeenCalledWith(release);
+    const request = requestDiscovery.steps?.[0];
+    const replay = await executeSdkFunction(client, webhook, { [sleep!.id]: { id: sleep!.id, data: null }, [request!.id]: { id: request!.id, data: request!.data } }, [sleep!.id, request!.id], undefined, release);
+    expect(replay).toMatchObject({ type: "steps-found", steps: [{ op: "RunComplete" }] });
+    expect(f.webhooks.request).toHaveBeenCalledTimes(1);
+  });
+  it("surfaces a coalesced delivery as a retryable StepError instead of memoizing success", async () => {
+    const f = fixture();
+    f.webhooks.request.mockRejectedValueOnce(new Error("github_webhook_sync_coalesced"));
+    const client = new Inngest({ id: "synthetic-runtime", eventKey: "synthetic-event-key", signingKey: "signkey-test-synthetic", checkpointing: true });
+    const webhook = createInngestSynchronizationFunctions(client, f.dependencies)[1];
+    const release = webhookEvent({ eventName: "release", kind: "github.release.v1", action: "published", githubObjectId: "369085554" });
+    const discovery = await executeSdkFunction(client, webhook, {}, [], undefined, release);
+    const sleep = discovery.steps?.[0];
+    const failure = await executeSdkFunction(client, webhook, { [sleep!.id]: { id: sleep!.id, data: null } }, [sleep!.id], undefined, release);
+    expect(failure).toMatchObject({ type: "step-ran", step: { op: "StepError" } });
     expect(f.webhooks.request).toHaveBeenCalledTimes(1);
   });
 });
