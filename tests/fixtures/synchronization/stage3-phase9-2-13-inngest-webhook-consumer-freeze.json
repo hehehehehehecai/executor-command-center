@@ -1,0 +1,105 @@
+{
+  "contractVersion": "stage3-phase9-2-13-inngest-webhook-consumer-freeze.v1",
+  "immutable": true,
+  "recordedAt": "2026-08-12T06:43:05.6479122Z",
+  "batchId": "explorer-stage3-phase9-2-13-inngest-webhook-consumer-1628d923",
+  "promptInstanceId": "explorer-stage3-phase9-2-13-inngest-webhook-consumer-repair-1628d923",
+  "authorizationPolicy": "workflow-authorization.v1",
+  "authorizationEnvelopeId": "workflow-authorization.v1:1628d923a79f391d",
+  "sourceReviewTicketSha256": "1628d923a79f391d4b158d188dfbaf1f550545a7f708ace95c627632f995a0e3",
+  "blocker": {
+    "fingerprint": "1628d923a79f391d4b158d188dfbaf1f550545a7f708ace95c627632f995a0e3",
+    "round": "1/5"
+  },
+  "baseline": {
+    "branch": "feature/stage3-phase8-data-freshness-ui",
+    "commit": "d6e4324c64d21abddcccc44cdac80cf8df7af77b",
+    "tree": "5b75d6d4af20c5b6347654ee18e2ea253d4d3801",
+    "parent": "f085e8380f9abfe5cfdd8a6db8346973d6fca945",
+    "message": "test(sync): record blocked post-lineage staging smoke",
+    "initialWorktreeClean": true
+  },
+  "sourcePhase9212": {
+    "freezeSha256": "c7fdadaa259a006321fc1aa401372f17846adc0ef66e467fb2aa60c91f038605",
+    "evidenceSha256": "05f91ed85f3c9f916eb60bdf6d454ad1e45bed0ecf9c0216ef59029d91fe01a9",
+    "deliveryId": "d67c04b4-9610-11f1-90d7-9d73d2506ec4",
+    "deliveryState": "dispatched/version 3 with provider receipt and null sync_run_id",
+    "targetPushAfterSha": "33a40388e8b09dce7b9310b830bc0b2152177c91"
+  },
+  "installedRuntime": {
+    "node": "v24.14.0",
+    "pnpm": "11.16.0",
+    "inngest": "4.15.0",
+    "sdkTestHarnessInstalled": false,
+    "productionLikeFallback": "InngestFunction.createExecution via the installed SDK execution engine"
+  },
+  "rootCauseHypothesis": {
+    "senderOrder": "Inngest send receipt precedes complete_github_webhook_dispatch",
+    "consumerOrder": "step.run immediately invokes WebhookSynchronizationRuntime.request",
+    "race": "consumer can observe dispatching before the sender commits dispatched",
+    "expectedSafeRepair": "a durable SDK sleep step precedes the request step while preserving retry, idempotency and concurrency"
+  },
+  "redDenominators": {
+    "productionLikeValidPush": 1,
+    "dispatchReadinessOrdering": 1,
+    "memoizedReplay": 1,
+    "invalidExtraField": 1,
+    "invalidKindEventName": 1,
+    "zeroPushSha": 1,
+    "otherTriggerFamilies": 3,
+    "routeFunctionSet": 1
+  },
+  "requiredGates": {
+    "directRuntimeAndWebhookTests": true,
+    "pushLineageRegression": true,
+    "fullUnit": true,
+    "applicationIntegrationRequiredSkip": 0,
+    "localPgTap": true,
+    "lintTypecheckDbLintTypesDrift": true,
+    "moduleBoundaries": true,
+    "productionE2e": true,
+    "secretScanHits": 0
+  },
+  "allowedPaths": [
+    "tests/fixtures/synchronization/stage3-phase9-2-13-inngest-webhook-consumer-freeze.json",
+    "src/infrastructure/jobs/inngest-runtime.ts",
+    "src/infrastructure/jobs/inngest-runtime.test.ts",
+    "docs/runbooks/stage3-phase9-2-13-inngest-webhook-consumer-evidence.md"
+  ],
+  "protectedPaths": [
+    "src/app/api/inngest/route.ts",
+    "src/app/api/inngest/inngest-route-dependencies.ts",
+    "src/application/synchronization/webhook-sync-use-cases.ts",
+    "supabase/migrations/**",
+    "src/infrastructure/database/database.types.ts",
+    "package.json",
+    "pnpm-lock.yaml",
+    "next-env.d.ts",
+    "tests/fixtures/synchronization/stage3-phase9-2-12-staging-smoke-freeze.json",
+    "docs/runbooks/stage3-phase9-2-12-staging-smoke-evidence.md"
+  ],
+  "protectedFingerprints": {
+    "inngestRuntimeBefore": "d047c0376e738992f5d3efd757bad88a1e4531836761f5150792fb1ced6b92ab",
+    "inngestRuntimeTestBefore": "f236cd68244f1f337803a483cd0a0804fae6be2bf2405ec598401a2a43242638",
+    "route": "2e27f4be761e47d738d13b3b0042d42ab5f8a8c2f00a896914dd3b83cb6acf54",
+    "composition": "41543d2a6685c453a1b930ab19ea807323a66ddb2957fba3aee4bbdbb7dd0ac9",
+    "webhookRuntime": "b5a289593e8a475538d5ba0871727e512f4e6b14f2a2ba583ccb4aee53e3e62a",
+    "package": "f9a6ab717fa98c452d290a69374e30b00b09b23f5253699d9900c935dd349468",
+    "lockfile": "a087993aad1ff9993627e09050e70d61d22fcc2e9c33909074b52b00528c8eef",
+    "nextEnv": "4e4da12aa061aac172fb1bcb48e9b6e4b293080d2f494327925fdba8f39632ac"
+  },
+  "remoteSideEffectBudget": 0,
+  "forbidden": [
+    "remote provider reads or writes",
+    "redelivery or manual resync",
+    "migration, schema or dependency changes",
+    "raw payload, token, cookie, authorization or provider secret persistence",
+    "test skip or reduced denominator",
+    "push, deployment, production, other repository, payment or trial"
+  ],
+  "commitPolicy": {
+    "count": 1,
+    "message": "fix(sync): execute webhook consumer step reliably",
+    "push": false
+  }
+}
