@@ -1,0 +1,97 @@
+{
+  "version": "stage3-phase9-2-17-missed-issue-freeze.v1",
+  "recordedAt": "2026-08-12T11:51:02.2320484Z",
+  "batchId": "explorer-stage3-phase9-2-17-missed-issue-stability-window",
+  "executionUnit": "Phase 9.2.17",
+  "classification": "B/RETRY_PROTOCOL_REQUIRED",
+  "blockerRound": "1/5",
+  "baseline": {
+    "branch": "feature/stage3-phase8-data-freshness-ui",
+    "commit": "e231a372f7e7fa982e89f098a4972f8f540732fe",
+    "tree": "f953fceb35aeb53be60d1b8074f85a648912b5e5",
+    "parentAndDeployedProduct": "a3fae4d623a278dcd12fdbf4a24491f4d3f961ad",
+    "message": "test(sync): record blocked post-coalescing staging smoke",
+    "worktree": "clean",
+    "originStaging": "a3fae4d623a278dcd12fdbf4a24491f4d3f961ad"
+  },
+  "cumulativeEvidence": {
+    "phase9_2_16FreezeSha256": "f2e78af392ea397e675f004ebd09ba7af109e354d346b34d81a4920452750bba",
+    "phase9_2_16EvidenceSha256": "66297981211b45a77d8781a0db586595c5aa33fe9028683bbdcaae6bf5cc35d3",
+    "phase9_2_16EvidenceCommit": "e231a372f7e7fa982e89f098a4972f8f540732fe",
+    "deploymentId": "dpl_G5gJ16ZP2JULDVuYLxD7CF6XDvxs",
+    "deploymentState": "READY",
+    "deploymentTarget": "Preview",
+    "deploymentBranch": "staging"
+  },
+  "fixedIssue": {
+    "repositoryFullName": "hehehehehehecai/explorer-staging-private-test-20260804",
+    "repositoryId": 1322569219,
+    "issueNumber": 5,
+    "githubObjectId": "5130138227",
+    "expectedGitHubState": "open",
+    "snapshot": {
+      "state": "open",
+      "sourceVersion": "2026-08-12T11:02:20.000Z",
+      "sourceUpdatedAt": "2026-08-12T11:02:20Z",
+      "updatedAt": "2026-08-12T11:02:38.837688Z",
+      "exactCount": 1
+    },
+    "existingOpenedDeliveryId": "4a8b10a8-963d-11f1-988b-1834615680d5",
+    "existingSyncRunId": "e0f2c43d-650d-4fcc-93c6-81c6a910267a",
+    "issueDeliveriesBefore": 3,
+    "maxIssueDeliveryReceivedAtBefore": "2026-08-12T11:02:22.316Z"
+  },
+  "githubAppConfiguration": {
+    "appId": 4480141,
+    "installationId": 151329457,
+    "installationScope": "selected-only:1",
+    "selectedRepository": "hehehehehehecai/explorer-staging-private-test-20260804",
+    "events": ["issues", "pull_request", "push", "release", "repository", "workflow_run"],
+    "permissions": ["actions:read", "checks:read", "contents:read", "issues:read", "metadata:read", "pull_requests:read"],
+    "webhookActive": true,
+    "sslVerification": true,
+    "homepageOrigin": "https://executor-command-center-git-staging-hehehehehehecais-projects.vercel.app",
+    "webhookOriginAndPath": "https://executor-command-center-git-staging-hehehehehehecais-projects.vercel.app/api/github/webhook",
+    "canonical": "events=issues,pull_request,push,release,repository,workflow_run|permissions=actions:read,checks:read,contents:read,issues:read,metadata:read,pull_requests:read|active=true|ssl=true|installation=selected-only:1|repository=1322569219",
+    "sha256": "92273b9e41e41c74c61d6d131541827933b3c3571b8757f629cbda72460bc6fe"
+  },
+  "observationProtocol": {
+    "disabledStabilitySeconds": 90,
+    "disabledChecksAtSeconds": [30, 60, 90],
+    "repositoryWritesDuringDisabledStability": 0,
+    "allowedIssueMutation": "issue #5 open-to-closed exactly once",
+    "postMutationObservationSeconds": 90,
+    "postMutationPollSeconds": 15,
+    "expectedProviderClosedDeliveries": 0,
+    "expectedStagingClosedDeliveries": 0,
+    "expectedSnapshotMutations": 0,
+    "restoreImmediatelyAfterObservation": true,
+    "restoreShaMustMatchOriginal": true
+  },
+  "allowedRemoteActions": [
+    "disable only the issues event once",
+    "close existing Issue #5 once after the first stable window",
+    "restore the issues event once",
+    "after proven miss and exact restoration, invoke one product reconciliation or manual resync",
+    "if supported, replay the same reconciliation identity once"
+  ],
+  "forbiddenRemoteActions": [
+    "deployment, push, first sync, release, normal event smoke, official redelivery or new Issue",
+    "database mutation or fabricated delivery",
+    "editing Issue #5 title or body, reopening it or performing a second close",
+    "changing webhook URL, secret, permissions, Active, SSL, installation scope or non-issues events",
+    "Production, another repository, paid or Trial features"
+  ],
+  "allowedLocalFiles": [
+    "tests/fixtures/synchronization/stage3-phase9-2-17-missed-issue-freeze.json",
+    "docs/runbooks/stage3-phase9-2-17-missed-issue-evidence.md"
+  ],
+  "security": {
+    "persistTokenCookieAuthorizationSecretSignatureOrRawPayload": false,
+    "databaseReadsUseReadOnlyTransactionAndRollback": true,
+    "remoteWritesBeforeFreeze": 0,
+    "productCodeChanges": 0,
+    "singleLocalEvidenceCommit": true,
+    "pushEvidenceCommit": false
+  }
+}
