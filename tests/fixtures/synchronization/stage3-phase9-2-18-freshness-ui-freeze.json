@@ -1,0 +1,79 @@
+{
+  "version": "stage3-phase9-2-18-freshness-ui-freeze.v1",
+  "recordedAt": "2026-08-12T13:03:17.8974678Z",
+  "executionUnit": "Phase 9.2.18",
+  "classification": "B/UI_REPAIR_REQUIRED",
+  "baseline": {
+    "branch": "feature/stage3-phase8-data-freshness-ui",
+    "commit": "9d1abc46d9061819ffed2ffe281cd5458c5148e5",
+    "tree": "35ff3aa988a81031fdfff0ef16b25302ab7c8076",
+    "parent": "e231a372f7e7fa982e89f098a4972f8f540732fe",
+    "worktree": "clean"
+  },
+  "rootCause": {
+    "registeredRoute": "/project-galaxy",
+    "routeImplementationBefore": 0,
+    "realFreshnessReaderBefore": 0,
+    "existingContracts": [
+      "freshness-status.v1",
+      "project-data-freshness-ui.v1",
+      "synchronization-state.v1"
+    ],
+    "existingPresentation": "src/features/project-galaxy/SyncStatusBadge.tsx",
+    "demoOnlyRoot": "src/app/page.tsx imports commandDeckPreviewFixture"
+  },
+  "authorizationBoundary": {
+    "client": "session-scoped Supabase server client using publishable/anon key",
+    "sessionVerification": "supabase.auth.getUser",
+    "projectVisibility": "projects RLS plus explicit user_id filter",
+    "syncRunVisibility": "sync_runs_select_own RLS",
+    "serviceRoleInPageOrReader": false,
+    "newRpcOrMigration": false
+  },
+  "allowedPaths": [
+    "tests/fixtures/synchronization/stage3-phase9-2-18-freshness-ui-freeze.json",
+    "src/app/project-galaxy/page.tsx",
+    "src/app/project-galaxy/page.test.tsx",
+    "src/infrastructure/synchronization/supabase-project-freshness-reader.ts",
+    "src/infrastructure/synchronization/supabase-project-freshness-reader.test.ts",
+    "tests/integration/synchronization/project-freshness-boundary.test.ts",
+    "docs/runbooks/stage3-phase9-2-18-freshness-ui-evidence.md"
+  ],
+  "protectedHashes": {
+    "package.json": "f9a6ab717fa98c452d290a69374e30b00b09b23f5253699d9900c935dd349468",
+    "pnpm-lock.yaml": "a087993aad1ff9993627e09050e70d61d22fcc2e9c33909074b52b00528c8eef",
+    "next-env.d.ts": "08c0e8ff190caa1e1f14688e6b5a0eac94bf956afe4417d8c7469dc8c6479b74",
+    "src/app/page.tsx": "de8050f615ff81d764327e60d9c5c92fc5af3dfc40ff1b1161a5cf5fb70cb432",
+    "src/features/project-galaxy/freshness-presentation.ts": "5fed5baf3da77d9efa43866a68705ba0520d4be98d610afc4a05522da82af222",
+    "src/features/project-galaxy/SyncStatusBadge.tsx": "7c5e3927bd6da45c7f81bbdfdea18f2d4749ffe35820d7851a5689e2b4d689c9",
+    "src/infrastructure/database/database.types.ts": "f00caab1bb436be624c1774a8535d692a682e48268ba98d3fd2ad315cf38f4ac",
+    "supabase/migrations/20260805190000_create_sync_runs.sql": "6fc92bc0ce971c665fbf689f689f3d48a5a4a60f0959eba3985f5ff52173c8fe",
+    "tests/fixtures/synchronization/stage3-phase9-2-17-missed-issue-freeze.json": "fe459c2fd4ecef202bb85f4fef58c9df40dabf469acf1f28adecaa1a702aaa9c",
+    "docs/runbooks/stage3-phase9-2-17-missed-issue-evidence.md": "e0462bfc15d7e7b25247579641da17747c3fe10e0789155375dddd88aa047edc"
+  },
+  "tddRedDenominator": {
+    "readerBehavior": 8,
+    "pageBehavior": 8,
+    "integrationBoundary": 3,
+    "requiredSkipped": 0
+  },
+  "requiredBehaviors": [
+    "route exists and renders real provenance",
+    "fresh stale syncing failed authorization_revoked use existing domain rule",
+    "last successful and safe error code are visible",
+    "unauthenticated never queries project data",
+    "no project renders a safe empty state",
+    "foreign project is invisible",
+    "deterministic default chooses the most recently updated own active project",
+    "demo fixture is never imported"
+  ],
+  "forbidden": [
+    "service role in page or reader",
+    "migration schema RLS RPC or generated type changes",
+    "demo fixture or provider-private fields in the real page",
+    "raw error summary payload token Cookie Authorization or repository private fields",
+    "remote write deployment Push Production paid or Trial"
+  ],
+  "remoteSideEffectBudget": 0,
+  "singleLocalCommit": true
+}
