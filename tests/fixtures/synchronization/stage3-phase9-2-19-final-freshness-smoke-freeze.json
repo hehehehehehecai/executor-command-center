@@ -1,0 +1,83 @@
+{
+  "version": "stage3-phase9-2-19-final-freshness-smoke-freeze.v1",
+  "recordedAt": "2026-08-13T01:25:34.8401836Z",
+  "executionUnit": "Phase 9.2.19",
+  "source": "Phase 9.2.18 A/PASS_TO_FINAL_STAGING_SMOKE",
+  "productBaseline": {
+    "branch": "feature/stage3-phase8-data-freshness-ui",
+    "commit": "dd23af38757cc2671162d05971a6878c4a82790d",
+    "tree": "c44bb240ffe193bad1c7ef03db41a5c252f67cf1",
+    "parent": "9d1abc46d9061819ffed2ffe281cd5458c5148e5",
+    "message": "feat(sync): render real project freshness",
+    "originStagingBefore": "a3fae4d623a278dcd12fdbf4a24491f4d3f961ad",
+    "worktree": "clean"
+  },
+  "cumulativeEvidence": {
+    "phase9218FreezeSha256": "81316546282e94ce4003c3e608f2e1dcf0bb73d8998596fc738a424775693215",
+    "phase9218EvidenceSha256": "31c5bae77bfd0fa2cddb07de4365add8a86a99e3f50962cb01d9eade7907e603",
+    "phase9218Commit": "dd23af38757cc2671162d05971a6878c4a82790d",
+    "reusedLocalGates": "Phase 9.2.18 immutable product commit"
+  },
+  "fixedProject": {
+    "projectId": "81630aa3-a101-421c-b31e-dc16d1592c31",
+    "route": "/project-galaxy?project=81630aa3-a101-421c-b31e-dc16d1592c31"
+  },
+  "isolatedResources": {
+    "githubAccount": "hehehehehehecai",
+    "githubAppId": 4480141,
+    "githubInstallationId": 151329457,
+    "githubRepositoryId": 1322569219,
+    "githubRepository": "hehehehehehecai/explorer-staging-private-test-20260804",
+    "githubRepositoryVisibility": "PRIVATE",
+    "vercelTeamId": "team_IDGruFjuEZmy1dJRsg0RYkKf",
+    "vercelProjectId": "prj_vRfWcuvLYn240SSuKyNH0g4ShpW8",
+    "vercelProject": "executor-command-center",
+    "vercelEnvironment": "Hobby Preview/staging",
+    "stableAlias": "executor-command-center-git-staging-hehehehehehecais-projects.vercel.app",
+    "supabaseProjectRef": "gsnuorsqdcdszjxtymhs",
+    "supabaseProject": "executor-command-center-staging",
+    "supabaseStatus": "ACTIVE_HEALTHY",
+    "supabaseMigrationCount": 16,
+    "inngestEnvironment": "staging-7050a935",
+    "inngestExpectedFunctions": 3
+  },
+  "requiredChecks": [
+    "ordinary fast-forward staging push binds exact product commit",
+    "Vercel deployment is READY Preview on staging and not Production",
+    "authenticated real Project Galaxy is not 404",
+    "freshness-status.v1 UI and read-only database evidence agree",
+    "provenance is real and no demo fixture marker is visible",
+    "last successful timestamp and latest SyncRun match",
+    "full SyncRun id and unsafe error detail are not exposed",
+    "anonymous context reveals only the authentication boundary",
+    "foreign or missing project UUID returns a non-enumerating safe state"
+  ],
+  "allowedRemoteActions": [
+    "one ordinary fast-forward push to existing origin/staging",
+    "automatic Vercel Hobby Preview deployment",
+    "read-only Provider and database evidence",
+    "authenticated and anonymous HTTP page reads"
+  ],
+  "forbidden": [
+    "GitHub test object creation or mutation",
+    "GitHub App configuration change",
+    "Manual Resync, webhook redelivery or missed-webhook replay",
+    "database write, migration, RPC mutation or remote repair",
+    "Production, promotion, merge, force push, main or master",
+    "paid feature, Trial or plan upgrade",
+    "token, Cookie, Authorization, service-role key or raw payload persistence"
+  ],
+  "localAllowedPaths": [
+    "tests/fixtures/synchronization/stage3-phase9-2-19-final-freshness-smoke-freeze.json",
+    "docs/runbooks/stage3-phase9-2-19-final-freshness-smoke-evidence.md"
+  ],
+  "remoteSideEffectBudget": {
+    "applicationStagingPush": 1,
+    "automaticPreviewDeployment": 1,
+    "githubTestRepositoryWrites": 0,
+    "databaseWrites": 0,
+    "providerConfigurationWrites": 0,
+    "productionWrites": 0
+  },
+  "singleUnpushedEvidenceCommit": true
+}
