@@ -2,7 +2,7 @@
 
 ## 目标
 
-本文件记录 `feature-registry.v1` 与 `module-boundaries.v1`。Feature Registry 固化五个核心 Feature 的身份、展示文案、路由元数据和顺序；模块边界规则保护 Domain 的纯 TypeScript 属性，并防止 Feature 绕过公开入口读取其他 Feature 的内部文件。
+本文件记录 `feature-registry.v1`、`panel-query.v1` 与 `module-boundaries.v1`。Feature Registry 固化五个核心 Feature 的身份、展示文案、路由元数据和顺序；Panel Query 提供后续面板共用的 Preview / Connected 查询合同；模块边界规则保护纯 TypeScript 合同，并防止 Feature 绕过公开入口读取其他 Feature 的内部文件。
 
 本阶段只建立注册表、边界规则和验证机制，不代表五个 Feature Module、页面或路由已经实现。
 
@@ -58,6 +58,32 @@ export interface FeatureDefinition {
 | `copilot` | Copilot | AI 副驾驶 | `/copilot` | 50 | `true` |
 
 ID、Route 和 Order 是稳定契约：三者分别唯一，Registry 顺序与严格递增的 Order 一致。修改这些值属于契约变更，不能作为普通内部重构处理。Route 是元数据，不表示对应 Next.js Route 已经存在。
+
+## Panel Query 公共合同
+
+唯一公共入口是 `src/shared/panel-query/index.ts`，后续调用方应通过 `@/shared/panel-query` 复用。冻结合同为：
+
+```ts
+export type PanelMode = "preview" | "connected";
+
+export interface PanelQuery<T> {
+  load(): Promise<T>;
+}
+```
+
+`createPreviewPanelQuery` 接收本地 Preview loader，`createConnectedPanelQuery` 接收调用方注入的 provider-neutral `ConnectedPanelPort<T>`。两者都返回同一个 `PanelQuery<T>`，不定义两套 View Model，也不在合同层读取 Supabase、GitHub、Inngest、网络或 Feature 内部文件。
+
+`resolvePanelQuery` 必须由调用方传入明确的 `PanelMode`；`parsePanelMode` 只接受精确字面量，未知值抛出 `InvalidPanelModeError`。Connected port 的失败原样保持可观察，不捕获、不补入 Demo 数据，也不回退 Preview。
+
+数据来源的责任边界如下：
+
+```text
+Preview fixture / loader → createPreviewPanelQuery ┐
+                                                   ├→ PanelQuery<T> → caller
+Injected ConnectedPanelPort<T> → createConnectedPanelQuery ┘
+```
+
+公共合同本身不包含任何面板业务 View Model。具体 Feature 后续可以声明自身唯一的 `T`，但 Preview 与 Connected 必须对同一 `T` 完成确定性映射。
 
 ## Domain 纯 TypeScript 边界
 
@@ -126,6 +152,7 @@ import SecretAlias = require("@/features/flight-log/internal/secret");
 - 识别 importer 所属 Feature、Feature 别名和跨 Feature 相对路径。
 - 每个违规包含文件、specifier、引用类型和原因。
 - 正向与负向内存合成示例验证边界分类，当前源码树违规数必须为 0。
+- 递归扫描 `src/shared/panel-query`，禁止其导入 Feature、Demo fixture、应用或基础设施内部模块，以及 React、Next.js、Supabase、Octokit、Inngest、AI SDK、`server-only` 和 Node.js 运行时模块。
 
 ### 当前尚未自动强制
 
@@ -155,4 +182,4 @@ import SecretAlias = require("@/features/flight-log/internal/secret");
 
 ## 本 Phase 明确不做
 
-本阶段不实现五个面板页面、任何新增 Next.js Route、Command Deck、Preview Mode、Feature Flag、权限判断、Supabase、GitHub 集成、Inngest、AI Provider、数据库、API Route、Server Action、后台任务、CI 或最终 HUD 视觉。
+Panel Query Phase 只建立公共合同、通用适配器和模式选择，不实现五个面板 View Model、页面、筛选、建议、决策、Copilot 或 Connected E2E 业务旅程，也不修改 Command Deck Shell、Feature Registry、数据库、认证、同步管线或任何外部 Provider。

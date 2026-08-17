@@ -113,6 +113,25 @@ function isForbiddenDomainImport(specifier: string) {
   );
 }
 
+function isPanelQueryContractPath(filePath: string) {
+  return normalizePath(path.resolve(filePath)).includes(
+    "/src/shared/panel-query/",
+  );
+}
+
+function isForbiddenPanelQueryImport(specifier: string) {
+  return (
+    isForbiddenDomainImport(specifier) ||
+    specifier === "server-only" ||
+    specifier.startsWith("node:") ||
+    specifier.startsWith("@/application/") ||
+    specifier.startsWith("@/content/demo-data/") ||
+    specifier.startsWith("@/features/") ||
+    specifier.startsWith("@/infrastructure/") ||
+    specifier === "@/shared/configuration/server-environment"
+  );
+}
+
 function violationForReference(
   filePath: string,
   reference: ModuleReference,
@@ -127,6 +146,18 @@ function violationForReference(
       ...reference,
       filePath: normalizedFilePath,
       reason: "Domain modules must remain pure TypeScript and cannot import frameworks or external SDKs.",
+    };
+  }
+
+  if (
+    isPanelQueryContractPath(filePath) &&
+    isForbiddenPanelQueryImport(reference.specifier)
+  ) {
+    return {
+      ...reference,
+      filePath: normalizedFilePath,
+      reason:
+        "Panel query contracts must remain provider-neutral pure TypeScript modules.",
     };
   }
 
@@ -201,6 +232,7 @@ function scanCurrentSourceTree() {
   const roots = [
     path.join(process.cwd(), "src", "domain"),
     path.join(process.cwd(), "src", "features"),
+    path.join(process.cwd(), "src", "shared", "panel-query"),
   ];
 
   return roots
@@ -214,6 +246,11 @@ const syntheticPath = (...segments: string[]) =>
   path.join(process.cwd(), "src", ...segments);
 
 const allowedExamples = [
+  {
+    name: "Panel query contract imports only its local pure TypeScript module",
+    filePath: syntheticPath("shared", "panel-query", "index.ts"),
+    source: 'export type { PanelQuery } from "./panel-query";',
+  },
   {
     name: "Domain imports its own pure TypeScript module",
     filePath: syntheticPath("domain", "projects", "service.ts"),
@@ -262,6 +299,36 @@ const allowedExamples = [
 ] as const;
 
 const rejectedExamples = [
+  {
+    name: "Panel query contract imports a Supabase SDK",
+    filePath: syntheticPath("shared", "panel-query", "adapter.ts"),
+    source: 'import { createClient } from "@supabase/supabase-js";',
+    specifier: "@supabase/supabase-js",
+    kind: "import",
+  },
+  {
+    name: "Panel query contract imports a Feature internal module",
+    filePath: syntheticPath("shared", "panel-query", "adapter.ts"),
+    source:
+      'import { internalValue } from "@/features/project-galaxy/internal/value";',
+    specifier: "@/features/project-galaxy/internal/value",
+    kind: "import",
+  },
+  {
+    name: "Panel query contract imports a Demo fixture",
+    filePath: syntheticPath("shared", "panel-query", "adapter.ts"),
+    source:
+      'import { fixture } from "@/content/demo-data/panel-fixture";',
+    specifier: "@/content/demo-data/panel-fixture",
+    kind: "import",
+  },
+  {
+    name: "Panel query contract imports server-only infrastructure",
+    filePath: syntheticPath("shared", "panel-query", "adapter.ts"),
+    source: 'import "server-only";',
+    specifier: "server-only",
+    kind: "import",
+  },
   {
     name: "Domain static import of React",
     filePath: syntheticPath("domain", "projects", "service.ts"),
