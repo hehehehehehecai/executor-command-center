@@ -119,13 +119,14 @@ function isPanelQueryContractPath(filePath: string) {
   );
 }
 
-function isProjectGalaxyFeaturePath(filePath: string) {
-  return normalizePath(path.resolve(filePath)).includes(
-    "/src/features/project-galaxy/",
-  );
+const providerNeutralFeatures = new Set(["flight-log", "project-galaxy"]);
+
+function isProviderNeutralFeaturePath(filePath: string) {
+  const featureName = featureNameFromPath(filePath);
+  return featureName !== undefined && providerNeutralFeatures.has(featureName);
 }
 
-function isForbiddenProjectGalaxyImport(specifier: string) {
+function isForbiddenProviderNeutralFeatureImport(specifier: string) {
   const forbiddenProviderRoots = [
     "@supabase",
     "supabase",
@@ -194,14 +195,14 @@ function violationForReference(
   }
 
   if (
-    isProjectGalaxyFeaturePath(filePath) &&
-    isForbiddenProjectGalaxyImport(reference.specifier)
+    isProviderNeutralFeaturePath(filePath) &&
+    isForbiddenProviderNeutralFeatureImport(reference.specifier)
   ) {
     return {
       ...reference,
       filePath: normalizedFilePath,
       reason:
-        "Project Galaxy must receive Preview and Connected data through injected loaders and ports.",
+        "Provider-neutral Features must receive Preview and Connected data through injected loaders and ports.",
     };
   }
 
@@ -343,6 +344,35 @@ const allowedExamples = [
 ] as const;
 
 const rejectedExamples = [
+  {
+    name: "Flight Log imports its Preview fixture directly",
+    filePath: syntheticPath("features", "flight-log", "query.ts"),
+    source:
+      'import { fixture } from "@/content/demo-data/flight-log-preview-fixture";',
+    specifier: "@/content/demo-data/flight-log-preview-fixture",
+    kind: "import",
+  },
+  {
+    name: "Flight Log imports infrastructure directly",
+    filePath: syntheticPath("features", "flight-log", "query.ts"),
+    source: 'import { client } from "@/infrastructure/github/client";',
+    specifier: "@/infrastructure/github/client",
+    kind: "import",
+  },
+  {
+    name: "Flight Log imports a provider SDK directly",
+    filePath: syntheticPath("features", "flight-log", "query.ts"),
+    source: 'import { Octokit } from "octokit";',
+    specifier: "octokit",
+    kind: "import",
+  },
+  {
+    name: "Flight Log imports server-only directly",
+    filePath: syntheticPath("features", "flight-log", "query.ts"),
+    source: 'import "server-only";',
+    specifier: "server-only",
+    kind: "import",
+  },
   {
     name: "Project Galaxy imports its Preview fixture directly",
     filePath: syntheticPath("features", "project-galaxy", "query.ts"),
