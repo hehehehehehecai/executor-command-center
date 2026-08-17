@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { PanelDemoDisclosure } from "@/shared/demo-disclosure";
+
 import { createIssueDraft } from "./issue-draft";
 import styles from "./mission-control.module.css";
 import type {
@@ -49,19 +51,22 @@ function IssueDraftFields({ suggestion }: { readonly suggestion: MissionSuggesti
   }
 
   return (
-    <div className={styles.draft} aria-label="本地 Issue 草稿">
-      <p className={styles.metaLabel}>GitHub Issue 草稿</p>
-      <p>只生成本地草稿，不会创建 GitHub Issue。</p>
-      <label>
-        <span>标题</span>
-        <input aria-label="Issue 草稿标题" value={draft.title} readOnly />
-      </label>
-      <label>
-        <span>正文</span>
-        <textarea aria-label="Issue 草稿正文" value={draft.body} readOnly rows={5} />
-      </label>
-      <small>来源建议 ID：{draft.sourceSuggestionId}</small>
-    </div>
+    <details className={styles.draftDisclosure} open>
+      <summary>查看本地 Issue 草稿</summary>
+      <div className={styles.draft} aria-label="本地 Issue 草稿">
+        <p className={styles.metaLabel}>GitHub Issue 草稿</p>
+        <p>只生成本地草稿，不会创建 GitHub Issue。</p>
+        <label>
+          <span>标题</span>
+          <input aria-label="Issue 草稿标题" value={draft.title} readOnly />
+        </label>
+        <label>
+          <span>正文</span>
+          <textarea aria-label="Issue 草稿正文" value={draft.body} readOnly rows={5} />
+        </label>
+        <small>来源建议 ID：{draft.sourceSuggestionId}</small>
+      </div>
+    </details>
   );
 }
 
@@ -82,12 +87,11 @@ export function MissionControlPanel({ viewModel }: MissionControlPanelProps) {
             GitHub 已记录事实与系统候选行动严格分区；所有建议状态仅在本地表达。
           </p>
         </div>
-        <div className={styles.provenance} aria-label="数据来源">
-          <strong>{viewModel.provenanceLabel}</strong>
-          <span>
-            {viewModel.mode === "preview" ? "Preview Mode" : "Connected Mode"}
-          </span>
-        </div>
+        <PanelDemoDisclosure
+          className={styles.provenance}
+          mode={viewModel.mode}
+          provenanceLabel={viewModel.provenanceLabel}
+        />
       </header>
 
       <div className={styles.columns}>

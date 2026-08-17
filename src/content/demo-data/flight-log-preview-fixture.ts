@@ -1,5 +1,7 @@
 import type { FlightLogSource } from "@/features/flight-log";
 
+import { clonePreviewFixture } from "./clone-preview-fixture";
+
 const defaultSource = {
   provenanceLabel: "演示数据 · 完全虚构",
   lastSuccessfulAt: "2026-08-17T11:00:00.000Z",
@@ -159,5 +161,5 @@ export type FlightLogPreviewCaseId = keyof typeof flightLogPreviewFixture.cases;
 export async function loadFlightLogPreviewFixture(
   caseId: FlightLogPreviewCaseId = "default",
 ): Promise<FlightLogSource> {
-  return flightLogPreviewFixture.cases[caseId];
+  return clonePreviewFixture(flightLogPreviewFixture.cases[caseId]);
 }

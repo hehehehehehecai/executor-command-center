@@ -141,6 +141,25 @@
   font-weight: 700;
 }
 
+.previewDetails {
+  margin-top: 0.75rem;
+  border-top: 1px solid #dcc79f;
+  padding-top: 0.75rem;
+}
+
+.previewDetails summary {
+  width: fit-content;
+  cursor: pointer;
+  color: #744900;
+  font-weight: 750;
+  text-underline-offset: 0.2em;
+}
+
+.previewDetails summary:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
 .emptyState {
   color: var(--muted);
   font-style: italic;

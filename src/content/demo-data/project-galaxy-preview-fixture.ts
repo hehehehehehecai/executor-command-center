@@ -1,5 +1,7 @@
 import type { ProjectGalaxySource } from "@/features/project-galaxy";
 
+import { clonePreviewFixture } from "./clone-preview-fixture";
+
 const defaultSource = {
   project: {
     id: "demo-project-aurora-cartography",
@@ -110,5 +112,5 @@ export type ProjectGalaxyPreviewCaseId =
 export async function loadProjectGalaxyPreviewFixture(
   caseId: ProjectGalaxyPreviewCaseId = "default",
 ): Promise<ProjectGalaxySource> {
-  return projectGalaxyPreviewFixture.cases[caseId];
+  return clonePreviewFixture(projectGalaxyPreviewFixture.cases[caseId]);
 }

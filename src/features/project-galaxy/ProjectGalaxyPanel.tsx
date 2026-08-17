@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import type { ProjectStatus } from "@/domain/project-calibration/project-calibration";
+import { PanelDemoDisclosure } from "@/shared/demo-disclosure";
 
 import { SyncStatusBadge } from "./SyncStatusBadge";
 import styles from "./project-galaxy.module.css";
@@ -46,10 +47,11 @@ export function ProjectGalaxyPanel({ viewModel }: ProjectGalaxyPanelProps) {
             将项目事实、状态建议与数据新鲜度分层呈现。
           </p>
         </div>
-        <div className={styles.provenance} aria-label="数据来源">
-          <strong>{viewModel.provenanceLabel}</strong>
-          <span>{viewModel.mode === "preview" ? "Preview Mode" : "Connected Mode"}</span>
-        </div>
+        <PanelDemoDisclosure
+          className={styles.provenance}
+          mode={viewModel.mode}
+          provenanceLabel={viewModel.provenanceLabel}
+        />
       </header>
 
       <section className={styles.identity} aria-label="项目身份">
@@ -104,6 +106,10 @@ export function ProjectGalaxyPanel({ viewModel }: ProjectGalaxyPanelProps) {
           <p className={styles.suggestionBoundary}>
             建议不会修改 Official Status。
           </p>
+          <details className={styles.previewDetails}>
+            <summary>查看演示建议边界</summary>
+            <p>此交互只展开本地说明；不会接受建议或修改 Official Status。</p>
+          </details>
         </section>
       </div>
 

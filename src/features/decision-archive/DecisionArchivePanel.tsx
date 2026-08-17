@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { PanelDemoDisclosure } from "@/shared/demo-disclosure";
+
 import styles from "./decision-archive.module.css";
 import type {
   DecisionArchiveViewModel,
@@ -101,12 +103,11 @@ export function DecisionArchivePanel({
             候选只是待审阅线索；只有用户明确确认并补充原因后，才能形成正式记录。
           </p>
         </div>
-        <div className={styles.provenance} aria-label="数据来源">
-          <strong>{viewModel.provenanceLabel}</strong>
-          <span>
-            {viewModel.mode === "preview" ? "Preview Mode" : "Connected Mode"}
-          </span>
-        </div>
+        <PanelDemoDisclosure
+          className={styles.provenance}
+          mode={viewModel.mode}
+          provenanceLabel={viewModel.provenanceLabel}
+        />
       </header>
 
       {feedback ? (

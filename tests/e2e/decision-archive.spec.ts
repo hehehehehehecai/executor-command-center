@@ -25,7 +25,7 @@ test("confirms a fictional Candidate with a required reason at 360px", async ({
     page.getByRole("heading", { level: 1, name: "Decision Archive" }),
   ).toBeVisible();
   await expect(page.getByLabel("数据来源")).toContainText(
-    "演示数据 · 完全虚构",
+    "Demo · 演示数据 · 完全虚构",
   );
   await expect(page.getByRole("region", { name: "决策候选" })).toBeVisible();
   await expect(page.getByRole("region", { name: "正式决策记录" })).toBeVisible();
@@ -37,7 +37,11 @@ test("confirms a fictional Candidate with a required reason at 360px", async ({
   const reason = confirmForm.getByRole("textbox", { name: "用户确认原因" });
   await reason.focus();
   await reason.fill("用户确认先降低虚构发布风险");
-  await confirmForm.getByRole("button", { name: "确认并生成本地记录" }).click();
+  const confirmButton = confirmForm.getByRole("button", {
+    name: "确认并生成本地记录",
+  });
+  await confirmButton.focus();
+  await page.keyboard.press("Enter");
 
   await expect(page).toHaveURL(/action=confirm/);
   await expect(page.getByRole("status")).toContainText(

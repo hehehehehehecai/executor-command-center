@@ -46,6 +46,9 @@ describe("MissionControlPanel", () => {
     const tasks = screen.getByRole("region", { name: "已记录任务" });
     const suggestions = screen.getByRole("region", { name: "系统建议" });
 
+    expect(screen.getByLabelText("数据来源")).toHaveTextContent(
+      "Demo · 演示数据 · 完全虚构",
+    );
     expect(within(tasks).getByText("修复虚构导航焦点")).toBeVisible();
     expect(within(tasks).getByText(/GitHub 只读/)).toBeVisible();
     expect(within(suggestions).queryByText("修复虚构导航焦点")).not.toBeInTheDocument();
@@ -80,6 +83,7 @@ describe("MissionControlPanel", () => {
       "此草稿完全虚构，请人工核验。",
     );
     expect(screen.getByText("只生成本地草稿，不会创建 GitHub Issue。")).toBeVisible();
+    expect(screen.getByText("查看本地 Issue 草稿").closest("summary")).not.toBeNull();
     expect(screen.queryByText(/创建成功|Issue #/)).not.toBeInTheDocument();
   });
 

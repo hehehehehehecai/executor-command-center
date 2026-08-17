@@ -257,7 +257,7 @@ import SecretAlias = require("@/features/flight-log/internal/secret");
 - 尚未全面验证 `src/application`、`src/infrastructure` 与 `src/app` 的所有依赖方向。
 - 尚未检测模块循环依赖或所有可能的运行时反射加载方式。
 - 尚未强制每个 Feature 已经存在公开根入口，也未验证公共入口导出的业务 API 设计。
-- 尚未验证 Copilot Registry Route 对应真实业务页面；Project Galaxy、Flight Log、Mission Control 与 Decision Archive 已由各自阶段测试覆盖。
+- 五个 Registry Route 的 Preview 页面均已有本地 Playwright 覆盖；Connected 业务旅程仍未在本阶段验证。
 - 尚未把整个模块化单体的所有架构约束编码为自动化规则。
 
 这些项目属于未自动覆盖范围，不能因为当前测试通过就宣称已经得到保证。
@@ -278,6 +278,12 @@ import SecretAlias = require("@/features/flight-log/internal/secret");
 - Feature 读取自身内部文件时，改用相对路径。
 - 不得通过关闭规则、添加跳过、放宽路径或删除负向测试处理违规。
 
+## 五面板 Preview 一致性边界
+
+- 五个 Feature 只通过公开的 `@/shared/demo-disclosure` 展示统一数据来源语义；共享组件只消费 `PanelMode` 与显示文本，不读取任何 Feature 内部状态。
+- 五个 Preview loader 每次返回对应虚构 fixture 的独立深拷贝，避免本地交互污染其他请求或 Case；fixture 版本、来源与冻结 ViewModel 合同不变。
+- Project Galaxy 的建议边界、Flight Log 的筛选、Mission Control 的本地草稿、Decision Archive 的本地确认和 Copilot 的上下文校准均为 Preview 交互，不声明外部写入成功。
+
 ## 本 Phase 明确不做
 
-Decision Archive Phase 只实现 Candidate/Record 严格分区、手动记录、带用户原因的显式本地确认、Preview/Connected query 组合与展示；不实现 Copilot 或后续 Connected 业务旅程，也不调用真实模型，不修改 Command Deck Shell、Feature Registry、数据库、认证、同步管线或任何外部 Provider。
+五面板 Preview Phase 不实现 Connected Journey E2E，不调用 GitHub、Supabase、Inngest、LLM、AI SDK 或其他真实外部服务，不修改 Command Deck Shell、Feature Registry、数据库、认证、同步管线或任何外部 Provider。

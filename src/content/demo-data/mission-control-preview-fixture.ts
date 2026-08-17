@@ -3,6 +3,8 @@ import type {
   MissionSuggestion,
 } from "@/features/mission-control";
 
+import { clonePreviewFixture } from "./clone-preview-fixture";
+
 const evidence = [
   {
     label: "虚构 Workflow #314",
@@ -103,5 +105,5 @@ export const missionControlPreviewFixture = {
 } as const;
 
 export async function loadMissionControlPreviewFixture(): Promise<MissionControlSource> {
-  return missionControlPreviewFixture.cases.default;
+  return clonePreviewFixture(missionControlPreviewFixture.cases.default);
 }

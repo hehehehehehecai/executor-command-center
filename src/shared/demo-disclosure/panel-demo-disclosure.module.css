@@ -1,0 +1,16 @@
+.disclosure {
+  display: grid;
+  min-width: 0;
+  gap: 0.45rem;
+}
+
+.disclosure small {
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.disclosure[data-panel-mode="preview"] [data-demo-marker] {
+  color: var(--accent);
+  font-weight: 750;
+}

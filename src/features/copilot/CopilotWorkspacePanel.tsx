@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { PanelDemoDisclosure } from "@/shared/demo-disclosure";
 import { featureRegistry } from "@/shared/features/feature-registry";
 
 import styles from "./copilot-workspace.module.css";
@@ -74,13 +75,12 @@ export function CopilotWorkspacePanel({
             这是显式上下文工作区 Shell：只校准面板、项目和证据引用。
           </p>
         </div>
-        <div className={styles.provenance} aria-label="数据来源">
-          <strong>{viewModel.provenanceLabel}</strong>
-          <span>
-            {viewModel.mode === "preview" ? "Preview Mode" : "Connected Mode"}
-          </span>
-          <small>本阶段不生成答案，也不调用 AI 模型。</small>
-        </div>
+        <PanelDemoDisclosure
+          className={styles.provenance}
+          mode={viewModel.mode}
+          note="本阶段不生成答案，也不调用 AI 模型。"
+          provenanceLabel={viewModel.provenanceLabel}
+        />
       </header>
 
       {feedback ? (

@@ -25,7 +25,7 @@ test("clears project-scoped evidence without external requests at 360px", async 
     page.getByRole("heading", { level: 1, name: "Copilot Workspace" }),
   ).toBeVisible();
   await expect(page.getByLabel("数据来源")).toContainText(
-    "演示数据 · 完全虚构",
+    "Demo · 演示数据 · 完全虚构",
   );
   await expect(page.getByText("本阶段不生成答案，也不调用 AI 模型。")).toBeVisible();
 
@@ -33,7 +33,11 @@ test("clears project-scoped evidence without external requests at 360px", async 
     name: "切换 Copilot 上下文",
   });
   await switchForm.getByRole("textbox", { name: "项目 ID" }).fill("project-atlas");
-  await switchForm.getByRole("button", { name: "切换并校准上下文" }).click();
+  const switchButton = switchForm.getByRole("button", {
+    name: "切换并校准上下文",
+  });
+  await switchButton.focus();
+  await page.keyboard.press("Enter");
 
   await expect(page).toHaveURL(/action=switch/);
   await expect(page.getByText("project-atlas")).toBeVisible();

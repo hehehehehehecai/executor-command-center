@@ -52,6 +52,10 @@ describe("ProjectGalaxyPanel", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: "Project Galaxy" }),
     ).toBeVisible();
+    expect(screen.getByLabelText("数据来源")).toHaveTextContent(
+      "Demo · 演示数据 · 完全虚构",
+    );
+    expect(screen.getByText("查看演示建议边界")).toBeVisible();
     expect(screen.getByLabelText("项目身份")).toHaveTextContent(
       "Aurora Cartography",
     );
@@ -173,5 +177,6 @@ describe("ProjectGalaxyPanel", () => {
       "href",
       "/",
     );
+    expect(screen.getByText("查看演示建议边界").closest("summary")).not.toBeNull();
   });
 });

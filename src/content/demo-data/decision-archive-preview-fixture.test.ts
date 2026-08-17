@@ -14,7 +14,7 @@ describe("Decision Archive Preview fixture", () => {
       requiresNetwork: false,
       invokesModel: false,
     });
-    await expect(loadDecisionArchivePreviewFixture()).resolves.toBe(
+    await expect(loadDecisionArchivePreviewFixture()).resolves.toEqual(
       decisionArchivePreviewFixture.cases.default,
     );
   });

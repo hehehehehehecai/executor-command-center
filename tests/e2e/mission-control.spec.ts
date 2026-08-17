@@ -25,7 +25,7 @@ test("shows fictional recorded tasks, five local states and a draft at 360px", a
     page.getByRole("heading", { level: 1, name: "Mission Control" }),
   ).toBeVisible();
   await expect(page.getByLabel("数据来源")).toContainText(
-    "演示数据 · 完全虚构",
+    "Demo · 演示数据 · 完全虚构",
   );
   await expect(page.getByLabel("数据来源")).toContainText("Preview Mode");
   await expect(page.getByRole("region", { name: "已记录任务" })).toBeVisible();
@@ -48,6 +48,13 @@ test("shows fictional recorded tasks, five local states and a draft at 360px", a
   await expect(
     page.getByText("只生成本地草稿，不会创建 GitHub Issue。"),
   ).toBeVisible();
+
+  const draftDisclosure = page.getByText("查看本地 Issue 草稿");
+  await draftDisclosure.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("textbox", { name: "Issue 草稿标题" })).toBeHidden();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("textbox", { name: "Issue 草稿标题" })).toBeVisible();
 
   const hasHorizontalOverflow = await page.evaluate(
     () =>

@@ -32,7 +32,7 @@ describe("CopilotWorkspacePanel", () => {
       screen.getByRole("heading", { level: 1, name: "Copilot Workspace" }),
     ).toBeVisible();
     expect(screen.getByLabelText("数据来源")).toHaveTextContent(
-      "演示数据 · 完全虚构",
+      "Demo · 演示数据 · 完全虚构",
     );
     expect(screen.getByRole("region", { name: "当前上下文" })).toBeVisible();
     expect(screen.getByRole("region", { name: "证据引用" })).toBeVisible();

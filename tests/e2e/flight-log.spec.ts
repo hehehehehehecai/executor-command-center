@@ -23,7 +23,7 @@ test("shows and filters the fictional Flight Log at 360px", async ({ page }) => 
     page.getByRole("heading", { level: 1, name: "Flight Log" }),
   ).toBeVisible();
   await expect(page.getByLabel("数据来源")).toContainText(
-    "演示数据 · 完全虚构",
+    "Demo · 演示数据 · 完全虚构",
   );
   await expect(page.getByLabel("数据来源")).toContainText("Preview Mode");
   await expect(page.getByRole("article")).toHaveCount(6);

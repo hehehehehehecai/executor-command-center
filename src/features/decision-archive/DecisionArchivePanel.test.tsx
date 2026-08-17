@@ -82,6 +82,9 @@ describe("DecisionArchivePanel", () => {
 
     const candidates = screen.getByRole("region", { name: "决策候选" });
     const records = screen.getByRole("region", { name: "正式决策记录" });
+    expect(screen.getByLabelText("数据来源")).toHaveTextContent(
+      "Demo · 演示数据 · 完全虚构",
+    );
     expect(within(candidates).getAllByRole("article")).toHaveLength(2);
     expect(within(records).getAllByRole("article")).toHaveLength(2);
     expect(within(candidates).getByText("采用虚构的分阶段发布策略")).toBeVisible();

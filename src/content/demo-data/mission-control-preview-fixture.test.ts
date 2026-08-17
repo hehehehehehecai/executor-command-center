@@ -14,7 +14,7 @@ describe("Mission Control Preview fixture", () => {
       requiresNetwork: false,
     });
 
-    await expect(loadMissionControlPreviewFixture()).resolves.toBe(
+    await expect(loadMissionControlPreviewFixture()).resolves.toEqual(
       missionControlPreviewFixture.cases.default,
     );
   });

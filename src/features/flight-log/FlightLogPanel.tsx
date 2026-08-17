@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { PanelDemoDisclosure } from "@/shared/demo-disclosure";
+
 import styles from "./flight-log.module.css";
 import {
   flightLogEventTypes,
@@ -52,12 +54,11 @@ export function FlightLogPanel({ viewModel }: FlightLogPanelProps) {
             将代码活动、协作记录、发布、工作流与同步事件汇入统一时间线。
           </p>
         </div>
-        <div className={styles.provenance} aria-label="数据来源">
-          <strong>{viewModel.provenanceLabel}</strong>
-          <span>
-            {viewModel.mode === "preview" ? "Preview Mode" : "Connected Mode"}
-          </span>
-        </div>
+        <PanelDemoDisclosure
+          className={styles.provenance}
+          mode={viewModel.mode}
+          provenanceLabel={viewModel.provenanceLabel}
+        />
       </header>
 
       <section

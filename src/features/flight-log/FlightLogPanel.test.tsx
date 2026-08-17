@@ -68,6 +68,9 @@ describe("FlightLogPanel", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: "Flight Log" }),
     ).toBeVisible();
+    expect(screen.getByLabelText("数据来源")).toHaveTextContent(
+      "Demo · 演示数据 · 完全虚构",
+    );
     const timeline = screen.getByRole("region", { name: "Flight Log 时间线" });
     expect(within(timeline).getAllByRole("article")).toHaveLength(6);
 

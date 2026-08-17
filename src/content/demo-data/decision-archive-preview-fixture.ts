@@ -4,6 +4,8 @@ import type {
   DecisionCandidate,
 } from "@/features/decision-archive";
 
+import { clonePreviewFixture } from "./clone-preview-fixture";
+
 function candidate(
   id: string,
   overrides: Partial<DecisionCandidate> = {},
@@ -109,5 +111,5 @@ export const decisionArchivePreviewFixture = {
 } as const;
 
 export async function loadDecisionArchivePreviewFixture(): Promise<DecisionArchiveSource> {
-  return decisionArchivePreviewFixture.cases.default;
+  return clonePreviewFixture(decisionArchivePreviewFixture.cases.default);
 }

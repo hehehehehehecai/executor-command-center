@@ -160,10 +160,26 @@
   padding-left: 20px;
 }
 
+.draftDisclosure {
+  margin-top: 18px;
+}
+
+.draftDisclosure summary {
+  width: fit-content;
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 750;
+}
+
+.draftDisclosure summary:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
 .draft {
   display: grid;
   gap: 12px;
-  margin-top: 18px;
+  margin-top: 12px;
   padding: 16px;
   border: 1px dashed color-mix(in srgb, var(--accent) 42%, transparent);
   border-radius: 14px;

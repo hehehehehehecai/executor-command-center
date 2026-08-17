@@ -4,6 +4,8 @@ import type {
   CopilotWorkspaceSource,
 } from "@/features/copilot";
 
+import { clonePreviewFixture } from "./clone-preview-fixture";
+
 function context(
   overrides: Partial<CopilotContext> = {},
 ): CopilotContext {
@@ -88,5 +90,5 @@ export const copilotWorkspacePreviewFixture = {
 };
 
 export async function loadCopilotWorkspacePreviewFixture(): Promise<CopilotWorkspaceSource> {
-  return copilotWorkspacePreviewFixture.cases.default;
+  return clonePreviewFixture(copilotWorkspacePreviewFixture.cases.default);
 }

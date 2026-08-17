@@ -25,7 +25,7 @@ test("shows the fictional Project Galaxy in a readable 360px flow", async ({
     page.getByRole("heading", { level: 1, name: "Project Galaxy" }),
   ).toBeVisible();
   await expect(page.getByLabel("数据来源")).toContainText(
-    "演示数据 · 完全虚构",
+    "Demo · 演示数据 · 完全虚构",
   );
   await expect(page.getByLabel("数据来源")).toContainText("Preview Mode");
 
@@ -77,6 +77,13 @@ test("shows the fictional Project Galaxy in a readable 360px flow", async ({
   );
 
   expect(hasHorizontalOverflow).toBe(false);
+
+  const boundaryDisclosure = page.getByText("查看演示建议边界");
+  await boundaryDisclosure.focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByText("此交互只展开本地说明；不会接受建议或修改 Official Status。"),
+  ).toBeVisible();
 
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "返回 Command Deck" })).toBeFocused();
