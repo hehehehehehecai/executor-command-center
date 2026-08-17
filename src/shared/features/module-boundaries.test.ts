@@ -119,6 +119,15 @@ function isPanelQueryContractPath(filePath: string) {
   );
 }
 
+function isConnectedPanelHarnessPath(filePath: string) {
+  const normalizedPath = normalizePath(path.resolve(filePath));
+  return (
+    normalizedPath.includes("/src/testing/connected-panels/") &&
+    !normalizedPath.endsWith(".test.ts") &&
+    !normalizedPath.endsWith(".test.tsx")
+  );
+}
+
 const providerNeutralFeatures = new Set([
   "copilot",
   "decision-archive",
@@ -171,6 +180,15 @@ function isForbiddenPanelQueryImport(specifier: string) {
   );
 }
 
+function isForbiddenConnectedPanelHarnessImport(specifier: string) {
+  if (specifier.startsWith(".")) return false;
+  if (specifier === "next/headers") return false;
+
+  return !/^@\/features\/(?:copilot|decision-archive|flight-log|mission-control|project-galaxy)$/.test(
+    specifier,
+  );
+}
+
 function violationForReference(
   filePath: string,
   reference: ModuleReference,
@@ -197,6 +215,18 @@ function violationForReference(
       filePath: normalizedFilePath,
       reason:
         "Panel query contracts must remain provider-neutral pure TypeScript modules.",
+    };
+  }
+
+  if (
+    isConnectedPanelHarnessPath(filePath) &&
+    isForbiddenConnectedPanelHarnessImport(reference.specifier)
+  ) {
+    return {
+      ...reference,
+      filePath: normalizedFilePath,
+      reason:
+        "Connected panel test harness modules may depend only on local helpers, Next cookie access, and Feature public roots.",
     };
   }
 
@@ -284,6 +314,7 @@ function scanCurrentSourceTree() {
     path.join(process.cwd(), "src", "domain"),
     path.join(process.cwd(), "src", "features"),
     path.join(process.cwd(), "src", "shared", "panel-query"),
+    path.join(process.cwd(), "src", "testing", "connected-panels"),
   ];
 
   return roots
@@ -297,6 +328,11 @@ const syntheticPath = (...segments: string[]) =>
   path.join(process.cwd(), "src", ...segments);
 
 const allowedExamples = [
+  {
+    name: "Connected panel harness imports a Feature public root",
+    filePath: syntheticPath("testing", "connected-panels", "fixture.ts"),
+    source: 'import type { FlightLogSource } from "@/features/flight-log";',
+  },
   {
     name: "Panel query contract imports only its local pure TypeScript module",
     filePath: syntheticPath("shared", "panel-query", "index.ts"),
@@ -350,6 +386,20 @@ const allowedExamples = [
 ] as const;
 
 const rejectedExamples = [
+  {
+    name: "Connected panel harness imports a Feature internal file",
+    filePath: syntheticPath("testing", "connected-panels", "fixture.ts"),
+    source: 'import type { Secret } from "@/features/flight-log/internal/secret";',
+    specifier: "@/features/flight-log/internal/secret",
+    kind: "import",
+  },
+  {
+    name: "Connected panel harness imports infrastructure",
+    filePath: syntheticPath("testing", "connected-panels", "fixture.ts"),
+    source: 'import { client } from "@/infrastructure/supabase/client";',
+    specifier: "@/infrastructure/supabase/client",
+    kind: "import",
+  },
   {
     name: "Copilot imports its Preview fixture directly",
     filePath: syntheticPath("features", "copilot", "query.ts"),

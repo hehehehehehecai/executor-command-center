@@ -1,4 +1,5 @@
 export { MissionControlPanel } from "./MissionControlPanel";
+export type { MissionControlFeedback } from "./MissionControlPanel";
 export { createIssueDraft } from "./issue-draft";
 export type { IssueDraft } from "./issue-draft";
 export {

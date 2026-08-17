@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import next from "next";
 
 const hostname = "127.0.0.1";
-const port = 3000;
+const port = Number(process.env.E2E_PORT ?? "3000");
 const projectRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
@@ -57,7 +57,12 @@ function runPlaywright() {
   const require = createRequire(import.meta.url);
   const playwrightPackage = require.resolve("@playwright/test/package.json");
   const playwrightCli = path.join(path.dirname(playwrightPackage), "cli.js");
-  const child = spawn(process.execPath, [playwrightCli, "test"], {
+  const playwrightArguments = [playwrightCli, "test"];
+  if (process.env.E2E_PLAYWRIGHT_CONFIG) {
+    playwrightArguments.push("--config", process.env.E2E_PLAYWRIGHT_CONFIG);
+  }
+
+  const child = spawn(process.execPath, playwrightArguments, {
     cwd: projectRoot,
     env: {
       ...process.env,

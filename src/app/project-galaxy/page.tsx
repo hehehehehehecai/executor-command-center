@@ -17,6 +17,7 @@ import {
 } from "@/infrastructure/synchronization/supabase-project-freshness-reader";
 import { parseServerEnvironment } from "@/shared/configuration/server-environment";
 import { parsePanelMode, type PanelMode } from "@/shared/panel-query";
+import { readConnectedPanelFixtureAccess } from "@/testing/connected-panels/connected-panel-fixture-session";
 
 export const dynamic = "force-dynamic";
 
@@ -115,6 +116,49 @@ export default async function ProjectGalaxyPage(input: {
     return <ProjectGalaxyPanel viewModel={previewResult.viewModel} />;
   }
 
+  const projectId = projectParameter(searchParams.project);
+  if (projectId === "invalid") {
+    return statusShell(
+      <>
+        <h1>Project Galaxy</h1>
+        <p>没有可显示的项目</p>
+      </>,
+    );
+  }
+
+  const fixtureAccess = await readConnectedPanelFixtureAccess(
+    projectId ?? undefined,
+  );
+  if (fixtureAccess.kind === "denied") {
+    return statusShell(
+      <>
+        <p className="section-kicker">Project Galaxy</p>
+        <h1>Project Galaxy</h1>
+        <p>没有可显示的项目</p>
+      </>,
+    );
+  }
+
+  if (fixtureAccess.kind === "authorized") {
+    const fixtureResult = await createProjectGalaxyConnectedQuery({
+      load: async () => fixtureAccess.session.projectGalaxy,
+    })
+      .load()
+      .then((viewModel) => ({ kind: "success", viewModel }) as const)
+      .catch(() => ({ kind: "failure" }) as const);
+
+    if (fixtureResult.kind === "failure") {
+      return statusShell(
+        <>
+          <h1>Project Galaxy</h1>
+          <p>项目数据暂时不可用。</p>
+        </>,
+      );
+    }
+
+    return <ProjectGalaxyPanel viewModel={fixtureResult.viewModel} />;
+  }
+
   let client: SupabaseClient<Database>;
   try {
     client = createSupabaseServerClient<SupabaseClient<Database>>({
@@ -141,16 +185,6 @@ export default async function ProjectGalaxyPage(input: {
         <Link href="/api/auth/github?returnTo=%2Fproject-galaxy%3Fmode%3Dconnected">
           使用 GitHub 登录
         </Link>
-      </>,
-    );
-  }
-
-  const projectId = projectParameter(searchParams.project);
-  if (projectId === "invalid") {
-    return statusShell(
-      <>
-        <h1>Project Galaxy</h1>
-        <p>没有可显示的项目</p>
       </>,
     );
   }

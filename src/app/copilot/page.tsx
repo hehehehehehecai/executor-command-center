@@ -13,6 +13,7 @@ import {
 } from "@/features/copilot";
 import type { FeatureId } from "@/shared/features/feature-definition";
 import { parsePanelMode, type PanelMode } from "@/shared/panel-query";
+import { readConnectedPanelFixtureAccess } from "@/testing/connected-panels/connected-panel-fixture-session";
 
 export const dynamic = "force-dynamic";
 
@@ -163,11 +164,21 @@ export default async function CopilotPage(input: {
     return statusShell("面板模式无效。");
   }
 
+  const fixtureAccess =
+    mode === "connected"
+      ? await readConnectedPanelFixtureAccess()
+      : ({ kind: "disabled" } as const);
+  const fixtureSession =
+    fixtureAccess.kind === "authorized" ? fixtureAccess.session : null;
+
   const query =
     mode === "preview"
       ? createCopilotWorkspacePreviewQuery(loadCopilotWorkspacePreviewFixture)
       : createCopilotWorkspaceConnectedQuery(
-          input.connectedPort ?? unavailableConnectedPort,
+          input.connectedPort ??
+            (fixtureSession
+              ? { load: async () => fixtureSession.copilot }
+              : unavailableConnectedPort),
         );
   const result = await query
     .load()

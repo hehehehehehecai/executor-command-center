@@ -70,11 +70,41 @@ function IssueDraftFields({ suggestion }: { readonly suggestion: MissionSuggesti
   );
 }
 
-export interface MissionControlPanelProps {
-  readonly viewModel: MissionControlViewModel;
+function SuggestionActions({
+  mode,
+  suggestion,
+}: {
+  readonly mode: MissionControlViewModel["mode"];
+  readonly suggestion: MissionSuggestion;
+}) {
+  if (suggestion.status !== "suggested") return null;
+
+  return (
+    <form className={styles.suggestionAction} method="get">
+      <input type="hidden" name="mode" value={mode} />
+      <input type="hidden" name="action" value="transition" />
+      <input type="hidden" name="suggestionId" value={suggestion.id} />
+      <input type="hidden" name="nextStatus" value="accepted" />
+      <button type="submit">接受建议</button>
+      <small>仅更新本次页面内的建议状态，不会修改 GitHub 已记录事实。</small>
+    </form>
+  );
 }
 
-export function MissionControlPanel({ viewModel }: MissionControlPanelProps) {
+export interface MissionControlFeedback {
+  readonly kind: "error" | "success";
+  readonly message: string;
+}
+
+export interface MissionControlPanelProps {
+  readonly viewModel: MissionControlViewModel;
+  readonly feedback?: MissionControlFeedback;
+}
+
+export function MissionControlPanel({
+  feedback,
+  viewModel,
+}: MissionControlPanelProps) {
   return (
     <main className={styles.shell} aria-labelledby="mission-control-title">
       <header className={styles.header}>
@@ -93,6 +123,16 @@ export function MissionControlPanel({ viewModel }: MissionControlPanelProps) {
           provenanceLabel={viewModel.provenanceLabel}
         />
       </header>
+
+      {feedback ? (
+        <p
+          className={styles.feedback}
+          role="status"
+          data-feedback-kind={feedback.kind}
+        >
+          {feedback.message}
+        </p>
+      ) : null}
 
       <div className={styles.columns}>
         <section className={styles.region} aria-labelledby="recorded-tasks-title">
@@ -200,6 +240,7 @@ export function MissionControlPanel({ viewModel }: MissionControlPanelProps) {
                       </ul>
                     )}
                   </div>
+                  <SuggestionActions mode={viewModel.mode} suggestion={suggestion} />
                   <IssueDraftFields suggestion={suggestion} />
                 </article>
               ))}

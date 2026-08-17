@@ -48,6 +48,56 @@ describe("/mission-control Preview / Connected composition", () => {
     expect(connectedPort.load).toHaveBeenCalledOnce();
   });
 
+  it("applies an allowed local suggestion transition without changing recorded facts", async () => {
+    const connectedPort: MissionControlConnectedPort = {
+      load: vi.fn(async () => ({
+        provenanceLabel: "Connected read stub",
+        recordedTasks: [
+          {
+            id: "recorded-fact",
+            taskType: "issue" as const,
+            title: "Connected recorded fact",
+            state: "open" as const,
+            sourceLabel: "Read-only fact",
+            originalUrl: null,
+          },
+        ],
+        suggestions: [
+          {
+            id: "suggestion-connected",
+            title: "Connected suggestion",
+            rationale: "Deterministic rationale",
+            evidence: [],
+            unknowns: "No external state",
+            ruleVersion: "connected.v1",
+            status: "suggested" as const,
+            provenanceLabel: "Connected suggestion source",
+            draftTitle: "Connected draft",
+            draftBody: "Connected draft body",
+          },
+        ],
+      })),
+    };
+
+    render(
+      await MissionControlPage({
+        searchParams: Promise.resolve({
+          mode: "connected",
+          action: "transition",
+          suggestionId: "suggestion-connected",
+          nextStatus: "accepted",
+        }),
+        connectedPort,
+      }),
+    );
+
+    expect(screen.getByText("Connected recorded fact")).toBeVisible();
+    expect(screen.getByText("accepted", { selector: "[data-suggestion-status]" })).toBeVisible();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "建议状态已在本地更新；GitHub 已记录事实保持不变。",
+    );
+  });
+
   it("fails Connected closed and does not disclose Preview data", async () => {
     const connectedPort: MissionControlConnectedPort = {
       load: vi.fn(async () => Promise.reject(new Error("connected_read_failed"))),

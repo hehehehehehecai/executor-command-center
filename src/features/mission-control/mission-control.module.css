@@ -160,6 +160,43 @@
   padding-left: 20px;
 }
 
+.feedback {
+  margin: 20px 0 0;
+  padding: 14px 18px;
+  border: 1px solid color-mix(in srgb, var(--accent) 36%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+}
+
+.suggestionAction {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.suggestionAction button {
+  width: fit-content;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--background);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 750;
+}
+
+.suggestionAction button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.suggestionAction small {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 .draftDisclosure {
   margin-top: 18px;
 }

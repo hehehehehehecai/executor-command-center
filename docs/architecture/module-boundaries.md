@@ -251,6 +251,7 @@ import SecretAlias = require("@/features/flight-log/internal/secret");
 - 正向与负向内存合成示例验证边界分类，当前源码树违规数必须为 0。
 - 递归扫描 `src/shared/panel-query`，禁止其导入 Feature、Demo fixture、应用或基础设施内部模块，以及 React、Next.js、Supabase、Octokit、Inngest、AI SDK、`server-only` 和 Node.js 运行时模块。
 - 对 `src/features/project-galaxy`、`src/features/flight-log`、`src/features/mission-control` 与 `src/features/decision-archive` 额外禁止直接导入 Demo fixture、基础设施、外部 Provider SDK 与 `server-only`，确保两种来源只能经注入边界进入。
+- 递归扫描 `src/testing/connected-panels` 的非测试源码，只允许本地 helper、`next/headers` 和五个 Feature 公开根入口，拒绝 Feature 私有路径、基础设施和其他未声明依赖。
 
 ### 当前尚未自动强制
 
@@ -284,6 +285,13 @@ import SecretAlias = require("@/features/flight-log/internal/secret");
 - 五个 Preview loader 每次返回对应虚构 fixture 的独立深拷贝，避免本地交互污染其他请求或 Case；fixture 版本、来源与冻结 ViewModel 合同不变。
 - Project Galaxy 的建议边界、Flight Log 的筛选、Mission Control 的本地草稿、Decision Archive 的本地确认和 Copilot 的上下文校准均为 Preview 交互，不声明外部写入成功。
 
+## Connected Panel E2E 测试边界
+
+- Connected 浏览器旅程的确定性 test double 仅位于 `src/testing/connected-panels`，只实现五个 Feature 公开根导出的应用端口，不读取任何 Feature 私有文件。
+- test harness 只有在非 production 环境且显式设置 `CONNECTED_PANEL_E2E=1` 时可用；用户与项目必须同时匹配固定的纯虚构白名单，否则失败关闭。
+- production 环境会在进程入口和服务端访问解析两层拒绝启用 test harness；正常 Connected 端口仍保持原有失败关闭语义，不回退 Preview。
+- 浏览器测试使用两个虚构用户、两个虚构项目与稳定 ID，验证项目、事件、建议、草稿、决策记录和 Copilot evidence 的双向隔离；所有请求均限制为本地测试服务。
+
 ## 本 Phase 明确不做
 
-五面板 Preview Phase 不实现 Connected Journey E2E，不调用 GitHub、Supabase、Inngest、LLM、AI SDK 或其他真实外部服务，不修改 Command Deck Shell、Feature Registry、数据库、认证、同步管线或任何外部 Provider。
+Connected Panel E2E Phase 不调用 GitHub、Supabase、Inngest、LLM、AI SDK 或其他真实外部服务，不修改 Command Deck Shell、Feature Registry、数据库、认证、同步管线或任何外部 Provider，也不把 test harness 暴露为 production 能力。

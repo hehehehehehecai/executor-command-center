@@ -64,6 +64,21 @@ describe("MissionControlPanel", () => {
     }
   });
 
+  it("offers a keyboard-native local acceptance form for suggested items", () => {
+    render(<MissionControlPanel viewModel={createMissionControlViewModel(source(), "preview")} />);
+
+    const button = screen.getByRole("button", { name: "接受建议" });
+    const form = button.closest("form");
+
+    expect(form).not.toBeNull();
+    expect(form).toHaveAttribute("method", "get");
+    expect(form?.querySelector('input[name="action"]')).toHaveValue("transition");
+    expect(form?.querySelector('input[name="suggestionId"]')).toHaveValue(
+      "suggestion-suggested",
+    );
+    expect(form?.querySelector('input[name="nextStatus"]')).toHaveValue("accepted");
+  });
+
   it("renders suggestion basis, evidence, unknowns and rule version", () => {
     render(<MissionControlPanel viewModel={createMissionControlViewModel(source(), "preview")} />);
 

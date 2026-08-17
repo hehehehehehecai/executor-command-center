@@ -14,6 +14,7 @@ import {
   type DecisionArchiveViewModel,
 } from "@/features/decision-archive";
 import { parsePanelMode, type PanelMode } from "@/shared/panel-query";
+import { readConnectedPanelFixtureAccess } from "@/testing/connected-panels/connected-panel-fixture-session";
 
 export const dynamic = "force-dynamic";
 
@@ -145,11 +146,21 @@ export default async function DecisionArchivePage(input: {
     return statusShell("面板模式无效。");
   }
 
+  const fixtureAccess =
+    mode === "connected"
+      ? await readConnectedPanelFixtureAccess()
+      : ({ kind: "disabled" } as const);
+  const fixtureSession =
+    fixtureAccess.kind === "authorized" ? fixtureAccess.session : null;
+
   const query =
     mode === "preview"
       ? createDecisionArchivePreviewQuery(loadDecisionArchivePreviewFixture)
       : createDecisionArchiveConnectedQuery(
-          input.connectedPort ?? unavailableConnectedPort,
+          input.connectedPort ??
+            (fixtureSession
+              ? { load: async () => fixtureSession.decisionArchive }
+              : unavailableConnectedPort),
         );
   const result = await query
     .load()
@@ -170,7 +181,7 @@ export default async function DecisionArchivePage(input: {
     input.localActionContext ??
       (mode === "preview"
         ? decisionArchivePreviewFixture.localActionContext
-        : undefined),
+        : fixtureSession?.decisionActionContext),
   );
 
   return (

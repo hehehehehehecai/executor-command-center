@@ -23,6 +23,7 @@
     "test:integration:db": "supabase test db --local",
     "test:integration": "pnpm run test:integration:app && pnpm run test:integration:db",
     "test:e2e": "node scripts/run-e2e.mjs",
+    "test:e2e:connected-panels": "node scripts/run-connected-panel-fixture-e2e.mjs",
     "test:e2e:auth-fixture": "node scripts/run-auth-fixture-e2e.mjs",
     "test:e2e:installation-fixture": "node scripts/run-installation-fixture-e2e.mjs",
     "test:e2e:repository-fixture": "node scripts/run-repository-fixture-e2e.mjs",

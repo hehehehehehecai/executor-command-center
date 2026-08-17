@@ -11,6 +11,7 @@ import {
   type FlightLogTimeRange,
 } from "@/features/flight-log";
 import { parsePanelMode, type PanelMode } from "@/shared/panel-query";
+import { readConnectedPanelFixtureAccess } from "@/testing/connected-panels/connected-panel-fixture-session";
 
 export const dynamic = "force-dynamic";
 
@@ -100,7 +101,18 @@ export default async function FlightLogPage(input: {
     return statusShell("面板模式无效。");
   }
 
-  const now = input.now?.() ?? flightLogPreviewFixture.now;
+  const fixtureAccess =
+    mode === "connected"
+      ? await readConnectedPanelFixtureAccess()
+      : ({ kind: "disabled" } as const);
+  const fixtureSession =
+    fixtureAccess.kind === "authorized" ? fixtureAccess.session : null;
+  const now =
+    input.now?.() ??
+    fixtureSession?.now ??
+    (mode === "preview"
+      ? flightLogPreviewFixture.now
+      : new Date().toISOString());
   const filters = requestedFilters(searchParams, now);
 
   if (filters === "invalid") {
@@ -111,7 +123,10 @@ export default async function FlightLogPage(input: {
     mode === "preview"
       ? createFlightLogPreviewQuery(loadFlightLogPreviewFixture, filters)
       : createFlightLogConnectedQuery(
-          input.connectedPort ?? unavailableConnectedPort,
+          input.connectedPort ??
+            (fixtureSession
+              ? { load: async () => fixtureSession.flightLog }
+              : unavailableConnectedPort),
           filters,
         );
   const result = await query
