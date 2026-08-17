@@ -119,7 +119,11 @@ function isPanelQueryContractPath(filePath: string) {
   );
 }
 
-const providerNeutralFeatures = new Set(["flight-log", "project-galaxy"]);
+const providerNeutralFeatures = new Set([
+  "flight-log",
+  "mission-control",
+  "project-galaxy",
+]);
 
 function isProviderNeutralFeaturePath(filePath: string) {
   const featureName = featureNameFromPath(filePath);
@@ -344,6 +348,35 @@ const allowedExamples = [
 ] as const;
 
 const rejectedExamples = [
+  {
+    name: "Mission Control imports its Preview fixture directly",
+    filePath: syntheticPath("features", "mission-control", "query.ts"),
+    source:
+      'import { fixture } from "@/content/demo-data/mission-control-preview-fixture";',
+    specifier: "@/content/demo-data/mission-control-preview-fixture",
+    kind: "import",
+  },
+  {
+    name: "Mission Control imports infrastructure directly",
+    filePath: syntheticPath("features", "mission-control", "query.ts"),
+    source: 'import { client } from "@/infrastructure/github/client";',
+    specifier: "@/infrastructure/github/client",
+    kind: "import",
+  },
+  {
+    name: "Mission Control imports a GitHub provider SDK directly",
+    filePath: syntheticPath("features", "mission-control", "query.ts"),
+    source: 'import { Octokit } from "octokit";',
+    specifier: "octokit",
+    kind: "import",
+  },
+  {
+    name: "Mission Control imports server-only directly",
+    filePath: syntheticPath("features", "mission-control", "query.ts"),
+    source: 'import "server-only";',
+    specifier: "server-only",
+    kind: "import",
+  },
   {
     name: "Flight Log imports its Preview fixture directly",
     filePath: syntheticPath("features", "flight-log", "query.ts"),
