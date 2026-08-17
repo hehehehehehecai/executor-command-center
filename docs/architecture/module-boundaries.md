@@ -4,7 +4,7 @@
 
 本文件记录 `feature-registry.v1`、`panel-query.v1` 与 `module-boundaries.v1`。Feature Registry 固化五个核心 Feature 的身份、展示文案、路由元数据和顺序；Panel Query 提供后续面板共用的 Preview / Connected 查询合同；模块边界规则保护纯 TypeScript 合同，并防止 Feature 绕过公开入口读取其他 Feature 的内部文件。
 
-本阶段只建立注册表、边界规则和验证机制，不代表五个 Feature Module、页面或路由已经实现。
+注册表元数据不等同于页面实现；当前只有经过对应阶段验证的 Feature 才能被视为具备公开页面。
 
 ## 模块化单体依赖方向
 
@@ -85,6 +85,24 @@ Injected ConnectedPanelPort<T> → createConnectedPanelQuery ┘
 
 公共合同本身不包含任何面板业务 View Model。具体 Feature 后续可以声明自身唯一的 `T`，但 Preview 与 Connected 必须对同一 `T` 完成确定性映射。
 
+## Project Galaxy 公共边界
+
+Project Galaxy 的唯一公开入口是 `src/features/project-galaxy/index.ts`。Preview 与 Connected 都映射为同一个 `ProjectGalaxyViewModel`，UI 只消费该 View Model；Feature 内部的 query adapter 只接收注入的 loader 或 port，不直接导入 Demo fixture、基础设施、外部 Provider SDK 或 `server-only`。
+
+数据链路为：
+
+```text
+src/app/project-galaxy/page.tsx
+  → explicit PanelMode
+  → injected Preview loader / Connected port
+  → Project Galaxy query
+  → deterministic mapper
+  → ProjectGalaxyViewModel
+  → ProjectGalaxyPanel
+```
+
+`officialStatus` 是项目事实，`suggestedStatus` 是独立、可空的建议；两者不得相互 fallback。读取、刷新或渲染建议不会赋值、回写或替换 Official Status。Connected 失败保持可观察，不回退 Preview。
+
 ## Domain 纯 TypeScript 边界
 
 `src/domain/**` 不得导入 React、Next.js、Supabase、Octokit、Inngest 或 AI SDK。Vitest AST 扫描覆盖静态 import、`export ... from`、动态 `import()`、`require()`、`ImportTypeNode` 和引用外部模块的 `ImportEqualsDeclaration`。
@@ -153,13 +171,14 @@ import SecretAlias = require("@/features/flight-log/internal/secret");
 - 每个违规包含文件、specifier、引用类型和原因。
 - 正向与负向内存合成示例验证边界分类，当前源码树违规数必须为 0。
 - 递归扫描 `src/shared/panel-query`，禁止其导入 Feature、Demo fixture、应用或基础设施内部模块，以及 React、Next.js、Supabase、Octokit、Inngest、AI SDK、`server-only` 和 Node.js 运行时模块。
+- 对 `src/features/project-galaxy` 额外禁止直接导入 Demo fixture、基础设施、外部 Provider SDK 与 `server-only`，确保两种来源只能经注入边界进入。
 
 ### 当前尚未自动强制
 
 - 尚未全面验证 `src/application`、`src/infrastructure` 与 `src/app` 的所有依赖方向。
 - 尚未检测模块循环依赖或所有可能的运行时反射加载方式。
 - 尚未强制每个 Feature 已经存在公开根入口，也未验证公共入口导出的业务 API 设计。
-- 尚未验证五个 Registry Route 对应真实页面；本阶段明确不创建这些页面。
+- 尚未验证其余四个 Registry Route 对应真实业务页面；Project Galaxy 已由自身阶段测试覆盖。
 - 尚未把整个模块化单体的所有架构约束编码为自动化规则。
 
 这些项目属于未自动覆盖范围，不能因为当前测试通过就宣称已经得到保证。
@@ -182,4 +201,4 @@ import SecretAlias = require("@/features/flight-log/internal/secret");
 
 ## 本 Phase 明确不做
 
-Panel Query Phase 只建立公共合同、通用适配器和模式选择，不实现五个面板 View Model、页面、筛选、建议、决策、Copilot 或 Connected E2E 业务旅程，也不修改 Command Deck Shell、Feature Registry、数据库、认证、同步管线或任何外部 Provider。
+Project Galaxy Phase 只实现 Project Galaxy 的单一 View Model、Preview/Connected query 组合与展示，不实现 Flight Log、Mission Control、Decision Archive、Copilot 或后续 Connected 业务旅程，也不修改 Command Deck Shell、Feature Registry、数据库、认证、同步管线或任何外部 Provider。

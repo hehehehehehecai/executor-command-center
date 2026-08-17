@@ -119,6 +119,38 @@ function isPanelQueryContractPath(filePath: string) {
   );
 }
 
+function isProjectGalaxyFeaturePath(filePath: string) {
+  return normalizePath(path.resolve(filePath)).includes(
+    "/src/features/project-galaxy/",
+  );
+}
+
+function isForbiddenProjectGalaxyImport(specifier: string) {
+  const forbiddenProviderRoots = [
+    "@supabase",
+    "supabase",
+    "octokit",
+    "@octokit",
+    "inngest",
+    "ai",
+    "@ai-sdk",
+    "openai",
+    "@anthropic-ai/sdk",
+    "@google/generative-ai",
+    "deepseek",
+    "@deepseek",
+  ];
+
+  return (
+    forbiddenProviderRoots.some(
+      (root) => specifier === root || specifier.startsWith(`${root}/`),
+    ) ||
+    specifier === "server-only" ||
+    specifier.startsWith("@/content/demo-data/") ||
+    specifier.startsWith("@/infrastructure/")
+  );
+}
+
 function isForbiddenPanelQueryImport(specifier: string) {
   return (
     isForbiddenDomainImport(specifier) ||
@@ -158,6 +190,18 @@ function violationForReference(
       filePath: normalizedFilePath,
       reason:
         "Panel query contracts must remain provider-neutral pure TypeScript modules.",
+    };
+  }
+
+  if (
+    isProjectGalaxyFeaturePath(filePath) &&
+    isForbiddenProjectGalaxyImport(reference.specifier)
+  ) {
+    return {
+      ...reference,
+      filePath: normalizedFilePath,
+      reason:
+        "Project Galaxy must receive Preview and Connected data through injected loaders and ports.",
     };
   }
 
@@ -299,6 +343,35 @@ const allowedExamples = [
 ] as const;
 
 const rejectedExamples = [
+  {
+    name: "Project Galaxy imports its Preview fixture directly",
+    filePath: syntheticPath("features", "project-galaxy", "query.ts"),
+    source:
+      'import { fixture } from "@/content/demo-data/project-galaxy-preview-fixture";',
+    specifier: "@/content/demo-data/project-galaxy-preview-fixture",
+    kind: "import",
+  },
+  {
+    name: "Project Galaxy imports infrastructure directly",
+    filePath: syntheticPath("features", "project-galaxy", "query.ts"),
+    source: 'import { client } from "@/infrastructure/supabase/client";',
+    specifier: "@/infrastructure/supabase/client",
+    kind: "import",
+  },
+  {
+    name: "Project Galaxy imports a provider SDK directly",
+    filePath: syntheticPath("features", "project-galaxy", "query.ts"),
+    source: 'import { createClient } from "@supabase/supabase-js";',
+    specifier: "@supabase/supabase-js",
+    kind: "import",
+  },
+  {
+    name: "Project Galaxy imports server-only directly",
+    filePath: syntheticPath("features", "project-galaxy", "query.ts"),
+    source: 'import "server-only";',
+    specifier: "server-only",
+    kind: "import",
+  },
   {
     name: "Panel query contract imports a Supabase SDK",
     filePath: syntheticPath("shared", "panel-query", "adapter.ts"),
