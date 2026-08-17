@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { FeatureId } from "@/shared/features/feature-definition";
 import { featureRegistry } from "@/shared/features/feature-registry";
@@ -82,6 +82,109 @@ describe("CommandDeckPage", () => {
     expect(panels.map((panel) => panel.dataset.featureId)).toEqual(
       featureRegistry.map((feature) => feature.id),
     );
+  });
+
+  it("exposes the desktop workspace landmarks and a semantic current item", () => {
+    render(<CommandDeckPage />);
+
+    const navigation = screen.getByRole("navigation", {
+      name: "桌面主导航",
+    });
+
+    expect(navigation).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "Command Deck 工作区" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("complementary", { name: "舰桥上下文" }),
+    ).toBeInTheDocument();
+    expect(
+      within(navigation).getByRole("link", { name: "舰桥总览" }),
+    ).toHaveAttribute("aria-current", "page");
+  });
+
+  it("renders the frozen Registry destinations in desktop navigation order", () => {
+    render(<CommandDeckPage />);
+
+    const navigation = screen.getByRole("navigation", {
+      name: "桌面主导航",
+    });
+    const links = within(navigation).getAllByRole("link").slice(1);
+
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/project-galaxy",
+      "/flight-log",
+      "/mission-control",
+      "/decision-archive",
+      "/copilot",
+    ]);
+    expect(links.map((link) => link.getAttribute("aria-label"))).toEqual([
+      "Project Galaxy 项目星图",
+      "Flight Log 航行日志",
+      "Mission Control 任务中枢",
+      "Decision Archive 决策档案",
+      "Copilot AI 副驾驶",
+    ]);
+  });
+
+  it("opens the mobile navigation and returns focus after Escape closes it", () => {
+    render(<CommandDeckPage />);
+
+    const trigger = screen.getByRole("button", { name: "打开主导航" });
+
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(trigger).toHaveAttribute("aria-controls", "mobile-command-navigation");
+    expect(
+      screen.queryByRole("navigation", { name: "移动主导航" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(trigger);
+
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(
+      screen.getByRole("navigation", { name: "移动主导航" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "关闭主导航" }));
+
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(trigger).toHaveFocus();
+
+    fireEvent.click(trigger);
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(
+      screen.queryByRole("navigation", { name: "移动主导航" }),
+    ).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+  it("closes the mobile navigation when a Registry destination is selected", () => {
+    render(<CommandDeckPage />);
+
+    const trigger = screen.getByRole("button", { name: "打开主导航" });
+    fireEvent.click(trigger);
+
+    const mobileNavigation = screen.getByRole("navigation", {
+      name: "移动主导航",
+    });
+    const firstFeature = featureRegistry[0];
+    const firstFeatureLink = within(mobileNavigation).getByRole("link", {
+      name: `${firstFeature.title} ${firstFeature.subtitle}`,
+    });
+
+    expect(firstFeatureLink).toHaveAttribute("href", firstFeature.route);
+    firstFeatureLink.addEventListener("click", (event) => event.preventDefault(), {
+      once: true,
+    });
+    fireEvent.click(firstFeatureLink);
+
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(
+      screen.queryByRole("navigation", { name: "移动主导航" }),
+    ).not.toBeInTheDocument();
   });
 
   it("uses Registry titles, subtitles and routes for accessible links", () => {
