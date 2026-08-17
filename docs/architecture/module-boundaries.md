@@ -136,6 +136,24 @@ src/app/mission-control/page.tsx
 
 `recordedTasks` 只表达 GitHub 已记录事实，`suggestions` 只表达本地候选行动；两者按稳定 ID 对齐，不按标题合并，也不在状态转换中互相移动。建议状态固定为 `suggested | accepted | snoozed | dismissed | completed`。`accepted` 与 `completed` 均不声明 GitHub 远端状态；纯本地 Issue 草稿只包含 `title`、`body` 与 `sourceSuggestionId`，不包含远端 Issue number 或 URL，也不触发网络写入。Connected 失败保持可观察且不回退 Preview。
 
+## Decision Archive 公共边界
+
+Decision Archive 的唯一公开入口是 `src/features/decision-archive/index.ts`。Preview 与 Connected 共用 `DecisionArchiveViewModel` 和公共 `PanelQuery<T>`；Feature 只接收注入的 loader 或 port，不直接导入 Demo fixture、基础设施、外部 Provider SDK、AI 模型或 `server-only`。
+
+```text
+src/app/decision-archive/page.tsx
+  → explicit PanelMode
+  → injected Preview loader / Connected port
+  → Decision Archive query
+  → deterministic mapper
+  → candidates + records
+  → explicit local manual / confirmation action
+  → DecisionArchiveViewModel
+  → DecisionArchivePanel
+```
+
+`DecisionCandidate` 与 `DecisionRecord` 是不同类型和集合，按稳定 ID 关联而不按标题合并。Candidate 只有在用户显式确认并填写非空白原因后，才能生成带独立 ID 的 Record；确认后 Candidate 仍保留，并记录 `confirmedRecordId`。手动 Record 不需要 Candidate。ID、确认者与时间由调用方注入，操作仅返回本地 View Model，不声明数据库持久化、真实模型调用或外部写入。Connected 失败保持可观察且不回退 Preview。
+
 ## Domain 纯 TypeScript 边界
 
 `src/domain/**` 不得导入 React、Next.js、Supabase、Octokit、Inngest 或 AI SDK。Vitest AST 扫描覆盖静态 import、`export ... from`、动态 `import()`、`require()`、`ImportTypeNode` 和引用外部模块的 `ImportEqualsDeclaration`。
@@ -204,14 +222,14 @@ import SecretAlias = require("@/features/flight-log/internal/secret");
 - 每个违规包含文件、specifier、引用类型和原因。
 - 正向与负向内存合成示例验证边界分类，当前源码树违规数必须为 0。
 - 递归扫描 `src/shared/panel-query`，禁止其导入 Feature、Demo fixture、应用或基础设施内部模块，以及 React、Next.js、Supabase、Octokit、Inngest、AI SDK、`server-only` 和 Node.js 运行时模块。
-- 对 `src/features/project-galaxy`、`src/features/flight-log` 与 `src/features/mission-control` 额外禁止直接导入 Demo fixture、基础设施、外部 Provider SDK 与 `server-only`，确保两种来源只能经注入边界进入。
+- 对 `src/features/project-galaxy`、`src/features/flight-log`、`src/features/mission-control` 与 `src/features/decision-archive` 额外禁止直接导入 Demo fixture、基础设施、外部 Provider SDK 与 `server-only`，确保两种来源只能经注入边界进入。
 
 ### 当前尚未自动强制
 
 - 尚未全面验证 `src/application`、`src/infrastructure` 与 `src/app` 的所有依赖方向。
 - 尚未检测模块循环依赖或所有可能的运行时反射加载方式。
 - 尚未强制每个 Feature 已经存在公开根入口，也未验证公共入口导出的业务 API 设计。
-- 尚未验证其余两个 Registry Route 对应真实业务页面；Project Galaxy、Flight Log 与 Mission Control 已由各自阶段测试覆盖。
+- 尚未验证 Copilot Registry Route 对应真实业务页面；Project Galaxy、Flight Log、Mission Control 与 Decision Archive 已由各自阶段测试覆盖。
 - 尚未把整个模块化单体的所有架构约束编码为自动化规则。
 
 这些项目属于未自动覆盖范围，不能因为当前测试通过就宣称已经得到保证。
@@ -234,4 +252,4 @@ import SecretAlias = require("@/features/flight-log/internal/secret");
 
 ## 本 Phase 明确不做
 
-Mission Control Phase 只实现 GitHub 已记录任务与本地系统建议的严格分区、五状态纯本地转换、只读 Issue 草稿、Preview/Connected query 组合与展示；不实现 Decision Archive、Copilot 或后续 Connected 业务旅程，也不修改 Command Deck Shell、Feature Registry、数据库、认证、同步管线或任何外部 Provider。
+Decision Archive Phase 只实现 Candidate/Record 严格分区、手动记录、带用户原因的显式本地确认、Preview/Connected query 组合与展示；不实现 Copilot 或后续 Connected 业务旅程，也不调用真实模型，不修改 Command Deck Shell、Feature Registry、数据库、认证、同步管线或任何外部 Provider。

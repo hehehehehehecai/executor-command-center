@@ -1,0 +1,306 @@
+.shell {
+  width: min(1440px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 40px 0 64px;
+  color: var(--foreground);
+}
+
+.header,
+.manualSection,
+.region {
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 28px;
+  padding: 28px;
+}
+
+.title {
+  margin: 8px 0 10px;
+  font-size: clamp(2rem, 5vw, 4.1rem);
+  line-height: 1;
+}
+
+.intro,
+.boundaryNote,
+.manualSection p,
+.details dd,
+.references p,
+.alternatives p,
+.confirmForm small,
+.manualForm small {
+  color: var(--muted);
+}
+
+.intro {
+  max-width: 760px;
+  margin: 0;
+  line-height: 1.7;
+}
+
+.provenance {
+  display: grid;
+  flex: 0 0 min(280px, 32vw);
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+  border-radius: 15px;
+  background: var(--background);
+}
+
+.feedback {
+  margin: 18px 0 0;
+  padding: 14px 18px;
+  border-left: 4px solid var(--accent);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.manualSection {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.55fr) minmax(0, 1fr);
+  gap: 28px;
+  margin-top: 24px;
+  padding: 24px;
+}
+
+.manualSection h2,
+.regionHeading h2,
+.candidateCard h3,
+.recordCard h3,
+.references h4,
+.alternatives h4 {
+  margin: 0;
+}
+
+.manualForm,
+.confirmForm {
+  display: grid;
+  gap: 12px;
+}
+
+.manualForm {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.manualForm label,
+.confirmForm label {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+}
+
+.manualForm label:first-of-type,
+.manualForm label:nth-of-type(2),
+.manualForm button,
+.manualForm small {
+  grid-column: 1 / -1;
+}
+
+.manualForm input,
+.manualForm textarea,
+.confirmForm textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--foreground);
+  font: inherit;
+  resize: vertical;
+}
+
+.manualForm button,
+.confirmForm button {
+  width: fit-content;
+  min-height: 42px;
+  padding: 9px 15px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--surface);
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.manualForm input:focus-visible,
+.manualForm textarea:focus-visible,
+.manualForm button:focus-visible,
+.confirmForm textarea:focus-visible,
+.confirmForm button:focus-visible,
+.references a:focus-visible,
+.footer a:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.region {
+  min-width: 0;
+  padding: 24px;
+}
+
+.regionHeading,
+.cardMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.metaLabel {
+  margin: 0 0 6px;
+  color: var(--accent);
+  font-size: 0.76rem;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.boundaryNote {
+  margin: 14px 0 20px;
+  line-height: 1.55;
+}
+
+.cardList {
+  display: grid;
+  gap: 14px;
+}
+
+.candidateCard,
+.recordCard {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid color-mix(in srgb, var(--foreground) 13%, transparent);
+  border-radius: 17px;
+  background: var(--background);
+}
+
+.candidateCard h3,
+.recordCard h3 {
+  margin-top: 14px;
+  overflow-wrap: anywhere;
+}
+
+.cardMeta {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.details {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.details div {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.34fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.details dt {
+  font-weight: 750;
+}
+
+.details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.references,
+.alternatives,
+.confirmForm {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid color-mix(in srgb, var(--foreground) 11%, transparent);
+}
+
+.referenceList,
+.alternatives ul {
+  margin: 10px 0 0;
+  padding-left: 20px;
+}
+
+.creationLabel,
+.confirmedLineage {
+  color: var(--accent);
+  font-weight: 750;
+}
+
+.emptyState {
+  padding: 18px;
+  border: 1px dashed var(--border);
+  border-radius: 14px;
+  color: var(--muted);
+}
+
+.footer {
+  margin-top: 24px;
+}
+
+@media (max-width: 900px) {
+  .columns,
+  .manualSection {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .shell {
+    width: min(100% - 20px, 1440px);
+    padding-top: 20px;
+  }
+
+  .header {
+    display: grid;
+    gap: 18px;
+    padding: 20px;
+  }
+
+  .provenance {
+    width: auto;
+    max-width: none;
+  }
+
+  .manualSection,
+  .region {
+    padding: 18px;
+  }
+
+  .manualForm {
+    grid-template-columns: 1fr;
+  }
+
+  .manualForm label,
+  .manualForm button,
+  .manualForm small {
+    grid-column: 1;
+  }
+
+  .regionHeading,
+  .cardMeta {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .details div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}

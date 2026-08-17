@@ -120,6 +120,7 @@ function isPanelQueryContractPath(filePath: string) {
 }
 
 const providerNeutralFeatures = new Set([
+  "decision-archive",
   "flight-log",
   "mission-control",
   "project-galaxy",
@@ -348,6 +349,35 @@ const allowedExamples = [
 ] as const;
 
 const rejectedExamples = [
+  {
+    name: "Decision Archive imports its Preview fixture directly",
+    filePath: syntheticPath("features", "decision-archive", "query.ts"),
+    source:
+      'import { fixture } from "@/content/demo-data/decision-archive-preview-fixture";',
+    specifier: "@/content/demo-data/decision-archive-preview-fixture",
+    kind: "import",
+  },
+  {
+    name: "Decision Archive imports infrastructure directly",
+    filePath: syntheticPath("features", "decision-archive", "query.ts"),
+    source: 'import { client } from "@/infrastructure/database/client";',
+    specifier: "@/infrastructure/database/client",
+    kind: "import",
+  },
+  {
+    name: "Decision Archive imports an AI provider SDK directly",
+    filePath: syntheticPath("features", "decision-archive", "query.ts"),
+    source: 'import OpenAI from "openai";',
+    specifier: "openai",
+    kind: "import",
+  },
+  {
+    name: "Decision Archive imports server-only directly",
+    filePath: syntheticPath("features", "decision-archive", "query.ts"),
+    source: 'import "server-only";',
+    specifier: "server-only",
+    kind: "import",
+  },
   {
     name: "Mission Control imports its Preview fixture directly",
     filePath: syntheticPath("features", "mission-control", "query.ts"),
