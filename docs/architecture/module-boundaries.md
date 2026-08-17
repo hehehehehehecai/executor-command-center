@@ -154,6 +154,34 @@ src/app/decision-archive/page.tsx
 
 `DecisionCandidate` 与 `DecisionRecord` 是不同类型和集合，按稳定 ID 关联而不按标题合并。Candidate 只有在用户显式确认并填写非空白原因后，才能生成带独立 ID 的 Record；确认后 Candidate 仍保留，并记录 `confirmedRecordId`。手动 Record 不需要 Candidate。ID、确认者与时间由调用方注入，操作仅返回本地 View Model，不声明数据库持久化、真实模型调用或外部写入。Connected 失败保持可观察且不回退 Preview。
 
+## Copilot Workspace 公共边界
+
+Copilot Workspace 的唯一公开入口是 `src/features/copilot/index.ts`。Preview 与 Connected 共用 `CopilotWorkspaceViewModel` 和公共 `PanelQuery<T>`；Feature 只接收注入的 loader 或 port，不直接导入 Demo fixture、基础设施、外部 Provider SDK、AI 模型或 `server-only`。
+
+冻结的上下文合同为：
+
+```ts
+export interface CopilotContext {
+  featureId: FeatureId;
+  projectId: string | null;
+  evidenceReferenceIds: string[];
+}
+```
+
+`featureId` 复用 Feature Registry 的 `FeatureId`。上下文身份按 `featureId + projectId` 精确匹配；任一身份字段变化都会清空既有 `evidenceReferenceIds`，同一身份可保留并按首次出现顺序稳定去重引用。未知 Feature 失败关闭，不按标题或环境推断身份。
+
+```text
+src/app/copilot/page.tsx
+  → explicit PanelMode
+  → injected Preview loader / Connected port
+  → Copilot Workspace query
+  → pure context transition
+  → CopilotWorkspaceViewModel
+  → CopilotWorkspacePanel
+```
+
+Workspace Shell 只管理显式上下文和引用 ID，不内嵌伪造证据、不生成答案、不调用模型或网络，也不声明持久化成功。Connected 失败保持可观察且不回退 Preview。
+
 ## Domain 纯 TypeScript 边界
 
 `src/domain/**` 不得导入 React、Next.js、Supabase、Octokit、Inngest 或 AI SDK。Vitest AST 扫描覆盖静态 import、`export ... from`、动态 `import()`、`require()`、`ImportTypeNode` 和引用外部模块的 `ImportEqualsDeclaration`。

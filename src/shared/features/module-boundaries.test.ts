@@ -120,6 +120,7 @@ function isPanelQueryContractPath(filePath: string) {
 }
 
 const providerNeutralFeatures = new Set([
+  "copilot",
   "decision-archive",
   "flight-log",
   "mission-control",
@@ -349,6 +350,35 @@ const allowedExamples = [
 ] as const;
 
 const rejectedExamples = [
+  {
+    name: "Copilot imports its Preview fixture directly",
+    filePath: syntheticPath("features", "copilot", "query.ts"),
+    source:
+      'import { fixture } from "@/content/demo-data/copilot-workspace-preview-fixture";',
+    specifier: "@/content/demo-data/copilot-workspace-preview-fixture",
+    kind: "import",
+  },
+  {
+    name: "Copilot imports infrastructure directly",
+    filePath: syntheticPath("features", "copilot", "query.ts"),
+    source: 'import { client } from "@/infrastructure/ai/client";',
+    specifier: "@/infrastructure/ai/client",
+    kind: "import",
+  },
+  {
+    name: "Copilot imports an AI provider SDK directly",
+    filePath: syntheticPath("features", "copilot", "query.ts"),
+    source: 'import OpenAI from "openai";',
+    specifier: "openai",
+    kind: "import",
+  },
+  {
+    name: "Copilot imports server-only directly",
+    filePath: syntheticPath("features", "copilot", "query.ts"),
+    source: 'import "server-only";',
+    specifier: "server-only",
+    kind: "import",
+  },
   {
     name: "Decision Archive imports its Preview fixture directly",
     filePath: syntheticPath("features", "decision-archive", "query.ts"),
