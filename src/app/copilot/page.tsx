@@ -26,6 +26,7 @@ type CopilotSearchParams = {
   readonly fromProjectId?: string | string[];
   readonly mode?: string | string[];
   readonly projectId?: string | string[];
+  readonly selectedEvidence?: string | string[];
 };
 
 function single(value: string | string[] | undefined) {
@@ -39,6 +40,13 @@ function many(value: string | string[] | undefined) {
 
 function projectId(value: string | undefined) {
   return value === undefined || value.length === 0 ? null : value;
+}
+
+export function projectIdForConnectedLoad(searchParams: CopilotSearchParams) {
+  const action = single(searchParams.action);
+  if (action === "switch") return projectId(single(searchParams.projectId));
+  if (action === "evidence") return projectId(single(searchParams.fromProjectId));
+  return projectId(single(searchParams.projectId));
 }
 
 function requestedMode(
@@ -110,6 +118,16 @@ function applyLocalAction(
         viewModel: {
           ...viewModel,
           context: transition.context,
+          projectBrief: viewModel.mode === "connected"
+            ? viewModel.projectBrief
+            : transition.reason === "identity_unchanged"
+            ? viewModel.projectBrief
+            : { status: "not_found" },
+          followUp: viewModel.mode === "connected"
+            ? viewModel.followUp
+            : transition.reason === "identity_unchanged"
+            ? viewModel.followUp
+            : { status: "unavailable", message: "上下文已变化，请重新加载当前项目 Brief。" },
           lastTransitionReason: transition.reason,
         },
         feedback: {
@@ -170,15 +188,23 @@ export default async function CopilotPage(input: {
       : ({ kind: "disabled" } as const);
   const fixtureSession =
     fixtureAccess.kind === "authorized" ? fixtureAccess.session : null;
+  const connectedPort = mode === "connected"
+    ? input.connectedPort
+      ?? (fixtureSession
+        ? { load: async () => fixtureSession.copilot }
+        : await import("./copilot-connected-dependencies").then(({ createCopilotConnectedPort }) =>
+            createCopilotConnectedPort(projectIdForConnectedLoad(searchParams))))
+    : null;
 
   const query =
     mode === "preview"
-      ? createCopilotWorkspacePreviewQuery(loadCopilotWorkspacePreviewFixture)
+      ? createCopilotWorkspacePreviewQuery(
+          loadCopilotWorkspacePreviewFixture,
+          single(searchParams.selectedEvidence) ?? null,
+        )
       : createCopilotWorkspaceConnectedQuery(
-          input.connectedPort ??
-            (fixtureSession
-              ? { load: async () => fixtureSession.copilot }
-              : unavailableConnectedPort),
+          connectedPort ?? unavailableConnectedPort,
+          single(searchParams.selectedEvidence) ?? null,
         );
   const result = await query
     .load()

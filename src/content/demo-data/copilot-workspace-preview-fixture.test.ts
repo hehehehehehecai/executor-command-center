@@ -21,6 +21,15 @@ describe("Copilot Workspace Preview fixture", () => {
       invokesModel: false,
       containsModelOutput: false,
     });
+    expect(copilotWorkspacePreviewFixture.cases.default.projectBrief?.status).toBe("ready");
+    const readyBrief = copilotWorkspacePreviewFixture.cases.default.projectBrief;
+    expect(readyBrief?.status === "ready" ? readyBrief.brief.projectId : null).toBe(
+      copilotWorkspacePreviewFixture.cases.default.context.projectId,
+    );
+    expect(copilotWorkspacePreviewFixture.followUpCases.success.status).toBe("answered");
+    expect(copilotWorkspacePreviewFixture.followUpCases.rejected.code).toBe(
+      "follow_up_out_of_scope",
+    );
   });
 
   it("loads the stable default Preview source", async () => {
@@ -76,12 +85,18 @@ describe("Copilot Workspace Preview fixture", () => {
   it("includes unknown-feature and empty-context fail-closed cases", () => {
     expect(copilotWorkspacePreviewFixture.actionCases.unknownFeature).toEqual({
       featureId: "unknown-feature",
-      projectId: "project-odyssey",
+      projectId: "20000000-0000-4000-8000-000000000002",
     });
     expect(copilotWorkspacePreviewFixture.cases.empty.context).toEqual({
       featureId: "copilot",
       projectId: null,
       evidenceReferenceIds: [],
+    });
+    expect(copilotWorkspacePreviewFixture.cases.empty.projectBrief).toMatchObject({
+      status: "not_found",
+    });
+    expect(copilotWorkspacePreviewFixture.cases.stale.projectBrief).toMatchObject({
+      status: "expired",
     });
   });
 });

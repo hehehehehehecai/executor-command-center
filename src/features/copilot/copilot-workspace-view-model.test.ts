@@ -40,6 +40,8 @@ describe("CopilotWorkspaceViewModel", () => {
         evidenceReferenceIds: ["evidence-goal"],
       },
       lastTransitionReason: "initialized",
+      projectBrief: { status: "not_found" },
+      followUp: { status: "unavailable", message: "追问暂不可用。" },
     });
   });
 

@@ -27,7 +27,12 @@ test("clears project-scoped evidence without external requests at 360px", async 
   await expect(page.getByLabel("数据来源")).toContainText(
     "Demo · 演示数据 · 完全虚构",
   );
-  await expect(page.getByText("本阶段不生成答案，也不调用 AI 模型。")).toBeVisible();
+  await expect(
+    page.getByText("Brief 与追问均为完全虚构的离线演示。"),
+  ).toBeVisible();
+  await expect(page.getByRole("region", { name: "项目简报" })).toBeVisible();
+  await expect(page.getByRole("note", { name: "Brief 边界" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /查看证据/ }).first()).toBeVisible();
 
   const switchForm = page.getByRole("form", {
     name: "切换 Copilot 上下文",

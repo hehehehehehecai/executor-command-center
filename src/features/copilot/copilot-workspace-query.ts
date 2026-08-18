@@ -25,18 +25,20 @@ export interface CopilotWorkspaceQueryDependencies {
 
 export function createCopilotWorkspacePreviewQuery(
   loader: CopilotWorkspacePreviewLoader,
+  selectedEvidence: string | null = null,
 ): PanelQuery<CopilotWorkspaceViewModel> {
   return createPreviewPanelQuery(async () =>
-    createCopilotWorkspaceViewModel(await loader(), "preview"),
+    createCopilotWorkspaceViewModel(await loader(), "preview", selectedEvidence),
   );
 }
 
 export function createCopilotWorkspaceConnectedQuery(
   port: CopilotWorkspaceConnectedPort,
+  selectedEvidence: string | null = null,
 ): PanelQuery<CopilotWorkspaceViewModel> {
   return createConnectedPanelQuery({
     load: async () =>
-      createCopilotWorkspaceViewModel(await port.load(), "connected"),
+      createCopilotWorkspaceViewModel(await port.load(), "connected", selectedEvidence),
   });
 }
 

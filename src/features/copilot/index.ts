@@ -27,6 +27,7 @@ export type {
   CopilotWorkspaceViewModel,
 } from "./copilot-workspace-view-model";
 export { CopilotWorkspacePanel } from "./CopilotWorkspacePanel";
+export { evidenceReferenceId } from "./copilot-project-brief-view-model";
 export type {
   CopilotWorkspaceFeedback,
   CopilotWorkspacePanelProps,

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { featureRegistry } from "@/shared/features/feature-registry";
 
 import { CopilotWorkspacePanel } from "./CopilotWorkspacePanel";
+import { createCopilotProjectBriefViewModel } from "./copilot-project-brief-view-model";
 import type { CopilotWorkspaceViewModel } from "./copilot-workspace-view-model";
 
 function viewModel(
@@ -18,6 +19,8 @@ function viewModel(
       evidenceReferenceIds: ["evidence-goal", "evidence-freshness"],
     },
     lastTransitionReason: "initialized",
+    projectBrief: { status: "not_found" },
+    followUp: { status: "unavailable", message: "追问暂不可用。" },
     ...overrides,
   };
 }
@@ -25,6 +28,47 @@ function viewModel(
 afterEach(cleanup);
 
 describe("CopilotWorkspacePanel", () => {
+  it("renders the validated Brief structure, explicit empty states, Freshness and permanent Boundary", async () => {
+    const { syntheticProjectBrief } = await import(
+      "@/testing/project-brief/project-brief-fixture"
+    );
+    render(<CopilotWorkspacePanel viewModel={viewModel({
+      projectBrief: {
+        status: "ready",
+        value: createCopilotProjectBriefViewModel(syntheticProjectBrief(), {
+          briefId: "30000000-0000-4000-8000-000000000003",
+          mode: "preview",
+          selectedEvidence: null,
+        }),
+      },
+      followUp: { status: "preview", message: "虚构追问示例，不会调用模型。" },
+    })} />);
+
+    expect(screen.getByRole("region", { name: "项目简报" })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 2, name: "项目简报" })).toBeVisible();
+    expect(screen.getByText("暂无待处理事项")).toBeVisible();
+    expect(screen.getByText("Freshness")).toBeVisible();
+    expect(screen.getByRole("note", { name: "Brief 边界" })).toBeVisible();
+    expect(screen.getAllByRole("link", { name: /查看证据/ }).length).toBeGreaterThan(0);
+    expect(screen.getByText("追问暂未启用")).toBeVisible();
+  });
+
+  it.each([
+    ["not_found", "当前项目暂无已完成简报。"],
+    ["expired", "当前项目只有已过期简报。"],
+    ["invalid", "简报结构验证失败。"],
+    ["evidence_validation_failed", "简报证据重新验证失败。"],
+    ["unavailable", "简报读取暂时不可用。"],
+  ])("renders the exact %s Brief state", (status, message) => {
+    render(<CopilotWorkspacePanel viewModel={viewModel({
+      projectBrief: { status } as never,
+      followUp: { status: "unavailable", message: "追问暂不可用。" },
+    })} />);
+    expect(screen.getByText(message)).toBeVisible();
+    expect(screen.getByRole("note", { name: "Brief 边界" })).toBeVisible();
+    expect(screen.queryByRole("region", { name: "项目简报" })).not.toBeInTheDocument();
+  });
+
   it("renders an explicit context shell without answer or model claims", () => {
     render(<CopilotWorkspacePanel viewModel={viewModel()} />);
 
@@ -36,7 +80,9 @@ describe("CopilotWorkspacePanel", () => {
     );
     expect(screen.getByRole("region", { name: "当前上下文" })).toBeVisible();
     expect(screen.getByRole("region", { name: "证据引用" })).toBeVisible();
-    expect(screen.getByText("本阶段不生成答案，也不调用 AI 模型。")).toBeVisible();
+    expect(
+      screen.getByText("Brief 与追问均为完全虚构的离线演示。"),
+    ).toBeVisible();
     expect(screen.queryByText(/模型回答|生成成功|streaming/i)).not.toBeInTheDocument();
   });
 
@@ -113,8 +159,6 @@ describe("CopilotWorkspacePanel", () => {
     expect(
       within(form).getByRole("button", { name: "更新本地引用" }),
     ).toBeVisible();
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "未知面板，未改变当前上下文。",
-    );
+    expect(screen.getByText("未知面板，未改变当前上下文。")).toBeVisible();
   });
 });

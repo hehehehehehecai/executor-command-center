@@ -2,9 +2,14 @@ import Link from "next/link";
 
 import { PanelDemoDisclosure } from "@/shared/demo-disclosure";
 import { featureRegistry } from "@/shared/features/feature-registry";
+import { projectBriefBoundaryNote } from "@/domain/project-brief/project-brief-contract";
 
 import styles from "./copilot-workspace.module.css";
-import type { CopilotWorkspaceViewModel } from "./copilot-workspace-view-model";
+import type {
+  CopilotProjectBriefState,
+  CopilotWorkspaceViewModel,
+} from "./copilot-workspace-view-model";
+import type { CopilotEvidenceViewModel } from "./copilot-project-brief-view-model";
 
 const transitionLabels: Record<
   CopilotWorkspaceViewModel["lastTransitionReason"],
@@ -25,6 +30,130 @@ export interface CopilotWorkspaceFeedback {
 export interface CopilotWorkspacePanelProps {
   readonly viewModel: CopilotWorkspaceViewModel;
   readonly feedback?: CopilotWorkspaceFeedback;
+}
+
+const briefStateMessages: Record<Exclude<CopilotProjectBriefState["status"], "ready">, string> = {
+  not_found: "当前项目暂无已完成简报。",
+  expired: "当前项目只有已过期简报。",
+  invalid: "简报结构验证失败。",
+  evidence_validation_failed: "简报证据重新验证失败。",
+  unavailable: "简报读取暂时不可用。",
+};
+
+function EvidenceLinks({ evidence }: { readonly evidence: readonly CopilotEvidenceViewModel[] }) {
+  if (evidence.length === 0) return <span className={styles.noEvidence}>无 Evidence 引用</span>;
+  return (
+    <ul className={styles.inlineEvidence} aria-label="Evidence 引用">
+      {evidence.map((ref) => (
+        <li key={ref.referenceId}>
+          {ref.href === null ? (
+            <span>不可导航 · {ref.sourceKind}</span>
+          ) : (
+            <Link href={ref.href}>
+              查看证据 · {ref.sourceKind} · {ref.sourceId}
+            </Link>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function ProjectBriefRegion({ state }: { readonly state: CopilotProjectBriefState }) {
+  if (state.status !== "ready") {
+    return (
+      <section className={styles.briefRegion} aria-label="Brief 状态">
+        <p className={styles.briefState} role="status">{briefStateMessages[state.status]}</p>
+        <aside className={styles.boundary} role="note" aria-label="Brief 边界">
+          <h3>Boundary</h3>
+          <p>{projectBriefBoundaryNote}</p>
+        </aside>
+      </section>
+    );
+  }
+  const brief = state.value;
+  return (
+    <section className={styles.briefRegion} aria-labelledby="project-brief-title" aria-label="Project Brief">
+      <div className={styles.briefHeader}>
+        <div>
+          <p className={styles.metaLabel}>Validated Project Brief</p>
+          <h2 id="project-brief-title">项目简报</h2>
+        </div>
+        <span className={styles.statusBadge}>{brief.officialStatus.value}</span>
+      </div>
+
+      <section className={styles.briefSummary} aria-labelledby="brief-summary-title">
+        <h3 id="brief-summary-title">摘要</h3>
+        <p>{brief.summary.text}</p>
+        <EvidenceLinks evidence={brief.summary.evidence} />
+      </section>
+
+      <section className={styles.officialStatus} aria-labelledby="brief-status-title">
+        <h3 id="brief-status-title">官方状态</h3>
+        <p>{brief.officialStatus.value}</p>
+        <EvidenceLinks evidence={brief.officialStatus.evidence} />
+      </section>
+
+      <div className={styles.briefSections}>
+        {brief.sections.map((section) => (
+          <section key={section.id} aria-labelledby={`brief-${section.id}-title`}>
+            <h3 id={`brief-${section.id}-title`}>{section.title}</h3>
+            {section.empty ? (
+              <p className={styles.emptyState}>{section.emptyMessage}</p>
+            ) : (
+              <ul className={styles.briefItems}>
+                {section.items.map((item) => (
+                  <li key={item.id}>
+                    <p>{item.text}</p>
+                    {item.missingEvidence.length > 0 ? (
+                      <p className={styles.missingEvidence}>
+                        缺失证据：{item.missingEvidence.join("；")}
+                      </p>
+                    ) : null}
+                    <EvidenceLinks evidence={item.evidence} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        ))}
+      </div>
+
+      <section className={styles.freshness} aria-labelledby="brief-freshness-title">
+        <h3 id="brief-freshness-title">Freshness</h3>
+        <dl>
+          <div><dt>status</dt><dd>{brief.freshness.status}</dd></div>
+          <div><dt>evaluatedAt</dt><dd><time dateTime={brief.freshness.evaluatedAt}>{brief.freshness.evaluatedAt}</time></dd></div>
+          <div><dt>lastSuccessfulAt</dt><dd>{brief.freshness.lastSuccessfulAt ?? "未知"}</dd></div>
+          <div><dt>coverageComplete</dt><dd>{brief.freshness.coverageComplete ? "是" : "否"}</dd></div>
+        </dl>
+        <EvidenceLinks evidence={brief.freshness.evidence} />
+      </section>
+
+      {brief.selectedEvidence ? (
+        <aside className={styles.selectedEvidence} aria-label="已聚焦 Evidence">
+          <h3>已聚焦 Evidence</h3>
+          <dl>
+            <div><dt>sourceKind</dt><dd>{brief.selectedEvidence.sourceKind}</dd></div>
+            <div><dt>sourceId</dt><dd>{brief.selectedEvidence.sourceId}</dd></div>
+            <div><dt>projectId</dt><dd>{brief.selectedEvidence.projectId}</dd></div>
+          </dl>
+        </aside>
+      ) : null}
+
+      <dl className={styles.briefMetadata} aria-label="Brief 元数据">
+        <div><dt>Range</dt><dd>{brief.rangeStart} → {brief.rangeEnd}</dd></div>
+        <div><dt>Prompt</dt><dd>{brief.promptVersion}</dd></div>
+        <div><dt>Schema</dt><dd>{brief.schemaVersion}</dd></div>
+        <div><dt>Fingerprint</dt><dd>{brief.evidenceFingerprint}</dd></div>
+      </dl>
+
+      <aside className={styles.boundary} role="note" aria-label="Brief 边界">
+        <h3>Boundary</h3>
+        <p>{brief.boundaryNote}</p>
+      </aside>
+    </section>
+  );
 }
 
 function ContextStateFields({
@@ -78,7 +207,11 @@ export function CopilotWorkspacePanel({
         <PanelDemoDisclosure
           className={styles.provenance}
           mode={viewModel.mode}
-          note="本阶段不生成答案，也不调用 AI 模型。"
+          note={
+            viewModel.mode === "preview"
+              ? "Brief 与追问均为完全虚构的离线演示。"
+              : "只显示重新验证通过的 Connected Brief。"
+          }
           provenanceLabel={viewModel.provenanceLabel}
         />
       </header>
@@ -196,6 +329,20 @@ export function CopilotWorkspacePanel({
           </form>
         </section>
       </div>
+
+      <ProjectBriefRegion state={viewModel.projectBrief} />
+
+      <section className={styles.followUpRegion} aria-labelledby="brief-follow-up-title">
+        <div className={styles.sectionHeading}>
+          <div>
+            <p className={styles.metaLabel}>Single turn · Current Brief only</p>
+            <h2 id="brief-follow-up-title">受约束追问</h2>
+          </div>
+        </div>
+        <p>{viewModel.followUp.message}</p>
+        <p className={styles.emptyState}>追问暂未启用</p>
+        <small>无聊天历史、无外部搜索、无工具调用，也不会产生额外计费。</small>
+      </section>
 
       <footer className={styles.footer}>
         <p>Shell 状态仅随本次页面请求传递，不会持久化或发送到外部服务。</p>

@@ -1,11 +1,51 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import CopilotPage from "./page";
+import { loadCopilotWorkspacePreviewFixture } from "@/content/demo-data/copilot-workspace-preview-fixture";
+
+import CopilotPage, { projectIdForConnectedLoad } from "./page";
 
 afterEach(cleanup);
 
 describe("Copilot route", () => {
+  it("loads the target project for switch and preserves the current project for Evidence actions", () => {
+    expect(projectIdForConnectedLoad({
+      action: "switch",
+      projectId: "target-project",
+      fromProjectId: "old-project",
+    })).toBe("target-project");
+    expect(projectIdForConnectedLoad({
+      action: "evidence",
+      fromProjectId: "current-project",
+    })).toBe("current-project");
+  });
+
+  it("keeps the target Connected Brief visible on the first project switch", async () => {
+    const source = await loadCopilotWorkspacePreviewFixture();
+    const targetProjectId = source.projectBrief?.status === "ready"
+      ? source.projectBrief.brief.projectId
+      : "missing";
+    const connectedPort = {
+      load: vi.fn(async () => ({
+        ...source,
+        provenanceLabel: "Connected 数据 · 已重新验证",
+        context: { ...source.context, projectId: targetProjectId },
+      })),
+    };
+    render(await CopilotPage({
+      searchParams: Promise.resolve({
+        mode: "connected",
+        action: "switch",
+        fromFeatureId: "copilot",
+        fromProjectId: "10000000-0000-4000-8000-000000000001",
+        featureId: "copilot",
+        projectId: targetProjectId,
+      }),
+      connectedPort,
+    }));
+    expect(screen.getByRole("region", { name: "项目简报" })).toBeVisible();
+    expect(screen.getByText(targetProjectId)).toBeVisible();
+  });
   it("loads the fictional Preview shell by default", async () => {
     render(await CopilotPage({ searchParams: Promise.resolve({}) }));
 
@@ -75,7 +115,7 @@ describe("Copilot route", () => {
     expect(screen.getByRole("status")).toHaveTextContent(
       "未知面板，未改变当前上下文。",
     );
-    expect(screen.getByText("project-odyssey")).toBeVisible();
+    expect(screen.getByText("20000000-0000-4000-8000-000000000002")).toBeVisible();
     expect(screen.getByText("evidence-goal")).toBeVisible();
     expect(screen.queryByText("project-atlas")).not.toBeInTheDocument();
   });
