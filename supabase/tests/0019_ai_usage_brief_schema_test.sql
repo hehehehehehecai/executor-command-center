@@ -12,9 +12,10 @@ select columns_are(
   'public', 'energy_reservations',
   array[
     'id', 'user_id', 'project_id', 'business_date', 'request_key', 'amount',
-    'status', 'created_at', 'consumed_at', 'released_at'
+    'status', 'created_at', 'consumed_at', 'released_at',
+    'failure_stage', 'error_code'
   ],
-  'reservation columns freeze ownership, idempotency, amount and lifecycle'
+  'reservation columns freeze ownership, idempotency, lifecycle and durable failure'
 );
 select columns_are(
   'public', 'energy_ledger_entries',
@@ -32,9 +33,10 @@ select columns_are(
     'prompt_version', 'schema_version', 'input_fingerprint', 'status',
     'input_tokens', 'output_tokens', 'latency_ms', 'cost_microunits',
     'cache_status', 'failure_stage', 'error_code', 'reservation_id',
-    'brief_id', 'created_at', 'started_at', 'completed_at'
+    'brief_id', 'created_at', 'started_at', 'completed_at',
+    'provider_request_id'
   ],
-  'invocation columns keep future observability nullable without provider execution'
+  'invocation columns retain safe provider observability and request lineage'
 );
 select columns_are(
   'public', 'project_briefs',

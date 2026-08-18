@@ -80,6 +80,7 @@ export type Database = {
           project_id: string
           prompt_version: string | null
           provider: string | null
+          provider_request_id: string | null
           reservation_id: string | null
           schema_version: string | null
           started_at: string | null
@@ -104,6 +105,7 @@ export type Database = {
           project_id: string
           prompt_version?: string | null
           provider?: string | null
+          provider_request_id?: string | null
           reservation_id?: string | null
           schema_version?: string | null
           started_at?: string | null
@@ -128,6 +130,7 @@ export type Database = {
           project_id?: string
           prompt_version?: string | null
           provider?: string | null
+          provider_request_id?: string | null
           reservation_id?: string | null
           schema_version?: string | null
           started_at?: string | null
@@ -245,6 +248,8 @@ export type Database = {
           business_date: string
           consumed_at: string | null
           created_at: string
+          error_code: string | null
+          failure_stage: string | null
           id: string
           project_id: string
           released_at: string | null
@@ -257,6 +262,8 @@ export type Database = {
           business_date: string
           consumed_at?: string | null
           created_at?: string
+          error_code?: string | null
+          failure_stage?: string | null
           id?: string
           project_id: string
           released_at?: string | null
@@ -269,6 +276,8 @@ export type Database = {
           business_date?: string
           consumed_at?: string | null
           created_at?: string
+          error_code?: string | null
+          failure_stage?: string | null
           id?: string
           project_id?: string
           released_at?: string | null
@@ -1381,6 +1390,41 @@ export type Database = {
         }
         Returns: Json
       }
+      fail_project_brief_generation: {
+        Args: {
+          p_actor_user_id: string
+          p_error_code: string
+          p_failure_stage: string
+          p_input_tokens: number
+          p_latency_ms: number
+          p_model: string
+          p_output_tokens: number
+          p_provider: string
+          p_request_id: string
+          p_reservation_id: string
+        }
+        Returns: Json
+      }
+      finalize_project_brief_generation: {
+        Args: {
+          p_actor_user_id: string
+          p_evidence_fingerprint: string
+          p_expires_at: string
+          p_input_tokens: number
+          p_latency_ms: number
+          p_model: string
+          p_output_tokens: number
+          p_payload: Json
+          p_prompt_version: string
+          p_provider: string
+          p_range_end: string
+          p_range_start: string
+          p_request_id: string
+          p_reservation_id: string
+          p_schema_version: string
+        }
+        Returns: Json
+      }
       get_available_energy: {
         Args: { p_business_date: string }
         Returns: number
@@ -1390,6 +1434,10 @@ export type Database = {
         Returns: Json
       }
       get_latest_sync_run: { Args: { p_project_id: string }; Returns: Json }
+      get_project_brief_generation_outcome: {
+        Args: { p_reservation_id: string }
+        Returns: Json
+      }
       list_reconciliation_projects: {
         Args: { p_snapshot_since: string }
         Returns: Json
