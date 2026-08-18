@@ -38,6 +38,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      available_energy: {
+        Args: { p_business_date: string; p_user_id: string }
+        Returns: number
+      }
       first_sync_cursor_is_valid: {
         Args: {
           cursor_value: string
@@ -57,6 +61,238 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_invocations: {
+        Row: {
+          brief_id: string | null
+          cache_status: string | null
+          completed_at: string | null
+          cost_microunits: number | null
+          created_at: string
+          error_code: string | null
+          failure_stage: string | null
+          feature: string
+          id: string
+          input_fingerprint: string | null
+          input_tokens: number | null
+          latency_ms: number | null
+          model: string | null
+          output_tokens: number | null
+          project_id: string
+          prompt_version: string | null
+          provider: string | null
+          reservation_id: string | null
+          schema_version: string | null
+          started_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          brief_id?: string | null
+          cache_status?: string | null
+          completed_at?: string | null
+          cost_microunits?: number | null
+          created_at?: string
+          error_code?: string | null
+          failure_stage?: string | null
+          feature: string
+          id?: string
+          input_fingerprint?: string | null
+          input_tokens?: number | null
+          latency_ms?: number | null
+          model?: string | null
+          output_tokens?: number | null
+          project_id: string
+          prompt_version?: string | null
+          provider?: string | null
+          reservation_id?: string | null
+          schema_version?: string | null
+          started_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          brief_id?: string | null
+          cache_status?: string | null
+          completed_at?: string | null
+          cost_microunits?: number | null
+          created_at?: string
+          error_code?: string | null
+          failure_stage?: string | null
+          feature?: string
+          id?: string
+          input_fingerprint?: string | null
+          input_tokens?: number | null
+          latency_ms?: number | null
+          model?: string | null
+          output_tokens?: number | null
+          project_id?: string
+          prompt_version?: string | null
+          provider?: string | null
+          reservation_id?: string | null
+          schema_version?: string | null
+          started_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_invocations_brief_owner_fkey"
+            columns: ["brief_id", "user_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "project_briefs"
+            referencedColumns: ["id", "user_id", "project_id"]
+          },
+          {
+            foreignKeyName: "ai_invocations_project_owner_fkey"
+            columns: ["project_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "ai_invocations_reservation_owner_fkey"
+            columns: ["reservation_id", "user_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "energy_reservations"
+            referencedColumns: ["id", "user_id", "project_id"]
+          },
+          {
+            foreignKeyName: "ai_invocations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      energy_ledger_entries: {
+        Row: {
+          amount: number
+          business_date: string
+          created_at: string
+          delta: number
+          entry_type: string
+          id: string
+          idempotency_key: string
+          invocation_id: string | null
+          metadata: Json
+          project_id: string | null
+          reservation_id: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          business_date: string
+          created_at?: string
+          delta: number
+          entry_type: string
+          id?: string
+          idempotency_key: string
+          invocation_id?: string | null
+          metadata?: Json
+          project_id?: string | null
+          reservation_id?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          business_date?: string
+          created_at?: string
+          delta?: number
+          entry_type?: string
+          id?: string
+          idempotency_key?: string
+          invocation_id?: string | null
+          metadata?: Json
+          project_id?: string | null
+          reservation_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "energy_ledger_entries_invocation_id_fkey"
+            columns: ["invocation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_invocations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "energy_ledger_entries_project_owner_fkey"
+            columns: ["project_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "energy_ledger_entries_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "energy_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "energy_ledger_entries_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      energy_reservations: {
+        Row: {
+          amount: number
+          business_date: string
+          consumed_at: string | null
+          created_at: string
+          id: string
+          project_id: string
+          released_at: string | null
+          request_key: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          business_date: string
+          consumed_at?: string | null
+          created_at?: string
+          id?: string
+          project_id: string
+          released_at?: string | null
+          request_key: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          business_date?: string
+          consumed_at?: string | null
+          created_at?: string
+          id?: string
+          project_id?: string
+          released_at?: string | null
+          request_key?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "energy_reservations_project_owner_fkey"
+            columns: ["project_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "energy_reservations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       github_commits: {
         Row: {
           author_login: string | null
@@ -650,6 +886,75 @@ export type Database = {
           },
         ]
       }
+      project_briefs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error_code: string | null
+          evidence_fingerprint: string | null
+          expires_at: string | null
+          failure_stage: string | null
+          id: string
+          payload: Json | null
+          project_id: string
+          prompt_version: string | null
+          range_end: string
+          range_start: string
+          schema_version: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error_code?: string | null
+          evidence_fingerprint?: string | null
+          expires_at?: string | null
+          failure_stage?: string | null
+          id?: string
+          payload?: Json | null
+          project_id: string
+          prompt_version?: string | null
+          range_end: string
+          range_start: string
+          schema_version?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error_code?: string | null
+          evidence_fingerprint?: string | null
+          expires_at?: string | null
+          failure_stage?: string | null
+          id?: string
+          payload?: Json | null
+          project_id?: string
+          prompt_version?: string | null
+          range_end?: string
+          range_start?: string
+          schema_version?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_briefs_project_owner_fkey"
+            columns: ["project_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "project_briefs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_sync_dispatches: {
         Row: {
           created_at: string
@@ -995,6 +1300,7 @@ export type Database = {
         }
         Returns: Json
       }
+      consume_energy: { Args: { p_reservation_id: string }; Returns: Json }
       consume_github_installation_state: {
         Args: { p_state_hash: string; p_user_id: string }
         Returns: string
@@ -1075,6 +1381,10 @@ export type Database = {
         }
         Returns: Json
       }
+      get_available_energy: {
+        Args: { p_business_date: string }
+        Returns: number
+      }
       get_first_sync_run: {
         Args: { p_project_id: string; p_run_id: string }
         Returns: Json
@@ -1134,6 +1444,7 @@ export type Database = {
         }
         Returns: string
       }
+      release_energy: { Args: { p_reservation_id: string }; Returns: Json }
       remove_selected_github_repository: {
         Args: { p_github_repository_id: number; p_user_id: string }
         Returns: undefined
@@ -1145,6 +1456,15 @@ export type Database = {
           p_request_identity: string
           p_requested_at: string
           p_trigger_source: string
+        }
+        Returns: Json
+      }
+      reserve_energy: {
+        Args: {
+          p_amount: number
+          p_business_date: string
+          p_project_id: string
+          p_request_key: string
         }
         Returns: Json
       }

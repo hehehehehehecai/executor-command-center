@@ -28,11 +28,12 @@ select results_eq(
     order by indexname
   $$,
   array[
+    'projects_id_user_id_key',
     'projects_one_active_per_selected_repository_idx',
     'projects_pkey',
     'projects_user_sort_idx'
   ],
-  'project indexes include the partial active uniqueness boundary'
+  'project indexes retain active uniqueness and add the composite ownership boundary'
 );
 select results_eq(
   $$
