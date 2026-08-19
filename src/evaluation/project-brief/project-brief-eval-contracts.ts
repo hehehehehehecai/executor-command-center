@@ -2,6 +2,7 @@ import {
   projectBriefPromptVersion,
   projectBriefSchemaVersion,
 } from "@/domain/project-brief/project-brief-contract";
+import { evidenceSourceKinds } from "@/domain/project-brief-evidence/evidence-snapshot";
 import { z } from "zod";
 import { fingerprintEvalValue } from "./project-brief-eval-fingerprint";
 
@@ -23,6 +24,26 @@ const canonicalUtc = z.string().refine((value) => {
   const parsed = Date.parse(value);
   return Number.isFinite(parsed) && new Date(parsed).toISOString() === value;
 });
+const evidenceSourceKindSet = new Set<string>(evidenceSourceKinds);
+const lowerUuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+function isEvidenceReferenceId(value: string): boolean {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed)
+      && parsed.length === 3
+      && typeof parsed[0] === "string"
+      && evidenceSourceKindSet.has(parsed[0])
+      && typeof parsed[1] === "string"
+      && parsed[1].length > 0
+      && parsed[1].trim() === parsed[1]
+      && typeof parsed[2] === "string"
+      && lowerUuidPattern.test(parsed[2])
+      && JSON.stringify(parsed) === value;
+  } catch {
+    return false;
+  }
+}
 
 const expectedCheckSchema = z.enum(projectBriefEvalCheckStatuses);
 const expectedChecksSchema = z.object({
@@ -36,17 +57,32 @@ const expectedChecksSchema = z.object({
   readabilityHuman: expectedCheckSchema,
 }).strict();
 
+const contentMatchSchema = z.object({
+    kind: z.enum(["exact_normalized", "token_sequence"]),
+    value: requiredText,
+}).strict();
+
+const requiredEvidenceReferenceIdsSchema = z.array(
+  z.string().min(1).max(500).refine(isEvidenceReferenceId),
+).min(1).max(10).superRefine((values, context) => {
+  if (new Set(values).size !== values.length) {
+    context.addIssue({
+      code: "custom",
+      message: "project_brief_eval_case_invalid",
+    });
+  }
+});
+
 const requiredFactSchema = z.object({
   factId: identifierSchema,
   location: z.string().min(1).max(180),
+  contentMatch: contentMatchSchema,
+  requiredEvidenceReferenceIds: requiredEvidenceReferenceIdsSchema,
 }).strict();
 
 const forbiddenAssertionSchema = z.object({
   assertionId: identifierSchema,
-  match: z.object({
-    kind: z.enum(["exact_normalized", "token_sequence"]),
-    value: requiredText,
-  }).strict(),
+  match: contentMatchSchema,
 }).strict();
 
 const expectedUnknownSchema = z.object({

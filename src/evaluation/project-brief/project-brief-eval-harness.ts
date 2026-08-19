@@ -1,8 +1,15 @@
 import { ValidateProjectBriefEvidenceUseCase } from "@/application/project-brief-evidence/validate-project-brief-evidence";
 import type { ProjectBriefEvidenceFingerprint } from "@/application/project-brief-evidence/project-brief-evidence-ports";
 import { ProjectBriefEvidenceValidationError } from "@/domain/project-brief-evidence/evidence-validation";
-import type { ProjectBrief } from "@/domain/project-brief/project-brief-contract";
-import { parseProjectBrief } from "@/domain/project-brief/project-brief-schema";
+import type {
+  ProjectBrief,
+  ProjectBriefEvidenceRef,
+  ProjectBriefFactItem,
+} from "@/domain/project-brief/project-brief-contract";
+import {
+  parseProjectBrief,
+  projectBriefEvidenceRefAlignmentKey,
+} from "@/domain/project-brief/project-brief-schema";
 
 import {
   parseProjectBriefEvalManifest,
@@ -56,24 +63,77 @@ function factTexts(brief: ProjectBrief): string[] {
   ];
 }
 
-function resolveFactLocation(brief: ProjectBrief, location: string): string | null {
-  if (location === "summary") return brief.summary.text;
-  if (location === "officialStatus") return brief.officialStatus.value;
-  const separator = location.indexOf(":");
-  if (separator < 1) return null;
-  const section = location.slice(0, separator) as
-    | "completedChanges" | "ongoingWork" | "openItems" | "riskSignals";
-  const itemId = location.slice(separator + 1);
-  if (!["completedChanges", "ongoingWork", "openItems", "riskSignals"].includes(section)) {
-    return null;
-  }
-  return brief[section].find(({ id }) => id === itemId)?.text ?? null;
+type ResolvedRequiredFact = {
+  readonly text: string;
+  readonly evidenceRefs: readonly ProjectBriefEvidenceRef[];
+};
+
+function resolvedItem(item: ProjectBriefFactItem | undefined): ResolvedRequiredFact | null {
+  return item === undefined ? null : { text: item.text, evidenceRefs: item.evidenceRefs };
 }
 
-function checkRequiredFacts(brief: ProjectBrief, item: ProjectBriefEvalCase) {
-  return item.requiredFacts.every(({ location }) => resolveFactLocation(brief, location) !== null)
-    ? pass("required_facts_present")
-    : fail("required_fact_missing");
+function resolveFactLocation(
+  brief: ProjectBrief,
+  location: string,
+): ResolvedRequiredFact | null {
+  if (location === "summary") {
+    return { text: brief.summary.text, evidenceRefs: brief.summary.evidenceRefs };
+  }
+  if (location === "officialStatus") {
+    return {
+      text: brief.officialStatus.value,
+      evidenceRefs: brief.officialStatus.evidenceRefs,
+    };
+  }
+  const [section, itemId, extra] = location.split(":");
+  if (itemId === undefined || itemId === "" || extra !== undefined) return null;
+  switch (section) {
+    case "completedChanges":
+      return resolvedItem(brief.completedChanges.find(({ id }) => id === itemId));
+    case "ongoingWork":
+      return resolvedItem(brief.ongoingWork.find(({ id }) => id === itemId));
+    case "openItems":
+      return resolvedItem(brief.openItems.find(({ id }) => id === itemId));
+    case "riskSignals":
+      return resolvedItem(brief.riskSignals.find(({ id }) => id === itemId));
+    default:
+      return null;
+  }
+}
+
+export function evaluateProjectBriefRequiredFacts(
+  brief: ProjectBrief,
+  requiredFacts: ProjectBriefEvalCase["requiredFacts"],
+): ProjectBriefEvalCheckResult {
+  const resolvedFacts: Array<{
+    readonly required: ProjectBriefEvalCase["requiredFacts"][number];
+    readonly fact: ResolvedRequiredFact;
+  }> = [];
+  for (const required of requiredFacts) {
+    const fact = resolveFactLocation(brief, required.location);
+    if (fact === null) return fail("required_fact_missing");
+    resolvedFacts.push({ required, fact });
+  }
+  if (resolvedFacts.some(({ required, fact }) => {
+    return required.contentMatch.kind === "exact_normalized"
+      ? normalizeText(fact.text) !== normalizeText(required.contentMatch.value)
+      : !tokenSequenceMatch(fact.text, required.contentMatch.value);
+  })) {
+    return fail("required_fact_content_mismatch");
+  }
+  if (resolvedFacts.some(({ fact }) => fact.evidenceRefs.length === 0)) {
+    return fail("required_fact_evidence_missing");
+  }
+  if (resolvedFacts.some(({ required, fact }) => {
+    const factEvidenceIds = new Set(
+      fact.evidenceRefs.map(projectBriefEvidenceRefAlignmentKey),
+    );
+    return required.requiredEvidenceReferenceIds.some((referenceId) =>
+      !factEvidenceIds.has(referenceId));
+  })) {
+    return fail("required_fact_evidence_mismatch");
+  }
+  return pass("required_facts_present");
 }
 
 function tokenSequenceMatch(text: string, pattern: string): boolean {
@@ -210,7 +270,7 @@ export async function evaluateProjectBriefDataset(
 
     const requiredFacts = brief === null
       ? blocked("required_facts_schema_precondition_failed")
-      : checkRequiredFacts(brief, item);
+      : evaluateProjectBriefRequiredFacts(brief, item.requiredFacts);
     const forbiddenAssertions = brief === null
       ? blocked("forbidden_assertions_schema_precondition_failed")
       : checkForbiddenAssertions(brief, item);

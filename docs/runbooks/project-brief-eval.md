@@ -21,6 +21,18 @@
 
 每个纳入 Case 都运行七项检查：Schema、Evidence Validity、时间范围、必需事实、禁止断言、Unknown 处理、人工可读性。人工可读性由“自动结构代理”和“人工确认”两部分组成；自动代理通过不能替代人工确认。
 
+### 必需事实语义
+
+每项 `requiredFacts` 必须同时冻结：稳定 `factId`、`location`、`contentMatch` 和至少一个 `requiredEvidenceReferenceIds`。Evidence ID 精确复用 Phase 3/6 alignment key 的序列化值 `JSON.stringify([sourceKind, sourceId, projectId])`，不能只用可能碰撞的 `sourceId`。`contentMatch` 只允许 `exact_normalized` 或 `token_sequence`；两者统一执行 Unicode NFC、换行、首尾空白、连续空白及大小写规范化。
+
+Harness 按生产 Brief 结构读取事实自身内容与自身 `evidenceRefs`：
+
+- `summary` 使用 `summary.text` 与 `summary.evidenceRefs`；
+- `officialStatus` 使用 `officialStatus.value` 与 `officialStatus.evidenceRefs`；
+- 列表事实使用 `section:item.id` 定位，并读取该 item 的 `text` 与 `evidenceRefs`。
+
+全局 `brief.evidenceRefs` 不能代替事实自身引用。检查按固定顺序失败关闭：`required_fact_missing` → `required_fact_content_mismatch` → `required_fact_evidence_missing` → `required_fact_evidence_mismatch`。只有路径、内容和必需 Evidence 子集全部满足才返回 `required_facts_present`。
+
 ## 运行
 
 ```bash

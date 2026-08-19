@@ -51,6 +51,17 @@ describe("Project Brief Eval contracts", () => {
     })).toThrow("project_brief_eval_confirmation_invalid");
   });
 
+  it("requires every frozen fact to bind content and at least one Evidence reference ID", async () => {
+    const value = await createSyntheticEvalCaseInput("valid-complete");
+    expect(() => parseProjectBriefEvalCase({
+      ...value,
+      requiredFacts: [{
+        factId: "completed-navigation",
+        location: "completedChanges:completed-navigation",
+      }],
+    })).toThrow("project_brief_eval_case_invalid");
+  });
+
   it("rejects duplicate or unsorted manifest Case IDs and dishonest counts", async () => {
     const first = parseProjectBriefEvalCase(
       await createSyntheticEvalCaseInput("valid-complete"),

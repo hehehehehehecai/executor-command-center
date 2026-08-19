@@ -61,6 +61,14 @@ const rangeStart = "2026-07-01T00:00:00.000Z";
 const rangeEnd = "2026-08-01T00:00:00.000Z";
 const evaluatedAt = "2026-08-01T00:00:00.000Z";
 
+function evidenceReferenceId(
+  sourceKind: EvidenceSourceRef["sourceKind"],
+  sourceId: string,
+  ownerProjectId = projectId,
+): string {
+  return JSON.stringify([sourceKind, sourceId, ownerProjectId]);
+}
+
 function baseSnapshot(): ProjectBriefEvidenceSnapshot {
   return buildProjectBriefEvidenceSnapshot({
     userId,
@@ -216,9 +224,35 @@ function buildCase(key: SyntheticCoverageKey) {
   let brief: unknown = baseBrief(snapshot, artifact.fingerprint);
   let expectedValidity: "valid" | "invalid" = "valid";
   let expectedChecks: Record<keyof typeof pass, "pass" | "fail" | "blocked" | "not_applicable"> = { ...pass };
-  const requiredFacts = [{
+  let requiredFacts: Array<{
+    factId: string;
+    location: string;
+    contentMatch: {
+      kind: "exact_normalized" | "token_sequence";
+      value: string;
+    };
+    requiredEvidenceReferenceIds: string[];
+  }> = [{
+    factId: "official-status",
+    location: "officialStatus",
+    contentMatch: { kind: "exact_normalized", value: "in_development" },
+    requiredEvidenceReferenceIds: [
+      evidenceReferenceId("project_profile", "profile-synthetic-01"),
+    ],
+  }, {
+    factId: "summary-navigation",
+    location: "summary",
+    contentMatch: { kind: "token_sequence", value: "completed navigation work" },
+    requiredEvidenceReferenceIds: [
+      evidenceReferenceId("github_issue", "issue-synthetic-42"),
+    ],
+  }, {
     factId: "completed-navigation",
     location: "completedChanges:completed-navigation",
+    contentMatch: { kind: "exact_normalized", value: "Navigation work was completed." },
+    requiredEvidenceReferenceIds: [
+      evidenceReferenceId("github_issue", "issue-synthetic-42"),
+    ],
   }];
   let forbiddenAssertions: Array<{
     assertionId: string;
@@ -270,6 +304,12 @@ function buildCase(key: SyntheticCoverageKey) {
         evidenceRefs: original.evidenceRefs.map((ref) =>
           ref.sourceKind === "github_issue" ? missing : ref),
       };
+      requiredFacts = requiredFacts.map((fact) => ({
+        ...fact,
+        requiredEvidenceReferenceIds: fact.factId === "official-status"
+          ? fact.requiredEvidenceReferenceIds
+          : [evidenceReferenceId("github_issue", "issue-synthetic-missing")],
+      }));
       expectedValidity = "invalid";
       expectedChecks = { ...pass, evidenceValidity: "fail", timeRange: "blocked" };
       break;
@@ -289,6 +329,20 @@ function buildCase(key: SyntheticCoverageKey) {
       };
       rewrite(original);
       brief = original;
+      requiredFacts = requiredFacts.map((fact) => ({
+        ...fact,
+        requiredEvidenceReferenceIds: fact.factId === "official-status"
+          ? [evidenceReferenceId(
+              "project_profile",
+              "profile-synthetic-01",
+              otherProjectId,
+            )]
+          : [evidenceReferenceId(
+              "github_issue",
+              "issue-synthetic-42",
+              otherProjectId,
+            )],
+      }));
       expectedValidity = "invalid";
       expectedChecks = { ...pass, evidenceValidity: "fail", timeRange: "blocked" };
       break;
@@ -323,6 +377,12 @@ function buildCase(key: SyntheticCoverageKey) {
         assertionId: "must-ship-immediately",
         match: { kind: "exact_normalized", value: text },
       }];
+      requiredFacts = requiredFacts.map((fact) => fact.location === "summary"
+        ? {
+            ...fact,
+            contentMatch: { kind: "exact_normalized", value: text },
+          }
+        : fact);
       expectedValidity = "invalid";
       expectedChecks = { ...pass, forbiddenAssertions: "fail" };
       break;
@@ -342,6 +402,12 @@ function buildCase(key: SyntheticCoverageKey) {
         }],
       };
       expectedUnknowns = [{ unknownId: "unknown-release-owner", text }];
+      requiredFacts = requiredFacts.map((fact) => fact.location === "summary"
+        ? {
+            ...fact,
+            contentMatch: { kind: "exact_normalized", value: text },
+          }
+        : fact);
       expectedValidity = "invalid";
       expectedChecks = { ...pass, unknownHandling: "fail" };
       break;
@@ -354,6 +420,13 @@ function buildCase(key: SyntheticCoverageKey) {
         ...original,
         completedChanges: [{ ...original.completedChanges[0]!, text: "TODO" }],
       };
+      requiredFacts = requiredFacts.map((fact) =>
+        fact.location === "completedChanges:completed-navigation"
+          ? {
+              ...fact,
+              contentMatch: { kind: "exact_normalized", value: "TODO" },
+            }
+          : fact);
       expectedValidity = "invalid";
       expectedChecks = { ...pass, readabilityAutomatic: "fail" };
       break;

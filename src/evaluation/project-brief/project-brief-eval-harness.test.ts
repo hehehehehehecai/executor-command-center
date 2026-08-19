@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { NodeProjectBriefEvidenceFingerprint } from "@/infrastructure/project-brief-evidence/node-project-brief-evidence-fingerprint";
+import { parseProjectBrief } from "@/domain/project-brief/project-brief-schema";
 
 import {
   parseProjectBriefEvalCase,
@@ -9,6 +10,7 @@ import {
 } from "./project-brief-eval-contracts";
 import {
   evaluateProjectBriefDataset,
+  evaluateProjectBriefRequiredFacts,
   type ProjectBriefEvalReviewVerifier,
 } from "./project-brief-eval-harness";
 import {
@@ -134,6 +136,92 @@ describe("Project Brief Eval harness", () => {
     }
   });
 
+  it("rejects an unrelated fact value at the frozen location", async () => {
+    const manifest = structuredClone(await loadSyntheticProjectBriefEvalManifest());
+    const brief = parseProjectBrief(manifest.cases[0]!.candidateBrief);
+    manifest.cases[0]!.candidateBrief = {
+      ...brief,
+      completedChanges: [{
+        ...brief.completedChanges[0]!,
+        text: "A completely unrelated synthetic statement.",
+      }],
+    };
+    const result = await evaluateProjectBriefDataset(manifest, {
+      fingerprint: new NodeProjectBriefEvidenceFingerprint(),
+    });
+    expect(result.cases[0]?.checks.requiredFacts).toEqual({
+      status: "fail",
+      reasonCode: "required_fact_content_mismatch",
+    });
+  });
+
+  it("rejects a fact whose own Evidence does not contain the frozen required reference", async () => {
+    const manifest = structuredClone(await loadSyntheticProjectBriefEvalManifest());
+    const brief = parseProjectBrief(manifest.cases[0]!.candidateBrief);
+    manifest.cases[0]!.candidateBrief = {
+      ...brief,
+      completedChanges: [{
+        ...brief.completedChanges[0]!,
+        evidenceRefs: brief.ongoingWork[0]!.evidenceRefs,
+      }],
+    };
+    const result = await evaluateProjectBriefDataset(manifest, {
+      fingerprint: new NodeProjectBriefEvidenceFingerprint(),
+    });
+    expect(result.cases[0]?.checks.requiredFacts).toEqual({
+      status: "fail",
+      reasonCode: "required_fact_evidence_mismatch",
+    });
+  });
+
+  it("distinguishes a fact with no Evidence from a wrong Evidence subset", async () => {
+    const manifest = await loadSyntheticProjectBriefEvalManifest();
+    const brief = parseProjectBrief(manifest.cases[0]!.candidateBrief);
+    const withoutEvidence = {
+      ...brief,
+      completedChanges: [{
+        ...brief.completedChanges[0]!,
+        evidenceRefs: [],
+      }],
+    };
+    expect(evaluateProjectBriefRequiredFacts(
+      withoutEvidence,
+      manifest.cases[0]!.requiredFacts,
+    )).toEqual({
+      status: "fail",
+      reasonCode: "required_fact_evidence_missing",
+    });
+  });
+
+  it("keeps required-fact failure priority stable across requirement order", async () => {
+    const manifest = await loadSyntheticProjectBriefEvalManifest();
+    const brief = parseProjectBrief(manifest.cases[0]!.candidateBrief);
+    const contentMismatch = {
+      ...manifest.cases[0]!.requiredFacts[2]!,
+      contentMatch: {
+        kind: "exact_normalized" as const,
+        value: "An unrelated expected value.",
+      },
+    };
+    const missing = {
+      ...manifest.cases[0]!.requiredFacts[2]!,
+      factId: "missing-required-fact",
+      location: "completedChanges:missing-required-fact",
+    };
+    const expected = {
+      status: "fail" as const,
+      reasonCode: "required_fact_missing",
+    };
+    expect(evaluateProjectBriefRequiredFacts(
+      brief,
+      [contentMismatch, missing],
+    )).toEqual(expected);
+    expect(evaluateProjectBriefRequiredFacts(
+      brief,
+      [missing, contentMismatch],
+    )).toEqual(expected);
+  });
+
   it("blocks the dataset when historical and human readability gates are unmet", async () => {
     const result = await evaluateProjectBriefDataset(
       await loadSyntheticProjectBriefEvalManifest(),
@@ -183,6 +271,15 @@ describe("Project Brief Eval harness", () => {
     mutated.cases[0]!.requiredFacts.push({
       factId: "unrecorded-release",
       location: "completedChanges:unrecorded-release",
+      contentMatch: {
+        kind: "exact_normalized",
+        value: "The unrecorded release exists.",
+      },
+      requiredEvidenceReferenceIds: [JSON.stringify([
+        "github_issue",
+        "issue-synthetic-42",
+        "92000000-0000-4000-8000-000000000002",
+      ])],
     });
     const result = await evaluateProjectBriefDataset(mutated, {
       fingerprint: new NodeProjectBriefEvidenceFingerprint(),
