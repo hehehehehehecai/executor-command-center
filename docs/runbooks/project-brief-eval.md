@@ -4,12 +4,13 @@
 
 该 Harness 以离线、确定性方式检查 Project Brief 的合同行为。它复用生产 `parseProjectBrief` 与 Phase 6 `ValidateProjectBriefEvidenceUseCase`，不会调用 AI Provider、联网、读取真实密钥或连接远端数据库。
 
-当前数据集只有 10 个全新 `synthetic_contract` Case。仓库审计没有发现同时具备脱敏声明、确认人、确认时间、确认范围和不可变源指纹的历史资产，因此：
+当前 v2 数据集冻结为 14 个 Case：10 个 `synthetic_contract` 与 4 个 `human_confirmed_historical`。四个历史 Case 来自仓库内精确字节副本；每个副本都绑定只读来源 Markdown 的 SHA-256、独立静态 receipt 锚点和确定性转换 lineage。
 
-- `human_confirmed_historical = 0`；
-- `pending_human_confirmation = 0`，因为没有足够证据可把现有 fixture 宣称为候选历史事实；
+- `human_confirmed_historical = 4`；
+- `pending_human_confirmation = 0`；
 - `releaseGate = blocked`；
-- 当前结果只能证明合同与检查器行为，不能称为真实模型质量、overall accuracy 或 real-world accuracy。
+- 当前阻塞不是人工确认缺失，而是探索者号历史原件中一条 `Ongoing Work` 事实没有可见 Evidence ID，且其时间范围起点明确写为“精确 UTC 时间待确认”。
+- 当前结果只能证明合同、历史原件转换和检查器行为，不能称为真实模型质量、overall accuracy 或 real-world accuracy。
 
 ## 固定合同
 
@@ -20,6 +21,19 @@
 - Schema：`project-brief-schema-v1`
 
 每个纳入 Case 都运行七项检查：Schema、Evidence Validity、时间范围、必需事实、禁止断言、Unknown 处理、人工可读性。人工可读性由“自动结构代理”和“人工确认”两部分组成；自动代理通过不能替代人工确认。
+
+v1 acceptance set 保持不变。历史 Markdown 不能诚实伪装为 Phase 3 生产 `EvidenceSnapshot`，因此 v2 采用隔离合同：
+
+- Dataset profile：`project-brief-eval-dataset.v2`
+- Case profile：`project-brief-eval-case-profile.v2`（冻结 14 项 `caseId + contractVersion + contentFingerprint`）
+- Historical Artifact：`project-brief-eval-historical-brief-artifact.v1`
+- Historical Conversion：`project-brief-eval-historical-brief-conversion.v1`
+- Historical Case：`project-brief-eval-case.v2`
+- Manifest：`project-brief-eval-manifest.v2`
+- Result：`project-brief-eval-result.v2`
+- Mapping：`project-brief-historical-mapping.v1`
+
+v2 的 `historical_brief_artifact` 只能证明：冻结原件字节未变、receipt 与静态可信锚点一致、所有 H2 区块及事实/Unknown 投影可重复、可见 Evidence ID 能在原件 Evidence 表中定位。它不能证明底层生产 Snapshot、Snapshot 生成后的实时授权、生产 Freshness、数据库记录或 Evidence 所陈述事实的现实正确性。
 
 ### 必需事实语义
 
@@ -53,18 +67,24 @@ pnpm run test -- src/evaluation/project-brief
 6. 运行方从可信边界注入 `ProjectBriefEvalReviewVerifier` 并验证确认人/凭证；Manifest 作者自填的字段不构成信任；
 7. Case 内容 fingerprint 与 Manifest dataset fingerprint 重新计算一致。
 
-合成 Case 若要通过人工可读性门禁，也必须携带绑定同一 subject fingerprint 的 review receipt，并由同一可信 verifier 复核。当前仓库没有此类凭证，所以本批 10 个合成 Case 的人工可读性状态保持 `blocked`。
+v2 对纯合成 Case 只执行 `readability_proxy`。阶段计划要求检查合成 Case 的可读性代理，但没有要求为每个合成测试 fixture 建立独立人工 receipt；因此 synthetic 的 `human_readability_confirmation` 为 `not_applicable`。占位符、重复、空内容、超长或区块缺失仍会让代理检查失败，不能通过把人工项设为不适用来绕过。
+
+历史 Case 必须具备与原 Brief subject/source fingerprint 绑定的人工 receipt，并通过静态 registry 逐字段复核。receipt 不签署转换后的 Case fingerprint；转换器只生成 `conversionAttestation`，记录输入文档 SHA、receipt fingerprint、映射版本和输出 Case fingerprint。该 attestation 只证明可重复转换，不是人工签名。
+
+四份原件中的早期正文仍保留“待转换”“pending integration”等历史状态文本。后置人工 receipt 只覆盖 Eval 纳入、来源与脱敏、可读性和 expected outcomes，不会改写这些历史正文，也不会把其中的 Unknown 升级为事实。
 
 缺任一字段时不得纳入发布分母。Preview fixture、普通单元测试 fixture、Git 历史文件和模型生成内容不能自动升级为人工确认历史 Case。
 
 ## 发布门禁
 
+- v2 成员集合精确冻结为 14 个 Case ID；删除、替换或重排后即使重算计数和 fingerprint 也会被拒绝；
 - 任一 Case 的观察结果偏离冻结预期，或 Case/Dataset fingerprint 不匹配：`failed`；
 - 纳入总数不在 12–15、合成数不在 8–10、人工确认历史数少于 4、或可读性未人工确认：`blocked`；
 - 只有硬检查、人工确认与数量门槛全部满足才可为 `passed`。
 
 当前稳定阻塞原因是：
 
-1. `included_case_total_out_of_range`；
-2. `human_confirmed_historical_below_minimum`；
-3. `readability_human_confirmation_missing`。
+1. `historical_evidence_boundary_unresolved`：探索者号 `Ongoing Work` 第 3 条没有 Evidence ID；
+2. 同一历史 Case 的时间范围起点仍为 `historical_time_range_unresolved`。
+
+这两个 blocker 都是该 Case 的冻结预期，因此 14/14 Case 的观察结果与 expected checks 一致；`expectedOutcomesMatched = 14` 不代表发布通过。硬检查仍未全部通过，`releaseGate` 必须保持 `blocked`。
