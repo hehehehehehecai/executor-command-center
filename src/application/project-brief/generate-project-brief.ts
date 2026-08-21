@@ -415,6 +415,7 @@ export class GenerateProjectBriefUseCase {
     } catch {
       return this.failAndThrow(
         reservationId,
+        artifact.fingerprint,
         "provider",
         "project_brief_provider_failure",
         null,
@@ -425,6 +426,7 @@ export class GenerateProjectBriefUseCase {
       const failure = providerFailure(result);
       return this.failAndThrow(
         reservationId,
+        artifact.fingerprint,
         "provider",
         failure.code,
         failure.metadata,
@@ -440,6 +442,7 @@ export class GenerateProjectBriefUseCase {
         : "project_brief_schema_validation_failed";
       return this.failAndThrow(
         reservationId,
+        artifact.fingerprint,
         "schema_validation",
         code,
         result.metadata,
@@ -448,6 +451,7 @@ export class GenerateProjectBriefUseCase {
     if (!briefMatchesArtifact(brief, input, artifact)) {
       return this.failAndThrow(
         reservationId,
+        artifact.fingerprint,
         "schema_validation",
         "project_brief_schema_validation_failed",
         result.metadata,
@@ -463,6 +467,7 @@ export class GenerateProjectBriefUseCase {
     } catch {
       return this.failAndThrow(
         reservationId,
+        artifact.fingerprint,
         "evidence_validation",
         "project_brief_evidence_validation_failed",
         result.metadata,
@@ -499,6 +504,7 @@ export class GenerateProjectBriefUseCase {
       }
       return this.failAndThrow(
         reservationId,
+        artifact.fingerprint,
         energyConsume ? "energy_consume" : "persistence",
         energyConsume
           ? "project_brief_energy_consume_failed"
@@ -510,6 +516,7 @@ export class GenerateProjectBriefUseCase {
 
   private async failAndThrow(
     reservationId: string,
+    evidenceFingerprint: string,
     stage: ProjectBriefGenerationFailureStage,
     code: ProjectBriefGenerationFailureCode,
     metadata: StructuredGenerationMetadata | null,
@@ -517,6 +524,7 @@ export class GenerateProjectBriefUseCase {
     try {
       await this.dependencies.persistence.fail({
         reservationId,
+        evidenceFingerprint,
         failureStage: stage,
         errorCode: code,
         metadata: metadata ?? createStructuredGenerationMetadata(),

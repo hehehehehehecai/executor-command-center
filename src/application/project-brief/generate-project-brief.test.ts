@@ -352,6 +352,7 @@ describe("GenerateProjectBriefUseCase", () => {
     });
     expect(h.persistence.fail).toHaveBeenCalledWith(expect.objectContaining({
       reservationId,
+      evidenceFingerprint: "a".repeat(64),
       failureStage: "provider",
       errorCode: code,
     }));

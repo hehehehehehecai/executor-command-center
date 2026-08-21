@@ -139,7 +139,7 @@ select throws_ok(
     $$select public.finalize_project_brief_generation(
       null, null, '2026-08-01T00:00:00Z', '2026-08-18T00:00:00Z',
       'project-brief-v1', 'project-brief-schema-v1', %L,
-      public.test_phase7_payload(%L::uuid, %L), '2026-08-20T00:00:00Z',
+      public.test_phase7_payload(%L::uuid, %L), pg_catalog.clock_timestamp() + interval '1 day',
       'synthetic', 'fixture-v1', 'request-unauthenticated', 1, 1, 1
     )$$,
     repeat('a', 64), current_setting('test.phase7_project_a'), repeat('a', 64)
@@ -172,7 +172,7 @@ select throws_ok(
       '2026-08-01T00:00:00Z', '2026-08-18T00:00:00Z',
       'project-brief-v1', 'project-brief-schema-v1', %L,
       '{"schemaVersion":"project-brief-schema-v1"}'::jsonb,
-      '2026-08-20T00:00:00Z', null, null, null, null, null, null
+      pg_catalog.clock_timestamp() + interval '1 day', null, null, null, null, null, null
     )$$,
     current_setting('test.phase7_success_reservation'), repeat('a', 64)
   ),
@@ -188,7 +188,7 @@ select results_eq(
         'd9000000-0000-4000-8000-000000000001', %L::uuid,
         '2026-08-01T00:00:00Z', '2026-08-18T00:00:00Z',
         'project-brief-v1', 'project-brief-schema-v1', %L,
-        public.test_phase7_payload(%L::uuid, %L), '2026-08-20T00:00:00Z',
+        public.test_phase7_payload(%L::uuid, %L), pg_catalog.clock_timestamp() + interval '1 day',
         'synthetic', 'fixture-v1', 'request-success', 10, 20, 30
       ) result
     ) finalized$$,
@@ -221,7 +221,7 @@ select results_eq(
         'd9000000-0000-4000-8000-000000000001', %L::uuid,
         '2026-08-01T00:00:00Z', '2026-08-18T00:00:00Z',
         'project-brief-v1', 'project-brief-schema-v1', %L,
-        public.test_phase7_payload(%L::uuid, %L), '2026-08-20T00:00:00Z',
+        public.test_phase7_payload(%L::uuid, %L), pg_catalog.clock_timestamp() + interval '1 day',
         'synthetic', 'fixture-v1', 'request-success', 10, 20, 30
       ) result
     ) replayed$$,
@@ -339,7 +339,7 @@ select throws_ok(
       'd9000000-0000-4000-8000-000000000001', %L::uuid,
       '2026-08-01T00:00:00Z', '2026-08-18T00:00:00Z',
       'project-brief-v1', 'project-brief-schema-v1', %L,
-      public.test_phase7_payload(%L::uuid, %L), '2026-08-20T00:00:00Z',
+      public.test_phase7_payload(%L::uuid, %L), pg_catalog.clock_timestamp() + interval '1 day',
       'synthetic', 'fixture-v1', 'request-rollback', 10, 20, 30
     )$$,
     current_setting('test.phase7_rollback_reservation'), repeat('c', 64),

@@ -119,6 +119,7 @@ describe("SupabaseProjectBriefGenerationPersistence", () => {
     });
     await expect(persistence.fail({
       reservationId,
+      evidenceFingerprint: brief.evidenceFingerprint,
       failureStage: "provider",
       errorCode: "project_brief_provider_failure",
       metadata: createStructuredGenerationMetadata({ provider: "synthetic" }),
@@ -131,6 +132,7 @@ describe("SupabaseProjectBriefGenerationPersistence", () => {
       p_provider: "synthetic",
       p_model: null,
       p_request_id: null,
+      p_input_fingerprint: brief.evidenceFingerprint,
       p_input_tokens: null,
       p_output_tokens: null,
       p_latency_ms: null,

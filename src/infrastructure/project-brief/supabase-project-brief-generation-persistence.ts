@@ -206,6 +206,7 @@ implements ProjectBriefGenerationPersistence {
       p_provider: input.metadata?.provider ?? null,
       p_model: input.metadata?.model ?? null,
       p_request_id: input.metadata?.requestId ?? null,
+      p_input_fingerprint: input.evidenceFingerprint,
       p_input_tokens: input.metadata?.inputTokens ?? null,
       p_output_tokens: input.metadata?.outputTokens ?? null,
       p_latency_ms: input.metadata?.latencyMs ?? null,

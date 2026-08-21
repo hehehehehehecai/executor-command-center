@@ -50,6 +50,7 @@ export interface FinalizeProjectBriefGenerationInput {
 
 export interface FailProjectBriefGenerationInput {
   readonly reservationId: string;
+  readonly evidenceFingerprint: string;
   readonly failureStage: ProjectBriefGenerationFailureStage;
   readonly errorCode: ProjectBriefGenerationFailureCode;
   readonly metadata: StructuredGenerationMetadata | null;

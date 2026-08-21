@@ -95,7 +95,7 @@ begin
     '2026-08-01T00:00:00Z', '2026-08-18T00:00:00Z',
     'project-brief-v1', 'project-brief-schema-v1', repeat('d', 64),
     public.test_phase7_concurrent_payload(p_project_id),
-    '2026-08-20T00:00:00Z', 'synthetic', 'fixture-v1',
+    pg_catalog.clock_timestamp() + interval '1 day', 'synthetic', 'fixture-v1',
     'request-concurrent', 10, 20, 30
   );
   perform pg_catalog.pg_sleep(p_delay_seconds);
@@ -155,7 +155,7 @@ select is(
           '2026-08-01T00:00:00Z', '2026-08-18T00:00:00Z',
           'project-brief-v1', 'project-brief-schema-v1', %L,
           public.test_phase7_concurrent_payload(%L::uuid),
-          '2026-08-20T00:00:00Z', 'synthetic', 'fixture-v1',
+          pg_catalog.clock_timestamp() + interval '1 day', 'synthetic', 'fixture-v1',
           'request-concurrent', 10, 20, 30
         )
         from (select set_config(

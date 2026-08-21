@@ -51,8 +51,8 @@ select function_privs_are(
   'public', 'fail_project_brief_generation',
   array['uuid', 'uuid', 'text', 'text', 'text', 'text', 'text',
         'integer', 'integer', 'integer'],
-  'service_role', array['EXECUTE'],
-  'only the trusted server role receives the failure finalization RPC grant'
+  'service_role', array[]::text[],
+  'the legacy failure RPC without an Evidence fingerprint is disabled'
 );
 select function_privs_are(
   'public', 'finalize_project_brief_generation',
