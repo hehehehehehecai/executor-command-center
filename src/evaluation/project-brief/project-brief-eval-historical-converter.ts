@@ -4,11 +4,22 @@ import { readFile } from "node:fs/promises";
 import {
   historicalBriefArtifactContractVersion,
   historicalBriefConversionContractVersion,
+  historicalBriefConversionV2ContractVersion,
   historicalBriefEvalCaseContractVersion,
+  historicalBriefEvalCaseV3ContractVersion,
   historicalBriefMappingVersion,
+  historicalBriefMappingV2Version,
+  historicalBriefProjectionV2ContractVersion,
+  historicalBriefStatementClassificationVersion,
+  historicalBriefTimePrecisionVersion,
   parseHistoricalBriefEvalCase,
+  parseHistoricalBriefEvalCaseV3,
+  historicalBriefTimeRangeSchema,
   type HistoricalBriefEvalCase,
+  type HistoricalBriefEvalCaseV3,
+  type HistoricalBriefProjectionV2,
   type HistoricalBriefReceipt,
+  type HistoricalBriefTimeRange,
 } from "./project-brief-eval-historical-contracts";
 import {
   getTrustedHistoricalBriefSource,
@@ -136,6 +147,125 @@ function listItems(content: string): string[] {
   return items;
 }
 
+type SpannedItem = {
+  readonly text: string;
+  readonly startLine: number;
+  readonly endLine: number;
+};
+
+function listItemsWithSpans(content: string): SpannedItem[] {
+  const items: SpannedItem[] = [];
+  let current: { text: string[]; startLine: number; endLine: number } | null = null;
+  const lines = content.split("\n");
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index]!;
+    const lineNumber = index + 1;
+    if (/^- /.test(line)) {
+      if (current !== null) {
+        items.push({
+          text: current.text.join("\n").trim(),
+          startLine: current.startLine,
+          endLine: current.endLine,
+        });
+      }
+      current = { text: [line.slice(2).trim()], startLine: lineNumber, endLine: lineNumber };
+    } else if (current !== null && line.trim().length > 0 && !line.startsWith("### ")) {
+      current.text.push(line.trim());
+      current.endLine = lineNumber;
+    }
+  }
+  if (current !== null) {
+    items.push({
+      text: current.text.join("\n").trim(),
+      startLine: current.startLine,
+      endLine: current.endLine,
+    });
+  }
+  return items;
+}
+
+export function normalizeHistoricalStatementText(value: string): string {
+  return value.normalize("NFC").replace(/\r\n?/g, "\n").replace(/\s+/g, " ").trim();
+}
+
+export function classifyHistoricalStatement(input: {
+  readonly sourceSection: string;
+  readonly text: string;
+}): "project_fact" | "workflow_note" | "unknown" {
+  if (input.sourceSection === "Unknowns") return "unknown";
+  const normalized = normalizeHistoricalStatementText(input.text);
+  const refersToBriefItself = /^(?:当前这份简报|这份简报|本简报|该简报)/u.test(normalized);
+  const describesWorkflow = /(?:候选|冻结|转换|转为历史\s*Case|审核|纳入|验证流程)/iu.test(normalized);
+  return refersToBriefItself && describesWorkflow ? "workflow_note" : "project_fact";
+}
+
+function canonicalInstant(value: string): boolean {
+  return Number.isFinite(Date.parse(value))
+    && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?Z$/.test(value);
+}
+
+export function parseHistoricalTimeRange(metadata: string): HistoricalBriefTimeRange {
+  const lines = metadata.split("\n").map((line) => line.trim());
+  const rangeLine = lines.find((line) => line.startsWith("- 时间范围："));
+  if (rangeLine !== undefined) {
+    const instants = rangeLine.match(
+      /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?Z/g,
+    ) ?? [];
+    if (instants.length !== 2 || !instants.every(canonicalInstant)) {
+      throw new Error("historical_time_range_invalid");
+    }
+    const [start, end] = instants as [string, string];
+    return {
+      contractVersion: historicalBriefTimePrecisionVersion,
+      start: { precision: "instant", value: start, exactInstant: start },
+      end: { precision: "instant", value: end, exactInstant: end },
+      sourceTextHash: fingerprintEvalValue(normalizeHistoricalStatementText(rangeLine)),
+    };
+  }
+
+  const startLine = lines.find((line) => line.startsWith("- 时间范围起点："));
+  const endLine = lines.find((line) => line.startsWith("- 简报时间点："));
+  const date = startLine?.match(/\d{4}-\d{2}-\d{2}/)?.[0];
+  const end = endLine?.match(
+    /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?Z/,
+  )?.[0];
+  if (startLine === undefined || endLine === undefined || date === undefined || end === undefined
+      || !/精确\s*UTC\s*时间待确认/u.test(startLine) || !canonicalInstant(end)) {
+    throw new Error("historical_time_range_invalid");
+  }
+  const value = {
+    contractVersion: historicalBriefTimePrecisionVersion,
+    start: { precision: "date" as const, value: date, exactInstant: "unknown" as const },
+    end: { precision: "instant" as const, value: end, exactInstant: end },
+    sourceTextHash: fingerprintEvalValue(normalizeHistoricalStatementText(`${startLine}\n${endLine}`)),
+  };
+  const parsed = historicalBriefTimeRangeSchema.safeParse(value);
+  if (!parsed.success) throw new Error("historical_time_range_invalid");
+  return parsed.data;
+}
+
+export function validateHistoricalTimeRange(input: unknown): {
+  readonly status: "pass" | "fail";
+  readonly reasonCode: string;
+} {
+  const parsed = historicalBriefTimeRangeSchema.safeParse(input);
+  if (!parsed.success) {
+    return { status: "fail", reasonCode: "historical_time_range_precision_invalid" };
+  }
+  const { start, end } = parsed.data;
+  const ordered = start.precision === "instant" && end.precision === "instant"
+    ? Date.parse(start.value) < Date.parse(end.value)
+    : start.precision === "date" && end.precision === "date"
+      ? start.value <= end.value
+      : start.precision === "date"
+        ? start.value <= end.value.slice(0, 10)
+        : start.value.slice(0, 10) <= end.value;
+  if (!ordered) return { status: "fail", reasonCode: "historical_time_range_order_invalid" };
+  return start.precision === "date" || end.precision === "date"
+    ? { status: "pass", reasonCode: "historical_time_range_date_precision_preserved" }
+    : { status: "pass", reasonCode: "historical_time_range_instant_precision_preserved" };
+}
+
 function parseReceipt(
   parsed: { readonly frontmatter: Readonly<Record<string, string>>; readonly sections: readonly ParsedSection[] },
 ): HistoricalBriefReceipt {
@@ -255,6 +385,127 @@ function projectionFor(parsed: ParsedHistoricalBriefSource) {
   return { ...core, projectionFingerprint: fingerprintEvalValue(core) };
 }
 
+const historicalStatementSections = [
+  "Official Status", "Summary", "Completed Changes", "Ongoing Work",
+  "Open Items", "Risk Signals", "Unknowns",
+] as const;
+
+const statementSectionIds: Record<(typeof historicalStatementSections)[number], string> = {
+  "Official Status": "official-status",
+  Summary: "summary",
+  "Completed Changes": "completed-changes",
+  "Ongoing Work": "ongoing-work",
+  "Open Items": "open-items",
+  "Risk Signals": "risk-signals",
+  Unknowns: "unknowns",
+};
+
+function projectionV2For(parsed: ParsedHistoricalBriefSource): HistoricalBriefProjectionV2 {
+  const statements = historicalStatementSections.flatMap((heading) => {
+    const content = section(parsed, heading);
+    const items = heading === "Official Status" || heading === "Summary"
+      ? [{ text: content, startLine: 1, endLine: content.split("\n").length }]
+      : listItemsWithSpans(content);
+    return items.map(({ text, startLine, endLine }, index) => {
+      const normalizedText = normalizeHistoricalStatementText(text);
+      return {
+        statementId: `${statementSectionIds[heading]}-${String(index + 1).padStart(3, "0")}`,
+        normalizedText,
+        sourceSection: heading,
+        statementKind: classifyHistoricalStatement({ sourceSection: heading, text }),
+        evidenceIds: evidenceIds(text),
+        sourceProvenance: {
+          startLine,
+          endLine,
+          sourceTextHash: fingerprintEvalValue(normalizedText),
+        },
+      };
+    });
+  });
+  const evidenceContent = section(parsed, "Evidence Refs");
+  const evidenceCatalog = evidenceContent.split("\n")
+    .filter((line) => /^\| E-\d{3} \|/.test(line))
+    .map((line) => ({
+      evidenceId: line.split("|")[1]!.trim(),
+      rowFingerprint: fingerprintEvalValue(line.trim()),
+    }));
+  const visibleEvidenceIds = evidenceIds([
+    ...statements.map(({ normalizedText }) => normalizedText),
+    section(parsed, "Freshness"),
+    section(parsed, "Boundary Note"),
+  ].join("\n"));
+  const sections = parsed.sections.map(({ heading, content }) => ({
+    heading,
+    contentFingerprint: fingerprintEvalValue(content),
+  }));
+  const core = {
+    contractVersion: historicalBriefProjectionV2ContractVersion,
+    classificationVersion: historicalBriefStatementClassificationVersion,
+    timePrecisionVersion: historicalBriefTimePrecisionVersion,
+    sectionOrder: parsed.sections.map(({ heading }) => heading),
+    sections,
+    statements,
+    evidenceCatalog,
+    visibleEvidenceIds,
+    timeRange: parseHistoricalTimeRange(section(parsed, "简报元数据")),
+    boundaryNote: section(parsed, "Boundary Note"),
+  };
+  return { ...core, projectionFingerprint: fingerprintEvalValue(core) };
+}
+
+export function validateHistoricalStatementEvidence(
+  projection: Pick<HistoricalBriefProjectionV2, "statements" | "evidenceCatalog" | "visibleEvidenceIds">,
+): { readonly status: "pass" | "fail" | "blocked"; readonly reasonCode: string } {
+  const catalog = new Set(projection.evidenceCatalog.map(({ evidenceId }) => evidenceId));
+  if (catalog.size !== projection.evidenceCatalog.length) {
+    return { status: "fail", reasonCode: "historical_evidence_catalog_invalid" };
+  }
+  for (const statement of projection.statements) {
+    const sectionIsUnknown = statement.sourceSection === "Unknowns";
+    if ((sectionIsUnknown && statement.statementKind !== "unknown")
+        || (!sectionIsUnknown && statement.statementKind === "unknown")) {
+      return { status: "fail", reasonCode: "historical_statement_classification_invalid" };
+    }
+    if (statement.statementKind === "project_fact" && statement.evidenceIds.length === 0) {
+      return { status: "blocked", reasonCode: "historical_project_fact_evidence_unavailable" };
+    }
+    if (classifyHistoricalStatement({
+      sourceSection: statement.sourceSection,
+      text: statement.normalizedText,
+    }) !== statement.statementKind) {
+      return { status: "fail", reasonCode: "historical_statement_classification_invalid" };
+    }
+    if (normalizeHistoricalStatementText(statement.normalizedText) !== statement.normalizedText
+        || fingerprintEvalValue(statement.normalizedText)
+          !== statement.sourceProvenance.sourceTextHash
+        || statement.sourceProvenance.endLine < statement.sourceProvenance.startLine) {
+      return { status: "fail", reasonCode: "historical_statement_provenance_invalid" };
+    }
+    if (statement.evidenceIds.some((id) => !catalog.has(id))) {
+      return { status: "fail", reasonCode: "historical_statement_evidence_invalid" };
+    }
+  }
+  if (projection.visibleEvidenceIds.some((id) => !catalog.has(id))) {
+    return { status: "fail", reasonCode: "historical_visible_evidence_invalid" };
+  }
+  return { status: "pass", reasonCode: "historical_statement_evidence_valid" };
+}
+
+function assertCompleteProjectionV2(
+  caseId: string,
+  projection: HistoricalBriefProjectionV2,
+): void {
+  const trusted = getTrustedHistoricalBriefSource(caseId);
+  const statementCount = trusted.expectedFactCount + trusted.expectedUnknownCount;
+  const complete = projection.sectionOrder.join("\u0000")
+      === trusted.expectedSectionOrder.join("\u0000")
+    && projection.sections.length === trusted.expectedSectionOrder.length
+    && projection.statements.length === statementCount
+    && projection.statements.filter(({ statementKind }) => statementKind === "unknown").length
+      === trusted.expectedUnknownCount;
+  if (!complete) throw new Error("historical_brief_projection_v2_incomplete");
+}
+
 function assertCompleteProjection(caseId: string, projection: ReturnType<typeof projectionFor>): void {
   const trusted = getTrustedHistoricalBriefSource(caseId);
   const catalog = new Set(projection.evidenceCatalog.map(({ evidenceId }) => evidenceId));
@@ -335,4 +586,90 @@ export async function loadRegisteredHistoricalBriefCase(
 export async function loadRegisteredHistoricalBriefCases(): Promise<HistoricalBriefEvalCase[]> {
   return Promise.all(historicalBriefSourceRegistry.map(({ caseId }) =>
     loadRegisteredHistoricalBriefCase(caseId)));
+}
+
+const passingHistoricalChecks = {
+  schema: "pass",
+  evidenceValidity: "pass",
+  timeRange: "pass",
+  requiredFacts: "pass",
+  forbiddenAssertions: "pass",
+  unknownHandling: "pass",
+  readability: "pass",
+} as const;
+
+export async function convertHistoricalBriefSourceV3(input: {
+  readonly caseId: string;
+  readonly sourceBytes: Uint8Array;
+}): Promise<HistoricalBriefEvalCaseV3> {
+  const trusted = getTrustedHistoricalBriefSource(input.caseId);
+  const documentSha256 = exactSha256(input.sourceBytes);
+  if (documentSha256 !== trusted.documentSha256) {
+    throw new Error("historical_brief_source_fingerprint_mismatch");
+  }
+  const parsed = parseHistoricalBriefSource(input.sourceBytes);
+  verifyHistoricalBriefReceipt(input.caseId, parsed);
+  const projection = projectionV2For(parsed);
+  assertCompleteProjectionV2(input.caseId, projection);
+  const sourceArtifact = {
+    contractVersion: historicalBriefArtifactContractVersion,
+    registryVersion: historicalBriefSourceRegistryVersion,
+    sourceMode: "historical_brief_artifact" as const,
+    documentSha256,
+    sourceDocumentVersion: trusted.sourceDocumentVersion,
+    project: trusted.project,
+    documentBriefId: trusted.documentBriefId,
+    sourceBundleFingerprint: trusted.sourceBundleFingerprint,
+    sourceSubjectFingerprint: trusted.sourceSubjectFingerprint,
+  };
+  const humanConfirmationReceipt = {
+    ...trusted.receipt,
+    sourceBundleFingerprint: trusted.sourceBundleFingerprint,
+    sourceSubjectFingerprint: trusted.sourceSubjectFingerprint,
+  };
+  const caseSubject = {
+    contractVersion: historicalBriefEvalCaseV3ContractVersion,
+    caseId: trusted.caseId,
+    caseType: "human_confirmed_historical" as const,
+    title: trusted.title,
+    sourceArtifact,
+    humanConfirmationReceipt,
+    projection,
+    expectedChecks: passingHistoricalChecks,
+  };
+  const caseFingerprint = fingerprintEvalValue(caseSubject);
+  const conversionAttestation = {
+    contractVersion: historicalBriefConversionV2ContractVersion,
+    mappingVersion: historicalBriefMappingV2Version,
+    projectionContractVersion: historicalBriefProjectionV2ContractVersion,
+    classificationVersion: historicalBriefStatementClassificationVersion,
+    timePrecisionVersion: historicalBriefTimePrecisionVersion,
+    inputDocumentSha256: documentSha256,
+    inputReceiptFingerprint: fingerprintEvalValue(humanConfirmationReceipt),
+    outputCaseFingerprint: caseFingerprint,
+  };
+  const withoutContentFingerprint = {
+    ...caseSubject,
+    conversionAttestation,
+    caseFingerprint,
+  };
+  return parseHistoricalBriefEvalCaseV3({
+    ...withoutContentFingerprint,
+    contentFingerprint: fingerprintEvalValue(withoutContentFingerprint),
+  });
+}
+
+export async function loadRegisteredHistoricalBriefCaseV3(
+  caseId: string,
+): Promise<HistoricalBriefEvalCaseV3> {
+  const trusted = getTrustedHistoricalBriefSource(caseId);
+  return convertHistoricalBriefSourceV3({
+    caseId,
+    sourceBytes: await readFile(trusted.fixturePath),
+  });
+}
+
+export async function loadRegisteredHistoricalBriefCasesV3(): Promise<HistoricalBriefEvalCaseV3[]> {
+  return Promise.all(historicalBriefSourceRegistry.map(({ caseId }) =>
+    loadRegisteredHistoricalBriefCaseV3(caseId)));
 }
