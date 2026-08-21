@@ -1,6 +1,5 @@
 import "server-only";
 
-import { createHash } from "node:crypto";
 import { z } from "zod";
 
 import {
@@ -29,6 +28,7 @@ const invocationSchema = z.object({
   prompt_version: z.string().trim().min(1).max(128).nullable(),
   schema_version: z.string().trim().min(1).max(128).nullable(),
   input_fingerprint: sha256.nullable(),
+  cache_equivalence_fingerprint: sha256.nullable(),
   status: z.enum(["completed", "failed"]),
   input_tokens: z.number().int().nonnegative().nullable(),
   output_tokens: z.number().int().nonnegative().nullable(),
@@ -38,6 +38,7 @@ const invocationSchema = z.object({
   failure_stage: z.string().trim().min(1).max(128).nullable(),
   error_code: z.string().trim().min(1).max(128).nullable(),
   reservation_id: uuid.nullable(),
+  source_invocation_id: uuid.nullable(),
   brief_id: uuid.nullable(),
   provider_request_id: z.string().trim().min(1).max(255).nullable(),
   created_at: z.string(),
@@ -51,13 +52,17 @@ const reservationSchema = z.object({
 const briefSchema = z.object({
   range_start: z.string(),
   range_end: z.string(),
+  evidence_fingerprint: sha256,
+  cache_equivalence_fingerprint: sha256,
 }).strict();
 
 const invocationColumns = [
   "id", "user_id", "project_id", "feature", "provider", "model",
   "prompt_version", "schema_version", "input_fingerprint", "status",
+  "cache_equivalence_fingerprint",
   "input_tokens", "output_tokens", "latency_ms", "cost_microunits",
   "cache_status", "failure_stage", "error_code", "reservation_id", "brief_id",
+  "source_invocation_id",
   "provider_request_id", "created_at", "started_at", "completed_at",
 ].join(",");
 
@@ -74,21 +79,6 @@ async function execute(query: FilterQuery): Promise<unknown> {
   }
   if (result.error) throw storageFailure(result.error);
   return result.data;
-}
-
-function cacheKeyFingerprint(input: {
-  readonly userId: string;
-  readonly projectId: string;
-  readonly rangeStart: string;
-  readonly rangeEnd: string;
-  readonly promptVersion: string;
-  readonly schemaVersion: string;
-  readonly evidenceFingerprint: string;
-}): string {
-  return createHash("sha256").update(JSON.stringify([
-    input.userId, input.projectId, input.rangeStart, input.rangeEnd,
-    input.promptVersion, input.schemaVersion, input.evidenceFingerprint,
-  ])).digest("hex");
 }
 
 export class SupabaseProjectBriefObservationReader {
@@ -108,20 +98,25 @@ export class SupabaseProjectBriefObservationReader {
     const parsedInvocation = invocationSchema.safeParse(invocationData);
     if (!parsedInvocation.success) throw new Error("project_brief_ai_observation_invalid");
     const row = parsedInvocation.data;
-    if (row.reservation_id === null) throw new Error("project_brief_ai_observation_invalid");
-
-    const reservationData = await execute(this.client.from("energy_reservations")
-      .select("amount,status")
-      .eq("id", row.reservation_id)
-      .eq("user_id", input.userId)
-      .eq("project_id", input.projectId));
-    const reservation = reservationSchema.safeParse(reservationData);
-    if (!reservation.success) throw new Error("project_brief_ai_observation_invalid");
+    if ((row.reservation_id === null) === (row.source_invocation_id === null)) {
+      throw new Error("project_brief_ai_observation_invalid");
+    }
+    let reservation: z.infer<typeof reservationSchema> | null = null;
+    if (row.reservation_id !== null) {
+      const reservationData = await execute(this.client.from("energy_reservations")
+        .select("amount,status")
+        .eq("id", row.reservation_id)
+        .eq("user_id", input.userId)
+        .eq("project_id", input.projectId));
+      const parsedReservation = reservationSchema.safeParse(reservationData);
+      if (!parsedReservation.success) throw new Error("project_brief_ai_observation_invalid");
+      reservation = parsedReservation.data;
+    }
 
     let brief: z.infer<typeof briefSchema> | null = null;
     if (row.brief_id !== null) {
       const briefData = await execute(this.client.from("project_briefs")
-        .select("range_start,range_end")
+        .select("range_start,range_end,evidence_fingerprint,cache_equivalence_fingerprint")
         .eq("id", row.brief_id)
         .eq("user_id", input.userId)
         .eq("project_id", input.projectId));
@@ -131,18 +126,8 @@ export class SupabaseProjectBriefObservationReader {
     }
 
     const fingerprint = brief !== null
-      && row.prompt_version !== null
-      && row.schema_version !== null
-      && row.input_fingerprint !== null
-      ? cacheKeyFingerprint({
-          userId: row.user_id,
-          projectId: row.project_id,
-          rangeStart: brief.range_start,
-          rangeEnd: brief.range_end,
-          promptVersion: row.prompt_version,
-          schemaVersion: row.schema_version,
-          evidenceFingerprint: row.input_fingerprint,
-        })
+      && row.cache_equivalence_fingerprint === brief.cache_equivalence_fingerprint
+      ? row.cache_equivalence_fingerprint
       : null;
 
     return createProjectBriefAiObservation({
@@ -156,6 +141,7 @@ export class SupabaseProjectBriefObservationReader {
         promptVersion: row.prompt_version,
         schemaVersion: row.schema_version,
         inputFingerprint: row.input_fingerprint,
+        cacheEquivalenceFingerprint: row.cache_equivalence_fingerprint,
         status: row.status,
         inputTokens: row.input_tokens,
         outputTokens: row.output_tokens,
@@ -165,16 +151,18 @@ export class SupabaseProjectBriefObservationReader {
         failureStage: row.failure_stage,
         errorCode: row.error_code,
         reservationId: row.reservation_id,
+        sourceInvocationId: row.source_invocation_id,
         briefId: row.brief_id,
         providerRequestId: row.provider_request_id,
         createdAt: row.created_at,
         startedAt: row.started_at,
         completedAt: row.completed_at,
       },
-      reservation: reservation.data,
+      reservation,
       brief: brief === null ? null : {
         rangeStart: brief.range_start,
         rangeEnd: brief.range_end,
+        evidenceFingerprint: brief.evidence_fingerprint,
       },
       cacheKeyFingerprint: fingerprint,
     });

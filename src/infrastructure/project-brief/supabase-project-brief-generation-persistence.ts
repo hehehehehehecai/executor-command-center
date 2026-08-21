@@ -1,5 +1,7 @@
 import "server-only";
 
+import { createHash } from "node:crypto";
+
 import type {
   DurableCompletedProjectBriefGeneration,
   DurableFailedProjectBriefGeneration,
@@ -8,12 +10,15 @@ import type {
   FailProjectBriefGenerationInput,
   FinalizeProjectBriefGenerationInput,
   ProjectBriefGenerationPersistence,
+  RecordProjectBriefCacheHitInput,
+  RecordedProjectBriefCacheHit,
 } from "@/application/project-brief/project-brief-generation-ports";
 import {
   projectBriefGenerationFailureCodes,
   projectBriefGenerationFailureStages,
 } from "@/application/project-brief/generate-project-brief";
 import { parseProjectBrief } from "@/domain/project-brief/project-brief-schema";
+import { canonicalizeEvidenceValue } from "@/domain/project-brief-evidence/canonicalization";
 import { z } from "zod";
 
 type RpcResult = { readonly data: unknown; readonly error: unknown };
@@ -48,6 +53,14 @@ const inProgressSchema = z.object({
   status: z.literal("in_progress"),
   outcome: z.literal("reserved"),
   reservation_id: z.string().uuid(),
+}).strict();
+
+const cacheHitSchema = z.object({
+  status: z.literal("completed"),
+  outcome: z.literal("cache_hit"),
+  brief_id: z.string().uuid(),
+  invocation_id: z.string().uuid(),
+  source_invocation_id: z.string().uuid(),
 }).strict();
 
 const outcomeSchema = z.discriminatedUnion("status", [
@@ -178,6 +191,9 @@ implements ProjectBriefGenerationPersistence {
       p_prompt_version: input.promptVersion,
       p_schema_version: input.schemaVersion,
       p_evidence_fingerprint: input.evidenceFingerprint,
+      p_cache_equivalence_fingerprint: input.cacheEquivalenceFingerprint,
+      p_payload_fingerprint: createHash("sha256")
+        .update(canonicalizeEvidenceValue(input.brief)).digest("hex"),
       p_payload: input.brief,
       p_expires_at: input.expiresAt,
       p_provider: input.metadata.provider,
@@ -207,6 +223,7 @@ implements ProjectBriefGenerationPersistence {
       p_model: input.metadata?.model ?? null,
       p_request_id: input.metadata?.requestId ?? null,
       p_input_fingerprint: input.evidenceFingerprint,
+      p_cache_equivalence_fingerprint: input.cacheEquivalenceFingerprint,
       p_input_tokens: input.metadata?.inputTokens ?? null,
       p_output_tokens: input.metadata?.outputTokens ?? null,
       p_latency_ms: input.metadata?.latencyMs ?? null,
@@ -214,6 +231,33 @@ implements ProjectBriefGenerationPersistence {
     );
     if (outcome.status !== "failed") throw storageFailure();
     return outcome;
+  }
+
+  async recordCacheHit(
+    input: RecordProjectBriefCacheHitInput,
+  ): Promise<RecordedProjectBriefCacheHit> {
+    let result: RpcResult;
+    try {
+      result = await this.clients.trustedRpc.rpc("record_project_brief_cache_hit", {
+        p_actor_user_id: this.clients.actorUserId,
+        p_brief_id: input.briefId,
+        p_current_evidence_fingerprint: input.currentEvidenceFingerprint,
+        p_cache_equivalence_fingerprint: input.cacheEquivalenceFingerprint,
+        p_observed_at: input.observedAt,
+      });
+    } catch (error) {
+      throw storageFailure(error);
+    }
+    if (result.error) throw storageFailure(result.error);
+    const parsed = cacheHitSchema.safeParse(result.data);
+    if (!parsed.success) throw storageFailure(parsed.error);
+    return {
+      status: "completed",
+      outcome: "cache_hit",
+      briefId: parsed.data.brief_id,
+      invocationId: parsed.data.invocation_id,
+      sourceInvocationId: parsed.data.source_invocation_id,
+    };
   }
 
   private readOutcome(

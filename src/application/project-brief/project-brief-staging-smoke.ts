@@ -99,10 +99,19 @@ export class ProjectBriefStagingSmokeRunner {
     if (
       replay.status !== "cache_hit"
       || replay.energyCharged !== 0
-      || replay.invocationId !== null
+      || replay.invocationId === null
       || replay.briefId !== cold.briefId
       || replay.evidenceFingerprint !== cold.evidenceFingerprint
     ) throw new Error("project_brief_staging_smoke_cache_replay_invalid");
+    const replayObservation = await this.dependencies.readObservation(replay.invocationId);
+    if (
+      replayObservation.terminalStatus !== "completed"
+      || replayObservation.cacheStatus !== "hit"
+      || replayObservation.quotaCharge !== 0
+      || replayObservation.providerAttempted
+      || replayObservation.failureStage !== null
+      || replayObservation.evidenceFingerprint !== cold.evidenceFingerprint
+    ) throw new Error("project_brief_staging_smoke_observation_invalid");
 
     return {
       contractVersion: projectBriefStagingSmokeContractVersion,

@@ -15,6 +15,7 @@ export interface ProjectBriefCacheKey {
   readonly promptVersion: string;
   readonly schemaVersion: string;
   readonly evidenceFingerprint: string;
+  readonly cacheEquivalenceFingerprint: string;
   readonly now: string;
 }
 
@@ -27,6 +28,8 @@ export interface ProjectBriefCacheRecord {
   readonly promptVersion: string | null;
   readonly schemaVersion: string | null;
   readonly evidenceFingerprint: string | null;
+  readonly cacheEquivalenceFingerprint: string | null;
+  readonly payloadFingerprint: string | null;
   readonly status: "pending" | "completed" | "failed";
   readonly payload: unknown;
   readonly expiresAt: string | null;
@@ -43,6 +46,7 @@ export interface FinalizeProjectBriefGenerationInput {
   readonly promptVersion: string;
   readonly schemaVersion: string;
   readonly evidenceFingerprint: string;
+  readonly cacheEquivalenceFingerprint: string;
   readonly brief: ProjectBrief;
   readonly expiresAt: string;
   readonly metadata: StructuredGenerationMetadata;
@@ -51,6 +55,7 @@ export interface FinalizeProjectBriefGenerationInput {
 export interface FailProjectBriefGenerationInput {
   readonly reservationId: string;
   readonly evidenceFingerprint: string;
+  readonly cacheEquivalenceFingerprint: string;
   readonly failureStage: ProjectBriefGenerationFailureStage;
   readonly errorCode: ProjectBriefGenerationFailureCode;
   readonly metadata: StructuredGenerationMetadata | null;
@@ -79,6 +84,21 @@ export interface DurableInProgressProjectBriefGeneration {
   readonly reservationId: string;
 }
 
+export interface RecordProjectBriefCacheHitInput {
+  readonly briefId: string;
+  readonly currentEvidenceFingerprint: string;
+  readonly cacheEquivalenceFingerprint: string;
+  readonly observedAt: string;
+}
+
+export interface RecordedProjectBriefCacheHit {
+  readonly status: "completed";
+  readonly outcome: "cache_hit";
+  readonly briefId: string;
+  readonly invocationId: string;
+  readonly sourceInvocationId: string;
+}
+
 export type DurableProjectBriefGenerationOutcome =
   | DurableCompletedProjectBriefGeneration
   | DurableFailedProjectBriefGeneration
@@ -90,6 +110,7 @@ export interface ProjectBriefGenerationPersistence {
     input: FinalizeProjectBriefGenerationInput,
   ): Promise<DurableCompletedProjectBriefGeneration>;
   fail(input: FailProjectBriefGenerationInput): Promise<DurableFailedProjectBriefGeneration>;
+  recordCacheHit(input: RecordProjectBriefCacheHitInput): Promise<RecordedProjectBriefCacheHit>;
 }
 
 export type ProjectBriefReservation = EnergyReservationReceipt;

@@ -40,6 +40,7 @@ const reservationId = "30000000-0000-4000-8000-000000000003";
 const briefId = "40000000-0000-4000-8000-000000000004";
 const invocationId = "50000000-0000-4000-8000-000000000005";
 const fingerprint = "a".repeat(64);
+const cacheEquivalenceFingerprint = "b".repeat(64);
 const rangeStart = "2026-08-01T00:00:00.000Z";
 const rangeEnd = "2026-08-18T00:00:00.000Z";
 const now = "2026-08-18T06:00:00.000Z";
@@ -90,9 +91,37 @@ function artifact(): ProjectBriefEvidenceArtifact {
       projectId,
       rangeStart,
       rangeEnd,
+      projectProfile: {
+        sourceRef: {
+          contractVersion: projectBriefEvidenceRefContractVersion,
+          sourceKind: "project_profile",
+          sourceId: evidenceRef.sourceId,
+          projectId,
+          occurredAt: null,
+          sourceUpdatedAt: now,
+          sourceVersion: "synthetic-v1",
+          sourceSha: null,
+        },
+      },
+      githubActivities: [],
+      authorizedDocuments: [],
+      confirmedDecisions: { sourceAvailability: "unavailable", items: [] },
+      freshness: {
+        sourceRef: {
+          contractVersion: projectBriefEvidenceRefContractVersion,
+          sourceKind: "freshness",
+          sourceId: "freshness:synthetic-phase7",
+          projectId,
+          occurredAt: now,
+          sourceUpdatedAt: now,
+          sourceVersion: "freshness-status.v1",
+          sourceSha: null,
+        },
+      },
     } as unknown as ProjectBriefEvidenceArtifact["snapshot"],
     canonicalPayload: "{\"synthetic\":\"phase7\"}",
     fingerprint,
+    cacheEquivalenceFingerprint,
   };
 }
 
@@ -126,6 +155,7 @@ function harness(options: {
   waited?: Awaited<ReturnType<ProjectBriefGenerationPersistence["waitForOutcome"]>>;
   finalizeError?: Error;
   failError?: Error;
+  cacheHitError?: Error;
 } = {}) {
   const calls: string[] = [];
   const builtArtifact = artifact();
@@ -204,6 +234,17 @@ function harness(options: {
         errorCode: value.errorCode,
       };
     }),
+    recordCacheHit: vi.fn(async (value) => {
+      calls.push("persist_cache_hit_observation");
+      if (options.cacheHitError) throw options.cacheHitError;
+      return {
+        status: "completed" as const,
+        outcome: "cache_hit" as const,
+        briefId: value.briefId,
+        invocationId: "70000000-0000-4000-8000-000000000007",
+        sourceInvocationId: invocationId,
+      };
+    }),
   };
   const useCase = new GenerateProjectBriefUseCase({
     evidenceBuilder,
@@ -280,6 +321,8 @@ describe("GenerateProjectBriefUseCase", () => {
         promptVersion: projectBriefPromptVersion,
         schemaVersion: projectBriefSchemaVersion,
         evidenceFingerprint: fingerprint,
+        cacheEquivalenceFingerprint,
+        payloadFingerprint: "d".repeat(64),
         status: "completed",
         payload: cachedBrief,
         expiresAt: "2026-08-19T06:00:00.000Z",
@@ -294,8 +337,67 @@ describe("GenerateProjectBriefUseCase", () => {
     expect(h.calls).toEqual([
       "authorization:freshness:snapshot:fingerprint",
       "cache",
-      "evidence_validation",
+      "persist_cache_hit_observation",
     ]);
+    expect(h.energyReservations.reserve).not.toHaveBeenCalled();
+    expect(h.provider.generateStructured).not.toHaveBeenCalled();
+  });
+
+  it("returns the original validated Brief when only evaluation time changes", async () => {
+    const cachedBrief = validBrief();
+    const h = harness({
+      cache: {
+        id: briefId,
+        userId,
+        projectId,
+        rangeStart,
+        rangeEnd,
+        promptVersion: projectBriefPromptVersion,
+        schemaVersion: projectBriefSchemaVersion,
+        evidenceFingerprint: fingerprint,
+        cacheEquivalenceFingerprint,
+        payloadFingerprint: "d".repeat(64),
+        status: "completed",
+        payload: cachedBrief,
+        expiresAt: "2026-08-19T06:00:00.000Z",
+      },
+    });
+    const currentFingerprint = "c".repeat(64);
+    vi.mocked(h.evidenceBuilder.execute).mockResolvedValueOnce({
+      ...artifact(),
+      fingerprint: currentFingerprint,
+    });
+
+    await expect(h.useCase.execute(input())).resolves.toMatchObject({
+      status: "cache_hit",
+      energyCharged: 0,
+      evidenceFingerprint: fingerprint,
+      invocationId: "70000000-0000-4000-8000-000000000007",
+      brief: cachedBrief,
+    });
+    expect(h.energyReservations.reserve).not.toHaveBeenCalled();
+    expect(h.provider.generateStructured).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when a validated cache hit cannot persist its observation", async () => {
+    const h = harness({
+      cacheHitError: new Error("private observation storage error"),
+      cache: {
+        id: briefId, userId, projectId, rangeStart, rangeEnd,
+        promptVersion: projectBriefPromptVersion,
+        schemaVersion: projectBriefSchemaVersion,
+        evidenceFingerprint: fingerprint,
+        cacheEquivalenceFingerprint,
+        payloadFingerprint: "d".repeat(64),
+        status: "completed",
+        payload: validBrief(),
+        expiresAt: "2026-08-19T06:00:00.000Z",
+      },
+    });
+    await expect(h.useCase.execute(input())).rejects.toMatchObject({
+      stage: "persistence",
+      code: "project_brief_persistence_failed",
+    });
     expect(h.energyReservations.reserve).not.toHaveBeenCalled();
     expect(h.provider.generateStructured).not.toHaveBeenCalled();
   });
@@ -328,6 +430,8 @@ describe("GenerateProjectBriefUseCase", () => {
         promptVersion: projectBriefPromptVersion,
         schemaVersion: projectBriefSchemaVersion,
         evidenceFingerprint: fingerprint,
+        cacheEquivalenceFingerprint,
+        payloadFingerprint: "d".repeat(64),
         status: "completed",
         payload: validBrief(),
         expiresAt: "2026-08-19T06:00:00.000Z",

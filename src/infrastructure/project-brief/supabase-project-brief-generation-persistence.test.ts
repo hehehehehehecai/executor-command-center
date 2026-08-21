@@ -14,6 +14,7 @@ const projectId = "20000000-0000-4000-8000-000000000002";
 const reservationId = "30000000-0000-4000-8000-000000000003";
 const briefId = "40000000-0000-4000-8000-000000000004";
 const invocationId = "50000000-0000-4000-8000-000000000005";
+const cacheEquivalenceFingerprint = "b".repeat(64);
 const ref = {
   contractVersion: projectBriefEvidenceRefContractVersion,
   sourceKind: "project_profile" as const,
@@ -70,6 +71,7 @@ describe("SupabaseProjectBriefGenerationPersistence", () => {
       promptVersion: brief.promptVersion,
       schemaVersion: brief.schemaVersion,
       evidenceFingerprint: brief.evidenceFingerprint,
+      cacheEquivalenceFingerprint,
       brief,
       expiresAt: "2026-08-19T06:00:00.000Z",
       metadata: createStructuredGenerationMetadata({
@@ -90,6 +92,8 @@ describe("SupabaseProjectBriefGenerationPersistence", () => {
       p_prompt_version: brief.promptVersion,
       p_schema_version: brief.schemaVersion,
       p_evidence_fingerprint: brief.evidenceFingerprint,
+      p_cache_equivalence_fingerprint: cacheEquivalenceFingerprint,
+      p_payload_fingerprint: expect.stringMatching(/^[0-9a-f]{64}$/),
       p_payload: brief,
       p_expires_at: "2026-08-19T06:00:00.000Z",
       p_provider: "synthetic",
@@ -120,6 +124,7 @@ describe("SupabaseProjectBriefGenerationPersistence", () => {
     await expect(persistence.fail({
       reservationId,
       evidenceFingerprint: brief.evidenceFingerprint,
+      cacheEquivalenceFingerprint,
       failureStage: "provider",
       errorCode: "project_brief_provider_failure",
       metadata: createStructuredGenerationMetadata({ provider: "synthetic" }),
@@ -133,9 +138,46 @@ describe("SupabaseProjectBriefGenerationPersistence", () => {
       p_model: null,
       p_request_id: null,
       p_input_fingerprint: brief.evidenceFingerprint,
+      p_cache_equivalence_fingerprint: cacheEquivalenceFingerprint,
       p_input_tokens: null,
       p_output_tokens: null,
       p_latency_ms: null,
+    });
+  });
+
+  it("records a durable cache-hit observation linked to the original invocation", async () => {
+    const cacheInvocationId = "70000000-0000-4000-8000-000000000007";
+    const rpc = vi.fn(async () => ({
+      data: {
+        status: "completed",
+        outcome: "cache_hit",
+        brief_id: briefId,
+        invocation_id: cacheInvocationId,
+        source_invocation_id: invocationId,
+      },
+      error: null,
+    }));
+    const persistence = new SupabaseProjectBriefGenerationPersistence({
+      trustedRpc: { rpc },
+      authenticatedRpc: { rpc: vi.fn() },
+      actorUserId: "10000000-0000-4000-8000-000000000001",
+    });
+    await expect(persistence.recordCacheHit({
+      briefId,
+      currentEvidenceFingerprint: "c".repeat(64),
+      cacheEquivalenceFingerprint,
+      observedAt: "2026-08-18T06:00:01.000Z",
+    })).resolves.toMatchObject({
+      outcome: "cache_hit",
+      invocationId: cacheInvocationId,
+      sourceInvocationId: invocationId,
+    });
+    expect(rpc).toHaveBeenCalledWith("record_project_brief_cache_hit", {
+      p_actor_user_id: "10000000-0000-4000-8000-000000000001",
+      p_brief_id: briefId,
+      p_current_evidence_fingerprint: "c".repeat(64),
+      p_cache_equivalence_fingerprint: cacheEquivalenceFingerprint,
+      p_observed_at: "2026-08-18T06:00:01.000Z",
     });
   });
 

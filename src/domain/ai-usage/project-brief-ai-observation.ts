@@ -69,6 +69,7 @@ export interface ProjectBriefAiInvocationObservationSource {
   readonly promptVersion: string | null;
   readonly schemaVersion: string | null;
   readonly inputFingerprint: string | null;
+  readonly cacheEquivalenceFingerprint: string | null;
   readonly status: "completed" | "failed";
   readonly inputTokens: number | null;
   readonly outputTokens: number | null;
@@ -78,6 +79,7 @@ export interface ProjectBriefAiInvocationObservationSource {
   readonly failureStage: string | null;
   readonly errorCode: string | null;
   readonly reservationId: string | null;
+  readonly sourceInvocationId: string | null;
   readonly briefId: string | null;
   readonly providerRequestId: string | null;
   readonly createdAt: string;
@@ -111,8 +113,12 @@ export function parseProjectBriefAiObservation(input: unknown): ProjectBriefAiOb
 
 export function createProjectBriefAiObservation(input: {
   readonly invocation: ProjectBriefAiInvocationObservationSource;
-  readonly reservation: { readonly amount: number; readonly status: "consumed" | "released" };
-  readonly brief: { readonly rangeStart: string; readonly rangeEnd: string } | null;
+  readonly reservation: { readonly amount: number; readonly status: "consumed" | "released" } | null;
+  readonly brief: {
+    readonly rangeStart: string;
+    readonly rangeEnd: string;
+    readonly evidenceFingerprint: string;
+  } | null;
   readonly cacheKeyFingerprint: string | null;
 }): ProjectBriefAiObservation {
   const { invocation } = input;
@@ -120,7 +126,7 @@ export function createProjectBriefAiObservation(input: {
   const output = {
     contractVersion: projectBriefAiObservationContractVersion,
     observationId: invocation.id,
-    correlationId: invocation.reservationId,
+    correlationId: invocation.reservationId ?? invocation.sourceInvocationId,
     providerRequestId: invocation.providerRequestId,
     briefId: invocation.briefId,
     userId: invocation.userId,
@@ -130,7 +136,7 @@ export function createProjectBriefAiObservation(input: {
     model: invocation.model,
     promptVersion: invocation.promptVersion,
     schemaVersion: invocation.schemaVersion,
-    evidenceFingerprint: invocation.inputFingerprint,
+    evidenceFingerprint: input.brief?.evidenceFingerprint ?? invocation.inputFingerprint,
     cacheKeyFingerprint: input.brief === null ? null : input.cacheKeyFingerprint,
     inputTokens: invocation.inputTokens,
     outputTokens: invocation.outputTokens,
@@ -142,7 +148,7 @@ export function createProjectBriefAiObservation(input: {
     },
     cacheStatus: invocation.cacheStatus,
     providerAttempted: invocation.cacheStatus !== "hit",
-    quotaCharge: completed && input.reservation.status === "consumed"
+    quotaCharge: completed && input.reservation?.status === "consumed"
       ? input.reservation.amount
       : 0,
     terminalStatus: invocation.status,

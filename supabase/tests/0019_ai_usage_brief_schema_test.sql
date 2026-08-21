@@ -34,7 +34,8 @@ select columns_are(
     'input_tokens', 'output_tokens', 'latency_ms', 'cost_microunits',
     'cache_status', 'failure_stage', 'error_code', 'reservation_id',
     'brief_id', 'created_at', 'started_at', 'completed_at',
-    'provider_request_id'
+    'provider_request_id', 'cache_equivalence_fingerprint',
+    'source_invocation_id'
   ],
   'invocation columns retain safe provider observability and request lineage'
 );
@@ -44,7 +45,7 @@ select columns_are(
     'id', 'user_id', 'project_id', 'range_start', 'range_end',
     'prompt_version', 'schema_version', 'evidence_fingerprint', 'status',
     'payload', 'failure_stage', 'error_code', 'created_at', 'completed_at',
-    'expires_at'
+    'expires_at', 'cache_equivalence_fingerprint', 'payload_fingerprint'
   ],
   'brief columns keep Phase 1 persistence separate from the future output schema'
 );

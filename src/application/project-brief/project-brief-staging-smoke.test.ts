@@ -83,17 +83,20 @@ describe("ProjectBriefStagingSmokeRunner", () => {
       .mockResolvedValueOnce({
         status: "cache_hit", energyCharged: 0,
         briefId: "40000000-0000-4000-8000-000000000004",
-        invocationId: null,
+        invocationId: "70000000-0000-4000-8000-000000000007",
         evidenceFingerprint: sha,
       });
-    const readObservation = vi.fn(async () => ({
-      terminalStatus: "completed" as const,
-      cacheStatus: "miss" as const,
-      quotaCharge: 3,
-      providerAttempted: true,
-      evidenceFingerprint: sha,
-      failureStage: null,
-    }));
+    const readObservation = vi.fn()
+      .mockResolvedValueOnce({
+        terminalStatus: "completed" as const, cacheStatus: "miss" as const,
+        quotaCharge: 3, providerAttempted: true,
+        evidenceFingerprint: sha, failureStage: null,
+      })
+      .mockResolvedValueOnce({
+        terminalStatus: "completed" as const, cacheStatus: "hit" as const,
+        quotaCharge: 0, providerAttempted: false,
+        evidenceFingerprint: sha, failureStage: null,
+      });
     const runner = new ProjectBriefStagingSmokeRunner({ generate, readObservation });
     await expect(runner.execute({
       preflight: preflight(),
@@ -113,7 +116,7 @@ describe("ProjectBriefStagingSmokeRunner", () => {
     });
     expect(generate).toHaveBeenCalledTimes(2);
     expect(generate.mock.calls[0]).toEqual(generate.mock.calls[1]);
-    expect(readObservation).toHaveBeenCalledOnce();
+    expect(readObservation).toHaveBeenCalledTimes(2);
   });
 
   it("rejects a second Provider call or a non-identical replay result", async () => {

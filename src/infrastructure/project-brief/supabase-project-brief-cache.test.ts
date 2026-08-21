@@ -2,6 +2,7 @@ import {
   projectBriefPromptVersion,
   projectBriefSchemaVersion,
 } from "@/domain/project-brief/project-brief-contract";
+import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 
 import { SupabaseProjectBriefCache } from "./supabase-project-brief-cache";
@@ -14,8 +15,12 @@ const key = {
   promptVersion: projectBriefPromptVersion,
   schemaVersion: projectBriefSchemaVersion,
   evidenceFingerprint: "a".repeat(64),
+  cacheEquivalenceFingerprint: "b".repeat(64),
   now: "2026-08-18T06:00:00.000Z",
 } as const;
+const payload = { synthetic: true };
+const payloadFingerprint = createHash("sha256")
+  .update(JSON.stringify(payload)).digest("hex");
 
 type QueryResult = { readonly data: unknown; readonly error: unknown };
 
@@ -46,8 +51,10 @@ describe("SupabaseProjectBriefCache", () => {
         prompt_version: key.promptVersion,
         schema_version: key.schemaVersion,
         evidence_fingerprint: key.evidenceFingerprint,
+        cache_equivalence_fingerprint: key.cacheEquivalenceFingerprint,
+        payload_fingerprint: payloadFingerprint,
         status: "completed",
-        payload: { synthetic: true },
+        payload,
         expires_at: "2026-08-19T06:00:00.000Z",
       },
       error: null,
@@ -68,12 +75,37 @@ describe("SupabaseProjectBriefCache", () => {
       range_end: key.rangeEnd,
       prompt_version: key.promptVersion,
       schema_version: key.schemaVersion,
-      evidence_fingerprint: key.evidenceFingerprint,
+      cache_equivalence_fingerprint: key.cacheEquivalenceFingerprint,
       status: "completed",
     });
     expect(q.gt).toHaveBeenCalledWith("expires_at", key.now);
     expect(q.order).toHaveBeenCalledWith("expires_at", { ascending: false });
     expect(q.limit).toHaveBeenCalledWith(1);
+  });
+
+  it("rejects a cache payload whose persisted integrity fingerprint was tampered", async () => {
+    const q = query({
+      data: {
+        id: "40000000-0000-4000-8000-000000000004",
+        user_id: key.userId,
+        project_id: key.projectId,
+        range_start: key.rangeStart,
+        range_end: key.rangeEnd,
+        prompt_version: key.promptVersion,
+        schema_version: key.schemaVersion,
+        evidence_fingerprint: key.evidenceFingerprint,
+        cache_equivalence_fingerprint: key.cacheEquivalenceFingerprint,
+        payload_fingerprint: payloadFingerprint,
+        status: "completed",
+        payload: { synthetic: false },
+        expires_at: "2026-08-19T06:00:00.000Z",
+      },
+      error: null,
+    });
+    const cache = new SupabaseProjectBriefCache({
+      from: () => ({ select: () => q }),
+    });
+    await expect(cache.find(key)).resolves.toBeNull();
   });
 
   it("returns null for no row and fails closed on storage or malformed rows", async () => {

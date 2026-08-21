@@ -64,6 +64,7 @@ export type Database = {
       ai_invocations: {
         Row: {
           brief_id: string | null
+          cache_equivalence_fingerprint: string | null
           cache_status: string | null
           completed_at: string | null
           cost_microunits: number | null
@@ -83,12 +84,14 @@ export type Database = {
           provider_request_id: string | null
           reservation_id: string | null
           schema_version: string | null
+          source_invocation_id: string | null
           started_at: string | null
           status: string
           user_id: string
         }
         Insert: {
           brief_id?: string | null
+          cache_equivalence_fingerprint?: string | null
           cache_status?: string | null
           completed_at?: string | null
           cost_microunits?: number | null
@@ -108,12 +111,14 @@ export type Database = {
           provider_request_id?: string | null
           reservation_id?: string | null
           schema_version?: string | null
+          source_invocation_id?: string | null
           started_at?: string | null
           status?: string
           user_id: string
         }
         Update: {
           brief_id?: string | null
+          cache_equivalence_fingerprint?: string | null
           cache_status?: string | null
           completed_at?: string | null
           cost_microunits?: number | null
@@ -133,6 +138,7 @@ export type Database = {
           provider_request_id?: string | null
           reservation_id?: string | null
           schema_version?: string | null
+          source_invocation_id?: string | null
           started_at?: string | null
           status?: string
           user_id?: string
@@ -157,6 +163,13 @@ export type Database = {
             columns: ["reservation_id", "user_id", "project_id"]
             isOneToOne: false
             referencedRelation: "energy_reservations"
+            referencedColumns: ["id", "user_id", "project_id"]
+          },
+          {
+            foreignKeyName: "ai_invocations_source_owner_fkey"
+            columns: ["source_invocation_id", "user_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "ai_invocations"
             referencedColumns: ["id", "user_id", "project_id"]
           },
           {
@@ -897,6 +910,7 @@ export type Database = {
       }
       project_briefs: {
         Row: {
+          cache_equivalence_fingerprint: string | null
           completed_at: string | null
           created_at: string
           error_code: string | null
@@ -905,6 +919,7 @@ export type Database = {
           failure_stage: string | null
           id: string
           payload: Json | null
+          payload_fingerprint: string | null
           project_id: string
           prompt_version: string | null
           range_end: string
@@ -914,6 +929,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          cache_equivalence_fingerprint?: string | null
           completed_at?: string | null
           created_at?: string
           error_code?: string | null
@@ -922,6 +938,7 @@ export type Database = {
           failure_stage?: string | null
           id?: string
           payload?: Json | null
+          payload_fingerprint?: string | null
           project_id: string
           prompt_version?: string | null
           range_end: string
@@ -931,6 +948,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          cache_equivalence_fingerprint?: string | null
           completed_at?: string | null
           created_at?: string
           error_code?: string | null
@@ -939,6 +957,7 @@ export type Database = {
           failure_stage?: string | null
           id?: string
           payload?: Json | null
+          payload_fingerprint?: string | null
           project_id?: string
           prompt_version?: string | null
           range_end?: string
@@ -1394,6 +1413,23 @@ export type Database = {
         | {
             Args: {
               p_actor_user_id: string
+              p_cache_equivalence_fingerprint: string
+              p_error_code: string
+              p_failure_stage: string
+              p_input_fingerprint: string
+              p_input_tokens: number
+              p_latency_ms: number
+              p_model: string
+              p_output_tokens: number
+              p_provider: string
+              p_request_id: string
+              p_reservation_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_actor_user_id: string
               p_error_code: string
               p_failure_stage: string
               p_input_fingerprint: string
@@ -1422,26 +1458,49 @@ export type Database = {
             }
             Returns: Json
           }
-      finalize_project_brief_generation: {
-        Args: {
-          p_actor_user_id: string
-          p_evidence_fingerprint: string
-          p_expires_at: string
-          p_input_tokens: number
-          p_latency_ms: number
-          p_model: string
-          p_output_tokens: number
-          p_payload: Json
-          p_prompt_version: string
-          p_provider: string
-          p_range_end: string
-          p_range_start: string
-          p_request_id: string
-          p_reservation_id: string
-          p_schema_version: string
-        }
-        Returns: Json
-      }
+      finalize_project_brief_generation:
+        | {
+            Args: {
+              p_actor_user_id: string
+              p_cache_equivalence_fingerprint: string
+              p_evidence_fingerprint: string
+              p_expires_at: string
+              p_input_tokens: number
+              p_latency_ms: number
+              p_model: string
+              p_output_tokens: number
+              p_payload: Json
+              p_payload_fingerprint: string
+              p_prompt_version: string
+              p_provider: string
+              p_range_end: string
+              p_range_start: string
+              p_request_id: string
+              p_reservation_id: string
+              p_schema_version: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_actor_user_id: string
+              p_evidence_fingerprint: string
+              p_expires_at: string
+              p_input_tokens: number
+              p_latency_ms: number
+              p_model: string
+              p_output_tokens: number
+              p_payload: Json
+              p_prompt_version: string
+              p_provider: string
+              p_range_end: string
+              p_range_start: string
+              p_request_id: string
+              p_reservation_id: string
+              p_schema_version: string
+            }
+            Returns: Json
+          }
       get_available_energy: {
         Args: { p_business_date: string }
         Returns: number
@@ -1480,6 +1539,16 @@ export type Database = {
         }[]
       }
       read_first_sync_context: { Args: { p_project_id: string }; Returns: Json }
+      record_project_brief_cache_hit: {
+        Args: {
+          p_actor_user_id: string
+          p_brief_id: string
+          p_cache_equivalence_fingerprint: string
+          p_current_evidence_fingerprint: string
+          p_observed_at: string
+        }
+        Returns: Json
+      }
       register_github_webhook_delivery: {
         Args: {
           p_action: string

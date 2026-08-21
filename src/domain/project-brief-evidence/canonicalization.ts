@@ -31,8 +31,12 @@ function canonicalValue(value: unknown): unknown {
 export function canonicalizeEvidenceSnapshot(
   snapshot: ProjectBriefEvidenceSnapshot,
 ): string {
+  return canonicalizeEvidenceValue(snapshot);
+}
+
+export function canonicalizeEvidenceValue(value: unknown): string {
   try {
-    return JSON.stringify(canonicalValue(snapshot));
+    return JSON.stringify(canonicalValue(value));
   } catch (error) {
     if ((error as ProjectBriefEvidenceError)?.name === "ProjectBriefEvidenceError") {
       throw error;

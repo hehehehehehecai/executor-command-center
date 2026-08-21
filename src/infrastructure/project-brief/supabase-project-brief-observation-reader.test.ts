@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-
 import { describe, expect, it } from "vitest";
 
 import { SupabaseProjectBriefObservationReader } from "./supabase-project-brief-observation-reader";
@@ -48,6 +46,7 @@ const invocationRow = {
   prompt_version: "project-brief-v1",
   schema_version: "project-brief-schema-v1",
   input_fingerprint: evidenceFingerprint,
+  cache_equivalence_fingerprint: "c".repeat(64),
   status: "completed",
   input_tokens: 120,
   output_tokens: 80,
@@ -57,6 +56,7 @@ const invocationRow = {
   failure_stage: null,
   error_code: null,
   reservation_id: reservationId,
+  source_invocation_id: null,
   brief_id: briefId,
   provider_request_id: "provider-request-safe",
   created_at: "2026-08-21T01:00:00+00:00",
@@ -72,6 +72,8 @@ describe("SupabaseProjectBriefObservationReader", () => {
       project_briefs: {
         range_start: "2026-08-01T00:00:00.000Z",
         range_end: "2026-08-21T00:00:00.000Z",
+        evidence_fingerprint: evidenceFingerprint,
+        cache_equivalence_fingerprint: "c".repeat(64),
       },
     });
     const reader = new SupabaseProjectBriefObservationReader(db);
@@ -87,12 +89,7 @@ describe("SupabaseProjectBriefObservationReader", () => {
       createdAt: "2026-08-21T01:00:00.000Z",
       finishedAt: "2026-08-21T01:00:00.450Z",
     });
-    const expectedCacheFingerprint = createHash("sha256").update(JSON.stringify([
-      userId, projectId,
-      "2026-08-01T00:00:00.000Z", "2026-08-21T00:00:00.000Z",
-      "project-brief-v1", "project-brief-schema-v1", evidenceFingerprint,
-    ])).digest("hex");
-    expect(result?.cacheKeyFingerprint).toBe(expectedCacheFingerprint);
+    expect(result?.cacheKeyFingerprint).toBe("c".repeat(64));
     expect(db.calls.map(({ table }) => table)).toEqual([
       "ai_invocations", "energy_reservations", "project_briefs",
     ]);
@@ -102,6 +99,42 @@ describe("SupabaseProjectBriefObservationReader", () => {
     expect(db.calls.every(({ select }) => !/prompt|payload|document|response|secret/i.test(
       select.replace(/prompt_version/g, "version"),
     ))).toBe(true);
+  });
+
+  it("reads a cache-hit observation without a reservation and preserves original Brief fingerprint", async () => {
+    const sourceInvocationId = invocationId;
+    const cacheInvocationId = "70000000-0000-4000-8000-000000000007";
+    const db = client({
+      ai_invocations: {
+        ...invocationRow,
+        id: cacheInvocationId,
+        input_fingerprint: "d".repeat(64),
+        cache_status: "hit",
+        reservation_id: null,
+        source_invocation_id: sourceInvocationId,
+        input_tokens: null,
+        output_tokens: null,
+        latency_ms: null,
+        provider_request_id: null,
+      },
+      project_briefs: {
+        range_start: "2026-08-01T00:00:00.000Z",
+        range_end: "2026-08-21T00:00:00.000Z",
+        evidence_fingerprint: evidenceFingerprint,
+        cache_equivalence_fingerprint: "c".repeat(64),
+      },
+    });
+    const result = await new SupabaseProjectBriefObservationReader(db).read({
+      invocationId: cacheInvocationId, userId, projectId,
+    });
+    expect(result).toMatchObject({
+      correlationId: sourceInvocationId,
+      evidenceFingerprint,
+      cacheStatus: "hit",
+      providerAttempted: false,
+      quotaCharge: 0,
+    });
+    expect(db.calls.map(({ table }) => table)).toEqual(["ai_invocations", "project_briefs"]);
   });
 
   it("returns null for an invisible invocation and sanitizes storage errors", async () => {

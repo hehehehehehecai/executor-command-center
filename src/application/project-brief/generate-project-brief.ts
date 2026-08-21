@@ -174,7 +174,9 @@ function cacheRecordMatches(
     && record.status === "completed"
     && record.promptVersion === projectBriefPromptVersion
     && record.schemaVersion === projectBriefSchemaVersion
-    && record.evidenceFingerprint === artifact.fingerprint
+    && record.evidenceFingerprint !== null
+    && record.cacheEquivalenceFingerprint === artifact.cacheEquivalenceFingerprint
+    && record.payloadFingerprint !== null
     && record.expiresAt !== null
     && canonicalUtc(record.expiresAt)
     && record.expiresAt > input.now;
@@ -191,6 +193,35 @@ function briefMatchesArtifact(
     && brief.promptVersion === projectBriefPromptVersion
     && brief.schemaVersion === projectBriefSchemaVersion
     && brief.evidenceFingerprint === artifact.fingerprint;
+}
+
+function briefMatchesEquivalentArtifact(
+  brief: ProjectBrief,
+  record: ProjectBriefCacheRecord,
+  input: GenerateProjectBriefInput,
+  artifact: ProjectBriefEvidenceArtifact,
+): boolean {
+  if (
+    brief.projectId !== input.projectId
+    || brief.rangeStart !== input.rangeStart
+    || brief.rangeEnd !== input.rangeEnd
+    || brief.promptVersion !== projectBriefPromptVersion
+    || brief.schemaVersion !== projectBriefSchemaVersion
+    || brief.evidenceFingerprint !== record.evidenceFingerprint
+    || record.cacheEquivalenceFingerprint !== artifact.cacheEquivalenceFingerprint
+  ) return false;
+  const sourceKeys = new Set<string>();
+  const add = (ref: { sourceKind: string; sourceId: string; projectId: string }) => {
+    sourceKeys.add(JSON.stringify([ref.sourceKind, ref.sourceId, ref.projectId]));
+  };
+  add(artifact.snapshot.projectProfile.sourceRef);
+  artifact.snapshot.githubActivities.forEach((item) => add(item.sourceRef));
+  artifact.snapshot.authorizedDocuments.forEach((item) => add(item.sourceRef));
+  artifact.snapshot.confirmedDecisions.items.forEach((item) => add(item.sourceRef));
+  add(artifact.snapshot.freshness.sourceRef);
+  return brief.evidenceRefs.every((ref) =>
+    ref.projectId === input.projectId
+    && sourceKeys.has(JSON.stringify([ref.sourceKind, ref.sourceId, ref.projectId])));
 }
 
 function expiresAt(now: string): string {
@@ -310,32 +341,38 @@ export class GenerateProjectBriefUseCase {
         promptVersion: projectBriefPromptVersion,
         schemaVersion: projectBriefSchemaVersion,
         evidenceFingerprint: artifact.fingerprint,
+        cacheEquivalenceFingerprint: artifact.cacheEquivalenceFingerprint,
         now: input.now,
       });
     } catch {
       return generationFailure("cache", "project_brief_cache_failed");
     }
     if (!record || !cacheRecordMatches(record, input, artifact)) return null;
+    let brief: ProjectBrief;
     try {
-      const brief = parseProjectBrief(record.payload);
-      if (!briefMatchesArtifact(brief, input, artifact)) return null;
-      await this.dependencies.evidenceValidator.execute({
-        actorUserId: input.userId,
-        projectId: input.projectId,
-        brief,
-        artifact,
+      brief = parseProjectBrief(record.payload);
+      if (!briefMatchesEquivalentArtifact(brief, record, input, artifact)) return null;
+    } catch {
+      return null;
+    }
+    try {
+      const observed = await this.dependencies.persistence.recordCacheHit({
+        briefId: record.id,
+        currentEvidenceFingerprint: artifact.fingerprint,
+        cacheEquivalenceFingerprint: artifact.cacheEquivalenceFingerprint,
+        observedAt: input.now,
       });
       return {
         contractVersion: projectBriefGenerationContractVersion,
         status: "cache_hit",
         energyCharged: 0,
         briefId: record.id,
-        invocationId: null,
-        evidenceFingerprint: artifact.fingerprint,
+        invocationId: observed.invocationId,
+        evidenceFingerprint: brief.evidenceFingerprint,
         brief,
       };
     } catch {
-      return null;
+      return generationFailure("persistence", "project_brief_persistence_failed");
     }
   }
 
@@ -416,6 +453,7 @@ export class GenerateProjectBriefUseCase {
       return this.failAndThrow(
         reservationId,
         artifact.fingerprint,
+        artifact.cacheEquivalenceFingerprint,
         "provider",
         "project_brief_provider_failure",
         null,
@@ -427,6 +465,7 @@ export class GenerateProjectBriefUseCase {
       return this.failAndThrow(
         reservationId,
         artifact.fingerprint,
+        artifact.cacheEquivalenceFingerprint,
         "provider",
         failure.code,
         failure.metadata,
@@ -443,6 +482,7 @@ export class GenerateProjectBriefUseCase {
       return this.failAndThrow(
         reservationId,
         artifact.fingerprint,
+        artifact.cacheEquivalenceFingerprint,
         "schema_validation",
         code,
         result.metadata,
@@ -452,6 +492,7 @@ export class GenerateProjectBriefUseCase {
       return this.failAndThrow(
         reservationId,
         artifact.fingerprint,
+        artifact.cacheEquivalenceFingerprint,
         "schema_validation",
         "project_brief_schema_validation_failed",
         result.metadata,
@@ -468,6 +509,7 @@ export class GenerateProjectBriefUseCase {
       return this.failAndThrow(
         reservationId,
         artifact.fingerprint,
+        artifact.cacheEquivalenceFingerprint,
         "evidence_validation",
         "project_brief_evidence_validation_failed",
         result.metadata,
@@ -482,6 +524,7 @@ export class GenerateProjectBriefUseCase {
         promptVersion: projectBriefPromptVersion,
         schemaVersion: projectBriefSchemaVersion,
         evidenceFingerprint: artifact.fingerprint,
+        cacheEquivalenceFingerprint: artifact.cacheEquivalenceFingerprint,
         brief,
         expiresAt: expiresAt(input.now),
         metadata: result.metadata,
@@ -505,6 +548,7 @@ export class GenerateProjectBriefUseCase {
       return this.failAndThrow(
         reservationId,
         artifact.fingerprint,
+        artifact.cacheEquivalenceFingerprint,
         energyConsume ? "energy_consume" : "persistence",
         energyConsume
           ? "project_brief_energy_consume_failed"
@@ -517,6 +561,7 @@ export class GenerateProjectBriefUseCase {
   private async failAndThrow(
     reservationId: string,
     evidenceFingerprint: string,
+    cacheEquivalenceFingerprint: string,
     stage: ProjectBriefGenerationFailureStage,
     code: ProjectBriefGenerationFailureCode,
     metadata: StructuredGenerationMetadata | null,
@@ -525,6 +570,7 @@ export class GenerateProjectBriefUseCase {
       await this.dependencies.persistence.fail({
         reservationId,
         evidenceFingerprint,
+        cacheEquivalenceFingerprint,
         failureStage: stage,
         errorCode: code,
         metadata: metadata ?? createStructuredGenerationMetadata(),

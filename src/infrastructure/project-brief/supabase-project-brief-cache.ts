@@ -1,9 +1,13 @@
+import "server-only";
+
+import { createHash } from "node:crypto";
 import type {
   ProjectBriefCache,
   ProjectBriefCacheKey,
   ProjectBriefCacheRecord,
 } from "@/application/project-brief/project-brief-generation-ports";
 import { projectBriefStatuses } from "@/domain/project-brief/project-brief";
+import { canonicalizeEvidenceValue } from "@/domain/project-brief-evidence/canonicalization";
 import { z } from "zod";
 
 type QueryResult = { readonly data: unknown; readonly error: unknown };
@@ -29,6 +33,8 @@ const rowSchema = z.object({
   prompt_version: z.string().min(1).nullable(),
   schema_version: z.string().min(1).nullable(),
   evidence_fingerprint: z.string().regex(/^[0-9a-f]{64}$/).nullable(),
+  cache_equivalence_fingerprint: z.string().regex(/^[0-9a-f]{64}$/).nullable(),
+  payload_fingerprint: z.string().regex(/^[0-9a-f]{64}$/).nullable(),
   status: z.enum(projectBriefStatuses),
   payload: z.record(z.string(), z.unknown()).nullable(),
   expires_at: z.iso.datetime({ offset: true }).nullable(),
@@ -48,6 +54,8 @@ function record(row: z.infer<typeof rowSchema>): ProjectBriefCacheRecord {
     promptVersion: row.prompt_version,
     schemaVersion: row.schema_version,
     evidenceFingerprint: row.evidence_fingerprint,
+    cacheEquivalenceFingerprint: row.cache_equivalence_fingerprint,
+    payloadFingerprint: row.payload_fingerprint,
     status: row.status,
     payload: row.payload,
     expiresAt: row.expires_at,
@@ -61,7 +69,7 @@ export class SupabaseProjectBriefCache implements ProjectBriefCache {
     let result: QueryResult;
     try {
       result = await this.client.from("project_briefs").select(
-        "id,user_id,project_id,range_start,range_end,prompt_version,schema_version,evidence_fingerprint,status,payload,expires_at",
+        "id,user_id,project_id,range_start,range_end,prompt_version,schema_version,evidence_fingerprint,cache_equivalence_fingerprint,payload_fingerprint,status,payload,expires_at",
       ).match({
         user_id: key.userId,
         project_id: key.projectId,
@@ -69,7 +77,7 @@ export class SupabaseProjectBriefCache implements ProjectBriefCache {
         range_end: key.rangeEnd,
         prompt_version: key.promptVersion,
         schema_version: key.schemaVersion,
-        evidence_fingerprint: key.evidenceFingerprint,
+        cache_equivalence_fingerprint: key.cacheEquivalenceFingerprint,
         status: "completed",
       }).gt("expires_at", key.now)
         .order("expires_at", { ascending: false })
@@ -82,6 +90,13 @@ export class SupabaseProjectBriefCache implements ProjectBriefCache {
     if (result.data === null) return null;
     const parsed = rowSchema.safeParse(result.data);
     if (!parsed.success) throw storageFailure(parsed.error);
+    if (
+      parsed.data.payload === null
+      || parsed.data.payload_fingerprint === null
+      || createHash("sha256")
+        .update(canonicalizeEvidenceValue(parsed.data.payload))
+        .digest("hex") !== parsed.data.payload_fingerprint
+    ) return null;
     return record(parsed.data);
   }
 }

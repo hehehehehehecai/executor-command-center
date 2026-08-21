@@ -84,13 +84,26 @@ describe("BuildProjectBriefEvidenceSnapshotUseCase", () => {
 
     expect({
       fingerprint: result.fingerprint,
+      cacheEquivalenceFingerprint: result.cacheEquivalenceFingerprint,
       canonicalPayload: result.canonicalPayload,
       parsed: JSON.parse(result.canonicalPayload),
     }).toEqual({
       fingerprint: expect.stringMatching(/^[0-9a-f]{64}$/),
+      cacheEquivalenceFingerprint: expect.stringMatching(/^[0-9a-f]{64}$/),
       canonicalPayload: JSON.stringify(JSON.parse(result.canonicalPayload)),
       parsed: result.snapshot,
     });
+  });
+
+  it("keeps the full artifact time-sensitive while making an equivalent replay stable", async () => {
+    const first = await useCase().execute(input);
+    const replay = await useCase().execute({
+      ...input,
+      now: "2026-08-08T12:00:01.000Z",
+    });
+
+    expect(replay.fingerprint).not.toBe(first.fingerprint);
+    expect(replay.cacheEquivalenceFingerprint).toBe(first.cacheEquivalenceFingerprint);
   });
 
   it("produces identical payload and fingerprint for equivalent source return order", async () => {

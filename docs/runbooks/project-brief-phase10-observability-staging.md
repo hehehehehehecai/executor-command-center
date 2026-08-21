@@ -8,12 +8,13 @@
 
 - Observation：`project-brief-ai-observation.v1`
 - Smoke：`project-brief-staging-smoke.v1`
+- Cache Equivalence：`project-brief-evidence-cache-equivalence.v1`
 - Phase 9 Dataset：`83b64904bb184ba35bc9cb965de5560202794adfe41df4974cb6091a05028fdb`
 - Phase 9 Result：`9db13d98a88f4f33752885afa13c589a52f5364f725c334030f332e2bee0bb70`
 
 ## Observation 合同
 
-实际 Provider 调用由 `ai_invocations`、对应 `energy_reservations` 和成功时的 `project_briefs` 只读组合为严格 Observation。输出仅包含：调用/关联 ID、User、Feature、Project、Provider/Model、Prompt/Schema Version、Evidence 与 Cache Key Fingerprint、Token、Latency、Cost、Cache、Provider Attempt、Quota Charge、Terminal Status、Failure Stage/Code 和时间戳。
+实际 Provider 调用由 `ai_invocations`、对应 `energy_reservations` 和成功时的 `project_briefs` 只读组合为严格 Observation。缓存命中也会写入一条无 Reservation、通过 `source_invocation_id` 指向原冷调用的安全 Invocation。输出仅包含：调用/关联 ID、User、Feature、Project、Provider/Model、Prompt/Schema Version、Evidence 与 Cache Equivalence Fingerprint、Token、Latency、Cost、Cache、Provider Attempt、Quota Charge、Terminal Status、Failure Stage/Code 和时间戳。
 
 Cost 只接受已持久化的 `cost_microunits`。供应商没有可信单价时必须输出 `{ amountMicrounits: null, basis: "unavailable" }`，不得估算。
 
@@ -49,10 +50,10 @@ Cost 只接受已持久化的 `cost_microunits`。供应商没有可信单价时
 - 测试 User/Project 仅保存 SHA-256，不得使用真实用户；
 - `deepSeekSecretConfigured=true` 只表示受保护配置存在；
 - 费用属于既有免费或已配置额度；
-- 同一 Artifact 可稳定重放并命中缓存；
+- 当前授权、Freshness 与全部来源语义等价时可稳定重放并命中缓存；
 - 全部本地门禁已通过。
 
-任一项不可证明，必须在真实调用前停止。尤其是 Phase 3 Evidence Fingerprint 绑定 `now/evaluatedAt`；如果 HTTP 重放会重新构建 Artifact，不能证明相同 Fingerprint，就必须返回 `stable_artifact_replay_unavailable`，不得用相同 `requestKey` 冒充缓存命中。
+任一项不可证明，必须在真实调用前停止。Phase 3 完整 Evidence Fingerprint 继续绑定 `now/evaluatedAt`，不得删除或重签。`project-brief-evidence-cache-equivalence.v1` 只从缓存身份中排除 Freshness 本次评估动作产生的 `evaluatedAt` 和 Freshness Source Ref `occurredAt`；用户、项目、范围、版本、全部来源成员/身份/内容/时间、Freshness status、`lastSuccessfulAt` 与 `coverageComplete` 全部保留。任一语义变化均为 cache miss，旧记录无等价指纹也必须 miss。
 
 ## Smoke 顺序
 
@@ -63,8 +64,8 @@ Cost 只接受已持久化的 `cost_microunits`。供应商没有可信单价时
 3. 固定测试 User/Project 发起一次冷请求；
 4. 验证 `generated`、扣 3 点、唯一 Invocation、唯一 Completed Brief；
 5. 只读读取 Observation，验证 `cacheStatus=miss`、`providerAttempted=true`、`quotaCharge=3`、lineage 和安全字段；
-6. 对逐字段相同且能产生相同 Artifact Fingerprint 的请求重放一次；
-7. 验证 `cache_hit`、同一 Brief、0 点、无新 Invocation、Provider 成功调用总数仍为 1；
+6. 对逐字段相同且当前来源/Freshness 语义等价的请求重放一次；
+7. 验证 `cache_hit`、同一 Brief 及其原完整 Evidence Fingerprint、0 点、新增一条 `cache_status=hit` 的安全 Observation Invocation、Provider 成功调用总数仍为 1；
 8. 扫描脱敏证据，恢复临时配置，确认无活动任务或额外调用。
 
 不为制造失败而调用真实 Provider。Provider/Parse/Schema/Evidence/Persistence 的失败关闭由本地确定性测试证明。

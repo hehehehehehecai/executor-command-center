@@ -131,6 +131,7 @@ async function artifactFromSnapshot(
     snapshot,
     canonicalPayload,
     fingerprint: await fingerprint.sha256Utf8(canonicalPayload),
+    cacheEquivalenceFingerprint: await fingerprint.sha256Utf8(canonicalPayload),
   };
 }
 

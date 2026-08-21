@@ -1,5 +1,9 @@
 import { canonicalizeEvidenceSnapshot } from "@/domain/project-brief-evidence/canonicalization";
 import {
+  buildProjectBriefEvidenceCacheEquivalence,
+  canonicalizeProjectBriefEvidenceCacheEquivalence,
+} from "@/domain/project-brief-evidence/cache-equivalence";
+import {
   evidenceFailure,
   ProjectBriefEvidenceError,
 } from "@/domain/project-brief-evidence/contracts";
@@ -18,6 +22,7 @@ export interface ProjectBriefEvidenceArtifact {
   readonly snapshot: ProjectBriefEvidenceSnapshot;
   readonly canonicalPayload: string;
   readonly fingerprint: string;
+  readonly cacheEquivalenceFingerprint: string;
 }
 
 export class BuildProjectBriefEvidenceSnapshotUseCase {
@@ -51,16 +56,25 @@ export class BuildProjectBriefEvidenceSnapshotUseCase {
     });
     let canonicalPayload: string;
     let fingerprint: string;
+    let cacheEquivalenceFingerprint: string;
     try {
       canonicalPayload = canonicalizeEvidenceSnapshot(snapshot);
       fingerprint = await this.dependencies.fingerprint.sha256Utf8(canonicalPayload);
+      cacheEquivalenceFingerprint = await this.dependencies.fingerprint.sha256Utf8(
+        canonicalizeProjectBriefEvidenceCacheEquivalence(
+          buildProjectBriefEvidenceCacheEquivalence(snapshot),
+        ),
+      );
     } catch (error) {
       if (error instanceof ProjectBriefEvidenceError) throw error;
       return evidenceFailure("canonicalization_failed");
     }
-    if (!/^[0-9a-f]{64}$/.test(fingerprint)) {
+    if (
+      !/^[0-9a-f]{64}$/.test(fingerprint)
+      || !/^[0-9a-f]{64}$/.test(cacheEquivalenceFingerprint)
+    ) {
       return evidenceFailure("canonicalization_failed");
     }
-    return { snapshot, canonicalPayload, fingerprint };
+    return { snapshot, canonicalPayload, fingerprint, cacheEquivalenceFingerprint };
   }
 }

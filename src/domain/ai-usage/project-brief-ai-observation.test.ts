@@ -17,6 +17,7 @@ const invocation = {
   promptVersion: "project-brief-v1",
   schemaVersion: "project-brief-schema-v1",
   inputFingerprint: "a".repeat(64),
+  cacheEquivalenceFingerprint: "c".repeat(64),
   status: "completed" as const,
   inputTokens: 120,
   outputTokens: 80,
@@ -26,6 +27,7 @@ const invocation = {
   failureStage: null,
   errorCode: null,
   reservationId: "30000000-0000-4000-8000-000000000003",
+  sourceInvocationId: null,
   briefId: "40000000-0000-4000-8000-000000000004",
   providerRequestId: "provider-request-safe",
   createdAt: "2026-08-21T01:00:00.000Z",
@@ -37,6 +39,7 @@ const reservation = { amount: 3, status: "consumed" as const };
 const brief = {
   rangeStart: "2026-08-01T00:00:00.000Z",
   rangeEnd: "2026-08-21T00:00:00.000Z",
+  evidenceFingerprint: "a".repeat(64),
 };
 
 describe("project Brief AI observation", () => {
@@ -47,6 +50,35 @@ describe("project Brief AI observation", () => {
     expect(projectBriefAiFailureStages).toEqual([
       "provider", "parse", "schema", "evidence", "persistence",
     ]);
+  });
+
+  it("projects a cache hit with original Brief lineage, zero quota and no Provider attempt", () => {
+    const sourceInvocationId = invocation.id;
+    const result = createProjectBriefAiObservation({
+      invocation: {
+        ...invocation,
+        id: "70000000-0000-4000-8000-000000000007",
+        inputFingerprint: "d".repeat(64),
+        cacheStatus: "hit",
+        reservationId: null,
+        sourceInvocationId,
+        inputTokens: null,
+        outputTokens: null,
+        latencyMs: null,
+        providerRequestId: null,
+      },
+      reservation: null,
+      brief,
+      cacheKeyFingerprint: "c".repeat(64),
+    });
+    expect(result).toMatchObject({
+      correlationId: sourceInvocationId,
+      evidenceFingerprint: brief.evidenceFingerprint,
+      cacheKeyFingerprint: "c".repeat(64),
+      cacheStatus: "hit",
+      providerAttempted: false,
+      quotaCharge: 0,
+    });
   });
 
   it("projects a completed cold invocation with honest unknown cost and quota", () => {
