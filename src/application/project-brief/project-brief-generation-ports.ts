@@ -54,6 +54,8 @@ export interface FinalizeProjectBriefGenerationInput {
 
 export interface FailProjectBriefGenerationInput {
   readonly reservationId: string;
+  readonly promptVersion: string;
+  readonly schemaVersion: string;
   readonly evidenceFingerprint: string;
   readonly cacheEquivalenceFingerprint: string;
   readonly failureStage: ProjectBriefGenerationFailureStage;

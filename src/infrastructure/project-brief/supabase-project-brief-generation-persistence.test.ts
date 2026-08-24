@@ -163,13 +163,15 @@ describe("SupabaseProjectBriefGenerationPersistence", () => {
     });
     await expect(persistence.fail({
       reservationId,
+      promptVersion: "project-brief-v2",
+      schemaVersion: "project-brief-schema-v1",
       evidenceFingerprint: brief.evidenceFingerprint,
       cacheEquivalenceFingerprint,
       failureStage: "provider",
       errorCode: "project_brief_provider_failure",
       metadata: createStructuredGenerationMetadata({ provider: "synthetic" }),
     })).resolves.toMatchObject({ status: "failed", outcome: "released" });
-    expect(rpc).toHaveBeenCalledWith("fail_project_brief_generation", {
+    expect(rpc).toHaveBeenCalledWith("fail_project_brief_generation_with_contract", {
       p_actor_user_id: "10000000-0000-4000-8000-000000000001",
       p_reservation_id: reservationId,
       p_failure_stage: "provider",
@@ -177,6 +179,8 @@ describe("SupabaseProjectBriefGenerationPersistence", () => {
       p_provider: "synthetic",
       p_model: null,
       p_request_id: null,
+      p_prompt_version: "project-brief-v2",
+      p_schema_version: "project-brief-schema-v1",
       p_input_fingerprint: brief.evidenceFingerprint,
       p_cache_equivalence_fingerprint: cacheEquivalenceFingerprint,
       p_input_tokens: null,
@@ -216,6 +220,8 @@ describe("SupabaseProjectBriefGenerationPersistence", () => {
 
     await persistence.fail({
       reservationId,
+      promptVersion: "project-brief-v2",
+      schemaVersion: "project-brief-schema-v1",
       evidenceFingerprint: brief.evidenceFingerprint,
       cacheEquivalenceFingerprint,
       failureStage: "provider",
@@ -227,7 +233,7 @@ describe("SupabaseProjectBriefGenerationPersistence", () => {
     });
 
     expect(rpc).toHaveBeenCalledWith(
-      "fail_project_brief_generation",
+      "fail_project_brief_generation_with_contract",
       expect.objectContaining({ p_latency_ms: expected }),
     );
   });

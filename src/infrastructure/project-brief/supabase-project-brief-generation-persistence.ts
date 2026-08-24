@@ -225,7 +225,7 @@ implements ProjectBriefGenerationPersistence {
   ): Promise<DurableFailedProjectBriefGeneration> {
     const outcome = await this.execute(
       this.clients.trustedRpc,
-      "fail_project_brief_generation",
+      "fail_project_brief_generation_with_contract",
       {
       p_actor_user_id: this.clients.actorUserId,
       p_reservation_id: input.reservationId,
@@ -234,6 +234,8 @@ implements ProjectBriefGenerationPersistence {
       p_provider: input.metadata?.provider ?? null,
       p_model: input.metadata?.model ?? null,
       p_request_id: input.metadata?.requestId ?? null,
+      p_prompt_version: input.promptVersion,
+      p_schema_version: input.schemaVersion,
       p_input_fingerprint: input.evidenceFingerprint,
       p_cache_equivalence_fingerprint: input.cacheEquivalenceFingerprint,
       p_input_tokens: input.metadata?.inputTokens ?? null,

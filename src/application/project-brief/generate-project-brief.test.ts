@@ -285,7 +285,7 @@ describe("GenerateProjectBriefUseCase", () => {
     expect(projectBriefGenerationContractVersion).toBe("project-brief-generation.v1");
     expect(projectBriefCacheContractVersion).toBe("project-brief-cache.v1");
     expect(projectBriefGenerationPersistenceContractVersion).toBe(
-      "project-brief-generation-persistence.v1",
+      "project-brief-generation-persistence.v2",
     );
     expect(projectBriefEnergyCost).toBe(3);
     expect(projectBriefGenerationSchemaName).toBe("ProjectBriefV2");
@@ -559,6 +559,8 @@ describe("GenerateProjectBriefUseCase", () => {
     });
     expect(h.persistence.fail).toHaveBeenCalledWith(expect.objectContaining({
       reservationId,
+      promptVersion: "project-brief-v2",
+      schemaVersion: "project-brief-schema-v1",
       evidenceFingerprint: "a".repeat(64),
       failureStage: "provider",
       errorCode: code,
@@ -578,6 +580,8 @@ describe("GenerateProjectBriefUseCase", () => {
       code: "project_brief_provider_failure",
     });
     expect(h.persistence.fail).toHaveBeenCalledWith(expect.objectContaining({
+      promptVersion: "project-brief-v2",
+      schemaVersion: "project-brief-schema-v1",
       metadata: expect.objectContaining({ latencyMs: 27.5 }),
     }));
   });
@@ -590,6 +594,10 @@ describe("GenerateProjectBriefUseCase", () => {
     });
     expect(h.evidenceValidator.execute).not.toHaveBeenCalled();
     expect(h.persistence.fail).toHaveBeenCalledOnce();
+    expect(h.persistence.fail).toHaveBeenCalledWith(expect.objectContaining({
+      promptVersion: "project-brief-v2",
+      schemaVersion: "project-brief-schema-v1",
+    }));
   });
 
   it("separates evidence failure and never finalizes Completed", async () => {
@@ -603,6 +611,10 @@ describe("GenerateProjectBriefUseCase", () => {
     });
     expect(h.persistence.finalize).not.toHaveBeenCalled();
     expect(h.persistence.fail).toHaveBeenCalledOnce();
+    expect(h.persistence.fail).toHaveBeenCalledWith(expect.objectContaining({
+      promptVersion: "project-brief-v2",
+      schemaVersion: "project-brief-schema-v1",
+    }));
   });
 
   it("returns the same durable result for a consumed replay without another provider call", async () => {

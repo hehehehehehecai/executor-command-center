@@ -40,7 +40,7 @@ export const projectBriefGenerationContractVersion =
   "project-brief-generation.v1" as const;
 export const projectBriefCacheContractVersion = "project-brief-cache.v1" as const;
 export const projectBriefGenerationPersistenceContractVersion =
-  "project-brief-generation-persistence.v1" as const;
+  "project-brief-generation-persistence.v2" as const;
 export const projectBriefEnergyCost = 3 as const;
 export const projectBriefCacheTtlMs = 86_400_000 as const;
 export const projectBriefGenerationSchemaName = "ProjectBriefV2" as const;
@@ -629,6 +629,8 @@ export class GenerateProjectBriefUseCase {
     try {
       await this.dependencies.persistence.fail({
         reservationId,
+        promptVersion: projectBriefActivePromptVersion,
+        schemaVersion: projectBriefSchemaVersion,
         evidenceFingerprint,
         cacheEquivalenceFingerprint,
         failureStage: stage,

@@ -1458,6 +1458,25 @@ export type Database = {
             }
             Returns: Json
           }
+      fail_project_brief_generation_with_contract: {
+        Args: {
+          p_actor_user_id: string
+          p_cache_equivalence_fingerprint: string
+          p_error_code: string
+          p_failure_stage: string
+          p_input_fingerprint: string
+          p_input_tokens: number
+          p_latency_ms: number
+          p_model: string
+          p_output_tokens: number
+          p_prompt_version: string
+          p_provider: string
+          p_request_id: string
+          p_reservation_id: string
+          p_schema_version: string
+        }
+        Returns: Json
+      }
       finalize_project_brief_generation:
         | {
             Args: {

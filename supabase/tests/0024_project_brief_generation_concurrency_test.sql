@@ -57,7 +57,7 @@ immutable
 set search_path = ''
 as $$
   select jsonb_build_object(
-    'promptVersion', 'project-brief-v1',
+    'promptVersion', 'project-brief-v2',
     'schemaVersion', 'project-brief-schema-v1',
     'projectId', p_project_id,
     'evidenceFingerprint', repeat('d', 64),
@@ -93,7 +93,7 @@ begin
     'f9000000-0000-4000-8000-000000000003',
     p_reservation_id,
     '2026-08-01T00:00:00Z', '2026-08-18T00:00:00Z',
-    'project-brief-v1', 'project-brief-schema-v1', repeat('d', 64),
+    'project-brief-v2', 'project-brief-schema-v1', repeat('d', 64),
     public.test_phase7_concurrent_payload(p_project_id),
     pg_catalog.clock_timestamp() + interval '1 day', 'synthetic', 'fixture-v1',
     'request-concurrent', 10, 20, 30
@@ -153,7 +153,7 @@ select is(
         select public.finalize_project_brief_generation(
           'f9000000-0000-4000-8000-000000000003', %L::uuid,
           '2026-08-01T00:00:00Z', '2026-08-18T00:00:00Z',
-          'project-brief-v1', 'project-brief-schema-v1', %L,
+          'project-brief-v2', 'project-brief-schema-v1', %L,
           public.test_phase7_concurrent_payload(%L::uuid),
           pg_catalog.clock_timestamp() + interval '1 day', 'synthetic', 'fixture-v1',
           'request-concurrent', 10, 20, 30
@@ -277,13 +277,16 @@ select is(
     'phase7_c2',
     format(
       $query$
-        select public.fail_project_brief_generation(
+        select public.fail_project_brief_generation_with_contract(
           'f9000000-0000-4000-8000-000000000003', %L::uuid,
           'provider', 'project_brief_provider_failure',
-          'synthetic', 'fixture-v1', 'request-lock-order', null, null, 5
+          'synthetic', 'fixture-v2', 'request-lock-order',
+          'project-brief-v2', 'project-brief-schema-v1',
+          %L, %L, null, null, 5
         )
       $query$,
-      (select id from public.energy_reservations where request_key = 'brief:phase7:lock-order')
+      (select id from public.energy_reservations where request_key = 'brief:phase7:lock-order'),
+      repeat('e', 64), repeat('f', 64)
     )
   ),
   1,
