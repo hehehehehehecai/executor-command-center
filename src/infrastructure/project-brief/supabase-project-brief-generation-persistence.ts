@@ -32,6 +32,18 @@ type WaitOptions = {
   readonly sleep: (milliseconds: number) => Promise<void>;
 };
 
+const postgresSignedIntegerMaximum = 2_147_483_647;
+
+function normalizePostgresLatencyMs(value: number | null): number | null {
+  if (value === null || !Number.isFinite(value) || value < 0) return null;
+  const rounded = Math.round(value);
+  if (
+    !Number.isSafeInteger(rounded)
+    || rounded > postgresSignedIntegerMaximum
+  ) return null;
+  return rounded;
+}
+
 const completedSchema = z.object({
   status: z.literal("completed"),
   outcome: z.enum(["completed", "replayed"]),
@@ -201,7 +213,7 @@ implements ProjectBriefGenerationPersistence {
       p_request_id: input.metadata.requestId,
       p_input_tokens: input.metadata.inputTokens,
       p_output_tokens: input.metadata.outputTokens,
-      p_latency_ms: input.metadata.latencyMs,
+      p_latency_ms: normalizePostgresLatencyMs(input.metadata.latencyMs),
       },
     );
     if (outcome.status !== "completed") throw storageFailure();
@@ -226,7 +238,7 @@ implements ProjectBriefGenerationPersistence {
       p_cache_equivalence_fingerprint: input.cacheEquivalenceFingerprint,
       p_input_tokens: input.metadata?.inputTokens ?? null,
       p_output_tokens: input.metadata?.outputTokens ?? null,
-      p_latency_ms: input.metadata?.latencyMs ?? null,
+      p_latency_ms: normalizePostgresLatencyMs(input.metadata?.latencyMs ?? null),
       },
     );
     if (outcome.status !== "failed") throw storageFailure();

@@ -105,6 +105,46 @@ describe("SupabaseProjectBriefGenerationPersistence", () => {
     });
   });
 
+  it("rounds fractional latency at the PostgreSQL finalization boundary", async () => {
+    const rpc = vi.fn(async () => ({
+      data: {
+        status: "completed",
+        outcome: "completed",
+        reservation_id: reservationId,
+        brief_id: briefId,
+        invocation_id: invocationId,
+        brief,
+      },
+      error: null,
+    }));
+    const persistence = new SupabaseProjectBriefGenerationPersistence({
+      trustedRpc: { rpc },
+      authenticatedRpc: { rpc: vi.fn() },
+      actorUserId: "10000000-0000-4000-8000-000000000001",
+    });
+
+    await persistence.finalize({
+      reservationId,
+      rangeStart: brief.rangeStart,
+      rangeEnd: brief.rangeEnd,
+      promptVersion: brief.promptVersion,
+      schemaVersion: brief.schemaVersion,
+      evidenceFingerprint: brief.evidenceFingerprint,
+      cacheEquivalenceFingerprint,
+      brief,
+      expiresAt: "2026-08-19T06:00:00.000Z",
+      metadata: createStructuredGenerationMetadata({
+        provider: "synthetic",
+        latencyMs: 27.5,
+      }),
+    });
+
+    expect(rpc).toHaveBeenCalledWith(
+      "finalize_project_brief_generation",
+      expect.objectContaining({ p_latency_ms: 28 }),
+    );
+  });
+
   it("atomically records a safe failure and release through one RPC", async () => {
     const rpc = vi.fn(async () => ({
       data: {
@@ -143,6 +183,53 @@ describe("SupabaseProjectBriefGenerationPersistence", () => {
       p_output_tokens: null,
       p_latency_ms: null,
     });
+  });
+
+  it.each([
+    { latencyMs: 27.5, expected: 28 },
+    { latencyMs: null, expected: null },
+    { latencyMs: -0.1, expected: null },
+    { latencyMs: Number.NaN, expected: null },
+    { latencyMs: Number.POSITIVE_INFINITY, expected: null },
+    { latencyMs: Number.MAX_SAFE_INTEGER + 1, expected: null },
+    { latencyMs: 2_147_483_646.6, expected: 2_147_483_647 },
+    { latencyMs: 2_147_483_647.5, expected: null },
+  ])("normalizes $latencyMs to $expected at the PostgreSQL failure boundary", async ({
+    latencyMs,
+    expected,
+  }) => {
+    const rpc = vi.fn(async () => ({
+      data: {
+        status: "failed",
+        outcome: "released",
+        reservation_id: reservationId,
+        failure_stage: "provider",
+        error_code: "project_brief_provider_failure",
+      },
+      error: null,
+    }));
+    const persistence = new SupabaseProjectBriefGenerationPersistence({
+      trustedRpc: { rpc },
+      authenticatedRpc: { rpc: vi.fn() },
+      actorUserId: "10000000-0000-4000-8000-000000000001",
+    });
+
+    await persistence.fail({
+      reservationId,
+      evidenceFingerprint: brief.evidenceFingerprint,
+      cacheEquivalenceFingerprint,
+      failureStage: "provider",
+      errorCode: "project_brief_provider_failure",
+      metadata: createStructuredGenerationMetadata({
+        provider: "synthetic",
+        latencyMs,
+      }),
+    });
+
+    expect(rpc).toHaveBeenCalledWith(
+      "fail_project_brief_generation",
+      expect.objectContaining({ p_latency_ms: expected }),
+    );
   });
 
   it("records a durable cache-hit observation linked to the original invocation", async () => {

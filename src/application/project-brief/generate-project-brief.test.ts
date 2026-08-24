@@ -308,6 +308,20 @@ describe("GenerateProjectBriefUseCase", () => {
     }));
   });
 
+  it("preserves fractional provider latency until the persistence boundary finalizes", async () => {
+    const h = harness({
+      provider: completedStructuredGeneration(validBrief(), {
+        provider: "synthetic",
+        latencyMs: 27.5,
+      }),
+    });
+
+    await expect(h.useCase.execute(input())).resolves.toMatchObject({ status: "generated" });
+    expect(h.persistence.finalize).toHaveBeenCalledWith(expect.objectContaining({
+      metadata: expect.objectContaining({ latencyMs: 27.5 }),
+    }));
+  });
+
   it("returns a revalidated exact cache hit for zero energy without reserving or calling provider", async () => {
     const cachedBrief = validBrief();
     const h = harness({
@@ -482,6 +496,22 @@ describe("GenerateProjectBriefUseCase", () => {
       errorCode: code,
     }));
     expect(h.calls.at(-1)).toBe("persist_failure_and_release");
+  });
+
+  it("preserves fractional provider latency until the persistence boundary releases failure", async () => {
+    const h = harness({
+      provider: providerStructuredGenerationFailure({
+        reasonCode: "unavailable",
+        metadata: { provider: "synthetic", latencyMs: 27.5 },
+      }),
+    });
+
+    await expect(h.useCase.execute(input())).rejects.toMatchObject({
+      code: "project_brief_provider_failure",
+    });
+    expect(h.persistence.fail).toHaveBeenCalledWith(expect.objectContaining({
+      metadata: expect.objectContaining({ latencyMs: 27.5 }),
+    }));
   });
 
   it("separates schema failure and releases before returning", async () => {
