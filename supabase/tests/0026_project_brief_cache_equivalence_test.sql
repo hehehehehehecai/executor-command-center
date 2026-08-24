@@ -33,6 +33,41 @@ select function_privs_are(
   array['uuid', 'uuid', 'text', 'text', 'timestamp with time zone'],
   'authenticated', array[]::text[]
 );
+select function_privs_are(
+  'public', 'record_project_brief_cache_hit',
+  array['uuid', 'uuid', 'text', 'text', 'timestamp with time zone'],
+  'anon', array[]::text[],
+  'anonymous clients cannot execute the cache-hit observation RPC'
+);
+select function_privs_are(
+  'public', 'record_project_brief_cache_hit',
+  array['uuid', 'uuid', 'text', 'text', 'timestamp with time zone'],
+  'public', array[]::text[],
+  'PUBLIC has no implicit execute privilege on the cache-hit observation RPC'
+);
+select is(
+  (
+    select count(*)::integer
+    from pg_proc procedure_record
+    join pg_namespace namespace_record on namespace_record.oid = procedure_record.pronamespace
+    where namespace_record.nspname = 'public'
+      and procedure_record.proname = 'record_project_brief_cache_hit'
+  ),
+  1,
+  'the cache-hit observation RPC keeps one unambiguous signature'
+);
+select results_eq(
+  $$
+    select pg_get_userbyid(procedure_record.proowner), procedure_record.prosecdef,
+      procedure_record.proconfig[1]::text collate "default"
+    from pg_proc procedure_record
+    join pg_namespace namespace_record on namespace_record.oid = procedure_record.pronamespace
+    where namespace_record.nspname = 'public'
+      and procedure_record.proname = 'record_project_brief_cache_hit'
+  $$,
+  $$values ('postgres'::name, true, 'search_path=""'::text)$$,
+  'the cache-hit observation RPC is postgres-owned SECURITY DEFINER with empty search_path'
+);
 
 insert into auth.users (
   id, instance_id, aud, role, email, encrypted_password,
@@ -169,7 +204,8 @@ select public.record_project_brief_cache_hit(
   'fa000000-0000-4000-8000-000000000001',
   (select id from public.project_briefs
    where user_id = 'fa000000-0000-4000-8000-000000000001'),
-  repeat('c', 64), repeat('b', 64), pg_catalog.clock_timestamp()
+  repeat('c', 64), repeat('b', 64),
+  pg_catalog.clock_timestamp() - interval '5 seconds'
 );
 
 select is(
@@ -185,6 +221,34 @@ select ok(
    where user_id = 'fa000000-0000-4000-8000-000000000001'
      and cache_status = 'hit'),
   'cache-hit observation has zero-quota lineage to the original invocation'
+);
+select ok(
+  (select created_at = started_at and started_at = completed_at
+   from public.ai_invocations
+   where user_id = 'fa000000-0000-4000-8000-000000000001'
+     and cache_status = 'hit'),
+  'cache-hit observation uses one authoritative database record time'
+);
+
+select throws_ok(
+  $$
+    select public.record_project_brief_cache_hit(
+      'fa000000-0000-4000-8000-000000000001',
+      (select id from public.project_briefs
+       where user_id = 'fa000000-0000-4000-8000-000000000001'),
+      repeat('e', 64), repeat('b', 64),
+      pg_catalog.clock_timestamp() + interval '2 days'
+    )
+  $$,
+  'P0001',
+  'project_brief_generation_idempotency_conflict',
+  'request observation time still fails closed when the cached Brief was already expired'
+);
+select is(
+  (select count(*)::integer from public.ai_invocations
+   where user_id = 'fa000000-0000-4000-8000-000000000001'),
+  2,
+  'expired cache replay does not persist an additional invocation'
 );
 
 select * from finish();

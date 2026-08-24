@@ -65,6 +65,8 @@ Cost 只接受已持久化的 `cost_microunits`。供应商没有可信单价时
 
 Supabase Data API 可能把同一 `timestamptz` instant 序列化为 `+00:00`、省略毫秒或使用其他合法 offset。`SupabaseProjectBriefCache` 与 `SupabaseProjectBriefReader` 必须先以严格 offset datetime schema 验证数据库字段，再在 storage adapter→domain record 边界统一为 `new Date(value).toISOString()`；nullable 字段继续保留 `null`。Application/Domain 仍只接收 canonical UTC 并逐字比较，不得改用宽松 `Date.parse` 比较。该规范化只改变存储表示，不重算 Brief payload、完整 Evidence Fingerprint、Cache Equivalence Fingerprint 或 Payload Fingerprint，也不改变查询参数。
 
+缓存命中的 `p_observed_at` 是请求观察时间，只用于 `expires_at > p_observed_at` 的有效期判断，不能作为数据库 Invocation 的权威记录时间。`record_project_brief_cache_hit` 必须在 RPC 内只读取一次 `clock_timestamp()`，并将该值同时写入 `created_at`、`started_at` 与 `completed_at`；即使 Snapshot、Cache 和 Evidence 校验造成处理延迟，三个字段仍逐字相等且满足表约束。不得用 `greatest()` 掩盖旧观察时间，也不得把有效期判断改成数据库当前时间。
+
 ## Smoke 顺序
 
 仅在 Preflight 为 `ready` 后执行：
