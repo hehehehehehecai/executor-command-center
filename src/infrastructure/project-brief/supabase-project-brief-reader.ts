@@ -5,6 +5,11 @@ import {
 } from "@/domain/project-brief/project-brief";
 import { z } from "zod";
 
+import {
+  canonicalizeNullableProjectBriefDatabaseDatetime,
+  canonicalizeProjectBriefDatabaseDatetime,
+} from "./project-brief-database-datetime";
+
 type QueryResult = { readonly data: unknown; readonly error: unknown };
 type ProjectBriefQuery = {
   eq(column: "project_id", value: string): PromiseLike<QueryResult>;
@@ -43,8 +48,8 @@ function record(row: z.infer<typeof rowSchema>): ProjectBriefRecord {
   return {
     id: row.id,
     projectId: row.project_id,
-    rangeStart: row.range_start,
-    rangeEnd: row.range_end,
+    rangeStart: canonicalizeProjectBriefDatabaseDatetime(row.range_start),
+    rangeEnd: canonicalizeProjectBriefDatabaseDatetime(row.range_end),
     promptVersion: row.prompt_version,
     schemaVersion: row.schema_version,
     evidenceFingerprint: row.evidence_fingerprint,
@@ -52,9 +57,9 @@ function record(row: z.infer<typeof rowSchema>): ProjectBriefRecord {
     payload: row.payload,
     failureStage: row.failure_stage,
     errorCode: row.error_code,
-    createdAt: row.created_at,
-    completedAt: row.completed_at,
-    expiresAt: row.expires_at,
+    createdAt: canonicalizeProjectBriefDatabaseDatetime(row.created_at),
+    completedAt: canonicalizeNullableProjectBriefDatabaseDatetime(row.completed_at),
+    expiresAt: canonicalizeNullableProjectBriefDatabaseDatetime(row.expires_at),
   };
 }
 

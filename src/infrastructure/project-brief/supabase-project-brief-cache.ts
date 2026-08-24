@@ -10,6 +10,11 @@ import { projectBriefStatuses } from "@/domain/project-brief/project-brief";
 import { canonicalizeEvidenceValue } from "@/domain/project-brief-evidence/canonicalization";
 import { z } from "zod";
 
+import {
+  canonicalizeNullableProjectBriefDatabaseDatetime,
+  canonicalizeProjectBriefDatabaseDatetime,
+} from "./project-brief-database-datetime";
+
 type QueryResult = { readonly data: unknown; readonly error: unknown };
 type CacheQuery = {
   match(values: Readonly<Record<string, unknown>>): CacheQuery;
@@ -49,8 +54,8 @@ function record(row: z.infer<typeof rowSchema>): ProjectBriefCacheRecord {
     id: row.id,
     userId: row.user_id,
     projectId: row.project_id,
-    rangeStart: row.range_start,
-    rangeEnd: row.range_end,
+    rangeStart: canonicalizeProjectBriefDatabaseDatetime(row.range_start),
+    rangeEnd: canonicalizeProjectBriefDatabaseDatetime(row.range_end),
     promptVersion: row.prompt_version,
     schemaVersion: row.schema_version,
     evidenceFingerprint: row.evidence_fingerprint,
@@ -58,7 +63,7 @@ function record(row: z.infer<typeof rowSchema>): ProjectBriefCacheRecord {
     payloadFingerprint: row.payload_fingerprint,
     status: row.status,
     payload: row.payload,
-    expiresAt: row.expires_at,
+    expiresAt: canonicalizeNullableProjectBriefDatabaseDatetime(row.expires_at),
   };
 }
 

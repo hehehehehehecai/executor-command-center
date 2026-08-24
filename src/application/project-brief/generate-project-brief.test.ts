@@ -19,6 +19,9 @@ import {
   type StructuredGenerationResult,
 } from "@/shared/ai/structured-generation-result";
 import type { StructuredGenerationRequest } from "@/shared/ai/structured-generation-request";
+import { canonicalizeEvidenceValue } from "@/domain/project-brief-evidence/canonicalization";
+import { SupabaseProjectBriefCache } from "@/infrastructure/project-brief/supabase-project-brief-cache";
+import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -380,6 +383,60 @@ describe("GenerateProjectBriefUseCase", () => {
       "cache",
       "persist_cache_hit_observation",
     ]);
+    expect(h.energyReservations.reserve).not.toHaveBeenCalled();
+    expect(h.provider.generateStructured).not.toHaveBeenCalled();
+  });
+
+  it("accepts an equivalent offset datetime record through the real Supabase cache boundary", async () => {
+    const cachedBrief = activeBrief();
+    const cachePayloadFingerprint = createHash("sha256")
+      .update(canonicalizeEvidenceValue(cachedBrief))
+      .digest("hex");
+    const query = {
+      match: vi.fn(),
+      gt: vi.fn(),
+      order: vi.fn(),
+      limit: vi.fn(),
+      maybeSingle: vi.fn(async () => ({
+        data: {
+          id: briefId,
+          user_id: userId,
+          project_id: projectId,
+          range_start: "2026-08-01T00:00:00+00:00",
+          range_end: "2026-08-18T00:00:00+00:00",
+          prompt_version: projectBriefActivePromptVersion,
+          schema_version: projectBriefSchemaVersion,
+          evidence_fingerprint: fingerprint,
+          cache_equivalence_fingerprint: cacheEquivalenceFingerprint,
+          payload_fingerprint: cachePayloadFingerprint,
+          status: "completed",
+          payload: cachedBrief,
+          expires_at: "2026-08-19T06:00:00+00:00",
+        },
+        error: null,
+      })),
+    };
+    query.match.mockReturnValue(query);
+    query.gt.mockReturnValue(query);
+    query.order.mockReturnValue(query);
+    query.limit.mockReturnValue(query);
+    const supabaseCache = new SupabaseProjectBriefCache({
+      from: () => ({ select: () => query }),
+    });
+    const cachedRecord = await supabaseCache.find({
+      ...input(),
+      promptVersion: projectBriefActivePromptVersion,
+      schemaVersion: projectBriefSchemaVersion,
+      evidenceFingerprint: fingerprint,
+      cacheEquivalenceFingerprint,
+    });
+    const h = harness({ cache: cachedRecord });
+
+    await expect(h.useCase.execute(input())).resolves.toMatchObject({
+      status: "cache_hit",
+      energyCharged: 0,
+      briefId,
+    });
     expect(h.energyReservations.reserve).not.toHaveBeenCalled();
     expect(h.provider.generateStructured).not.toHaveBeenCalled();
   });

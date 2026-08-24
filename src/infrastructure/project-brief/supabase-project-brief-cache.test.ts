@@ -108,6 +108,84 @@ describe("SupabaseProjectBriefCache", () => {
     await expect(cache.find(key)).resolves.toBeNull();
   });
 
+  it("normalizes database datetime offsets before returning the cache record", async () => {
+    const q = query({
+      data: {
+        id: "40000000-0000-4000-8000-000000000004",
+        user_id: key.userId,
+        project_id: key.projectId,
+        range_start: "2026-08-01T08:00:00+08:00",
+        range_end: "2026-08-18T00:00:00+00:00",
+        prompt_version: key.promptVersion,
+        schema_version: key.schemaVersion,
+        evidence_fingerprint: key.evidenceFingerprint,
+        cache_equivalence_fingerprint: key.cacheEquivalenceFingerprint,
+        payload_fingerprint: payloadFingerprint,
+        status: "completed",
+        payload,
+        expires_at: "2026-08-19T06:00:00+00:00",
+      },
+      error: null,
+    });
+    const cache = new SupabaseProjectBriefCache({
+      from: () => ({ select: () => q }),
+    });
+
+    await expect(cache.find(key)).resolves.toMatchObject({
+      rangeStart: "2026-08-01T00:00:00.000Z",
+      rangeEnd: "2026-08-18T00:00:00.000Z",
+      expiresAt: "2026-08-19T06:00:00.000Z",
+    });
+  });
+
+  it("preserves distinct instants and rejects invalid database datetimes", async () => {
+    const distinct = query({
+      data: {
+        id: "40000000-0000-4000-8000-000000000004",
+        user_id: key.userId,
+        project_id: key.projectId,
+        range_start: "2026-08-01T08:00:01+08:00",
+        range_end: "2026-08-18T00:00:00+00:00",
+        prompt_version: key.promptVersion,
+        schema_version: key.schemaVersion,
+        evidence_fingerprint: key.evidenceFingerprint,
+        cache_equivalence_fingerprint: key.cacheEquivalenceFingerprint,
+        payload_fingerprint: payloadFingerprint,
+        status: "completed",
+        payload,
+        expires_at: "2026-08-19T06:00:00+00:00",
+      },
+      error: null,
+    });
+    await expect(new SupabaseProjectBriefCache({
+      from: () => ({ select: () => distinct }),
+    }).find(key)).resolves.toMatchObject({
+      rangeStart: "2026-08-01T00:00:01.000Z",
+    });
+
+    const invalid = query({
+      data: {
+        id: "40000000-0000-4000-8000-000000000004",
+        user_id: key.userId,
+        project_id: key.projectId,
+        range_start: "not-a-datetime",
+        range_end: key.rangeEnd,
+        prompt_version: key.promptVersion,
+        schema_version: key.schemaVersion,
+        evidence_fingerprint: key.evidenceFingerprint,
+        cache_equivalence_fingerprint: key.cacheEquivalenceFingerprint,
+        payload_fingerprint: payloadFingerprint,
+        status: "completed",
+        payload,
+        expires_at: "2026-08-19T06:00:00.000Z",
+      },
+      error: null,
+    });
+    await expect(new SupabaseProjectBriefCache({
+      from: () => ({ select: () => invalid }),
+    }).find(key)).rejects.toThrow("project_brief_cache_storage_failed");
+  });
+
   it("returns null for no row and fails closed on storage or malformed rows", async () => {
     const empty = query({ data: null, error: null });
     const cache = new SupabaseProjectBriefCache({

@@ -63,6 +63,8 @@ Cost 只接受已持久化的 `cost_microunits`。供应商没有可信单价时
 
 原子完成 RPC 明确只接受 `project-brief-v1|project-brief-v2` 与 `project-brief-schema-v1` 的合法组合，并把传入版本逐字保存到 Brief/Invocation；旧 v1 调用与重放继续兼容。失败路径的新应用入口为唯一签名的 `fail_project_brief_generation_with_contract`，它在同一事务内保存真实 prompt/schema、Evidence/Cache Equivalence Fingerprint 和安全 Provider metadata，再释放 Reservation 并追加 Ledger。旧 `fail_project_brief_generation` 签名仅保留滚动兼容，新应用不得调用。所有失败入口均只能由 `service_role` 执行，Public/anon/authenticated 没有权限。
 
+Supabase Data API 可能把同一 `timestamptz` instant 序列化为 `+00:00`、省略毫秒或使用其他合法 offset。`SupabaseProjectBriefCache` 与 `SupabaseProjectBriefReader` 必须先以严格 offset datetime schema 验证数据库字段，再在 storage adapter→domain record 边界统一为 `new Date(value).toISOString()`；nullable 字段继续保留 `null`。Application/Domain 仍只接收 canonical UTC 并逐字比较，不得改用宽松 `Date.parse` 比较。该规范化只改变存储表示，不重算 Brief payload、完整 Evidence Fingerprint、Cache Equivalence Fingerprint 或 Payload Fingerprint，也不改变查询参数。
+
 ## Smoke 顺序
 
 仅在 Preflight 为 `ready` 后执行：
