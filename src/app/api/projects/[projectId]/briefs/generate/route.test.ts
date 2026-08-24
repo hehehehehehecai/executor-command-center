@@ -91,7 +91,6 @@ describe("POST /api/projects/{projectId}/briefs/generate", () => {
       rangeEnd: body.rangeEnd,
       requestKey: body.requestKey,
       now: "2026-08-18T06:00:00.000Z",
-      businessDate: "2026-08-18",
     });
   });
 
@@ -100,6 +99,7 @@ describe("POST /api/projects/{projectId}/briefs/generate", () => {
     ["foreign Origin", { origin: "https://attacker.test", "content-type": "application/json" }, body, 403, "origin_forbidden"],
     ["non JSON", { origin: "https://executor.example.test", "content-type": "text/plain" }, body, 400, "invalid_request"],
     ["authority injection", { origin: "https://executor.example.test", "content-type": "application/json" }, { ...body, userId: "attacker" }, 400, "invalid_request"],
+    ["business date injection", { origin: "https://executor.example.test", "content-type": "application/json" }, { ...body, businessDate: "2026-08-18" }, 400, "invalid_request"],
   ])("rejects %s before dependency construction", async (_caseId, headers, value, status, code) => {
     const response = await POST(request(value, headers), {
       params: Promise.resolve({ projectId: syntheticBriefProjectId }),

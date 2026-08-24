@@ -109,6 +109,10 @@ select has_function(
   'atomic reserve RPC exists'
 );
 select has_function(
+  'public', 'reserve_project_brief_energy', array['uuid', 'text'],
+  'fixed daily Project Brief grant and reserve RPC exists'
+);
+select has_function(
   'public', 'consume_energy', array['uuid'],
   'idempotent consume RPC exists'
 );
@@ -128,7 +132,7 @@ select results_eq(
     join pg_namespace on pg_namespace.oid = pg_proc.pronamespace
     where pg_namespace.nspname = 'public'
       and proname in (
-        'reserve_energy', 'consume_energy', 'release_energy',
+        'reserve_energy', 'reserve_project_brief_energy', 'consume_energy', 'release_energy',
         'get_available_energy'
       )
       and prosecdef
@@ -136,19 +140,21 @@ select results_eq(
     order by proname
   $$,
   array[
-    'consume_energy', 'get_available_energy', 'release_energy', 'reserve_energy'
+    'consume_energy', 'get_available_energy', 'release_energy',
+    'reserve_energy', 'reserve_project_brief_energy'
   ],
   'all energy RPCs are security definer functions with empty search_path'
 );
 
 select ok(
-  has_function_privilege('authenticated', 'public.reserve_energy(uuid,date,text,integer)', 'execute')
+  not has_function_privilege('authenticated', 'public.reserve_energy(uuid,date,text,integer)', 'execute')
+    and has_function_privilege('authenticated', 'public.reserve_project_brief_energy(uuid,text)', 'execute')
     and has_function_privilege('authenticated', 'public.consume_energy(uuid)', 'execute')
     and has_function_privilege('authenticated', 'public.release_energy(uuid)', 'execute')
     and has_function_privilege('authenticated', 'public.get_available_energy(date)', 'execute')
     and not has_function_privilege('anon', 'public.reserve_energy(uuid,date,text,integer)', 'execute')
     and not has_function_privilege('service_role', 'public.reserve_energy(uuid,date,text,integer)', 'execute'),
-  'only authenticated callers receive energy RPC execution'
+  'authenticated receives only the fixed Project Brief reserve entrypoint'
 );
 
 select results_eq(

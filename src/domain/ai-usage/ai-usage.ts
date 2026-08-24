@@ -23,6 +23,7 @@ export interface EnergyReservationReceipt {
   readonly outcome: EnergyReservationStatus | "replayed";
   readonly amount: number;
   readonly availableAfter: number;
+  readonly businessDate: string | null;
 }
 
 export function isAiInvocationTransitionAllowed(

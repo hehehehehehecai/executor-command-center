@@ -20,6 +20,7 @@ const receiptSchema = z.object({
   outcome: z.enum([...energyReservationStatuses, "replayed"]),
   amount: z.number().int().positive(),
   available_after: z.number().int().nonnegative(),
+  business_date: z.iso.date().nullable().optional(),
 }).strict();
 
 const allowedErrors = new Set<string>(aiUsageErrorCodes);
@@ -47,6 +48,7 @@ function receipt(value: unknown): EnergyReservationReceipt {
     outcome: parsed.data.outcome,
     amount: parsed.data.amount,
     availableAfter: parsed.data.available_after,
+    businessDate: parsed.data.business_date ?? null,
   };
 }
 
@@ -54,11 +56,9 @@ export class SupabaseEnergyReservationClient implements EnergyReservationPersist
   constructor(private readonly client: AuthenticatedRpcClient) {}
 
   reserve(input: ReserveEnergyInput): Promise<EnergyReservationReceipt> {
-    return this.execute("reserve_energy", {
+    return this.execute("reserve_project_brief_energy", {
       p_project_id: input.projectId,
-      p_business_date: input.businessDate,
       p_request_key: input.requestKey,
-      p_amount: input.amount,
     });
   }
 

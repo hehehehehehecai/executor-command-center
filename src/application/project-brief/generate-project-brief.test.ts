@@ -2,6 +2,7 @@ import type { EnergyReservationPersistence } from "@/application/ai-usage/ai-usa
 import type { EnergyReservationReceipt } from "@/domain/ai-usage/ai-usage";
 import type { ProjectBriefEvidenceArtifact } from "@/application/project-brief-evidence/build-project-brief-evidence-snapshot";
 import type { ProjectBriefEvidenceValidationSuccess } from "@/domain/project-brief-evidence/evidence-validation";
+import { ProjectBriefEvidenceError } from "@/domain/project-brief-evidence/contracts";
 import {
   projectBriefBoundaryNote,
   projectBriefEvidenceRefContractVersion,
@@ -132,7 +133,6 @@ function input() {
     rangeStart,
     rangeEnd,
     now,
-    businessDate: "2026-08-18",
     requestKey: "brief:phase7:synthetic",
   } as const;
 }
@@ -181,6 +181,7 @@ function harness(options: {
         outcome: "reserved",
         amount: 3,
         availableAfter: 7,
+        businessDate: "2026-08-24",
       };
       return options.reserve ?? defaultReceipt;
     }),
@@ -298,9 +299,7 @@ describe("GenerateProjectBriefUseCase", () => {
     ]);
     expect(h.energyReservations.reserve).toHaveBeenCalledWith({
       projectId,
-      businessDate: "2026-08-18",
       requestKey: "brief:phase7:synthetic",
-      amount: 3,
     });
     expect(h.provider.generateStructured).toHaveBeenCalledWith(expect.objectContaining({
       schemaName: "ProjectBriefV1",
@@ -414,6 +413,28 @@ describe("GenerateProjectBriefUseCase", () => {
   });
 
   it.each([
+    ["authorization", "project_not_found_or_forbidden", "project_brief_authorization_failed"],
+    ["freshness", "freshness_unavailable", "project_brief_freshness_failed"],
+    ["snapshot", "source_invalid", "project_brief_snapshot_failed"],
+  ] as const)(
+    "does not grant or reserve when %s evidence construction fails",
+    async (stage, evidenceCode, generationCode) => {
+      const h = harness();
+      vi.mocked(h.evidenceBuilder.execute).mockRejectedValueOnce(
+        new ProjectBriefEvidenceError(evidenceCode),
+      );
+
+      await expect(h.useCase.execute(input())).rejects.toMatchObject({
+        stage,
+        code: generationCode,
+      });
+      expect(h.cache.find).not.toHaveBeenCalled();
+      expect(h.energyReservations.reserve).not.toHaveBeenCalled();
+      expect(h.provider.generateStructured).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
     ["expired", { expiresAt: now }],
     ["prompt version", { promptVersion: "project-brief-old" }],
     ["fingerprint", { evidenceFingerprint: "b".repeat(64) }],
@@ -494,6 +515,7 @@ describe("GenerateProjectBriefUseCase", () => {
         outcome: "replayed",
         amount: 3,
         availableAfter: 7,
+        businessDate: "2026-08-24",
       },
       waited: completedDurable(),
     });
@@ -528,6 +550,7 @@ describe("GenerateProjectBriefUseCase", () => {
         outcome: "replayed",
         amount: 3,
         availableAfter: 7,
+        businessDate: "2026-08-24",
       },
       waited: completedDurable(),
     });
@@ -545,6 +568,7 @@ describe("GenerateProjectBriefUseCase", () => {
         outcome: "reserved",
         amount: 3,
         availableAfter: 7,
+        businessDate: "2026-08-24",
       })
       .mockResolvedValueOnce({
         reservationId,
@@ -552,6 +576,7 @@ describe("GenerateProjectBriefUseCase", () => {
         outcome: "replayed",
         amount: 3,
         availableAfter: 7,
+        businessDate: "2026-08-24",
       });
     let releaseWaiter: ((value: ReturnType<typeof completedDurable>) => void) | null = null;
     const durableWait = new Promise<ReturnType<typeof completedDurable>>((resolve) => {
@@ -583,6 +608,7 @@ describe("GenerateProjectBriefUseCase", () => {
         outcome: "replayed",
         amount: 3,
         availableAfter: 10,
+        businessDate: "2026-08-24",
       },
       waited: {
         status: "failed",

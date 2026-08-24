@@ -8,22 +8,20 @@ const reservationId = "22222222-2222-4222-8222-222222222222";
 describe("SupabaseEnergyReservationClient", () => {
   it("uses only authenticated narrow RPCs for reserve, consume and release", async () => {
     const rpc = vi.fn()
-      .mockResolvedValueOnce({ data: { reservation_id: reservationId, status: "reserved", outcome: "reserved", amount: 3, available_after: 2 }, error: null })
+      .mockResolvedValueOnce({ data: { reservation_id: reservationId, status: "reserved", outcome: "reserved", amount: 3, available_after: 7, business_date: "2026-08-24" }, error: null })
       .mockResolvedValueOnce({ data: { reservation_id: reservationId, status: "consumed", outcome: "consumed", amount: 3, available_after: 2 }, error: null })
       .mockResolvedValueOnce({ data: { reservation_id: reservationId, status: "released", outcome: "released", amount: 3, available_after: 5 }, error: null });
     const client = new SupabaseEnergyReservationClient({ rpc });
 
     await expect(client.reserve({
       projectId,
-      businessDate: "2026-08-18",
       requestKey: "brief:fixture:1",
-      amount: 3,
-    })).resolves.toMatchObject({ status: "reserved", amount: 3 });
+    })).resolves.toMatchObject({ status: "reserved", amount: 3, businessDate: "2026-08-24" });
     await expect(client.consume(reservationId)).resolves.toMatchObject({ status: "consumed" });
     await expect(client.release(reservationId)).resolves.toMatchObject({ status: "released" });
 
     expect(rpc.mock.calls).toEqual([
-      ["reserve_energy", { p_project_id: projectId, p_business_date: "2026-08-18", p_request_key: "brief:fixture:1", p_amount: 3 }],
+      ["reserve_project_brief_energy", { p_project_id: projectId, p_request_key: "brief:fixture:1" }],
       ["consume_energy", { p_reservation_id: reservationId }],
       ["release_energy", { p_reservation_id: reservationId }],
     ]);
@@ -38,9 +36,7 @@ describe("SupabaseEnergyReservationClient", () => {
 
     await expect(client.reserve({
       projectId,
-      businessDate: "2026-08-18",
       requestKey: "brief:fixture:2",
-      amount: 9,
     })).rejects.toThrow("energy_insufficient_balance");
   });
 

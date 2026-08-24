@@ -114,7 +114,6 @@ export interface GenerateProjectBriefInput {
   readonly rangeStart: string;
   readonly rangeEnd: string;
   readonly now: string;
-  readonly businessDate: string;
   readonly requestKey: string;
 }
 
@@ -133,7 +132,6 @@ type EvidenceValidator = Pick<ValidateProjectBriefEvidenceUseCase, "execute">;
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const requestKeyPattern = /^[A-Za-z0-9][A-Za-z0-9:._-]{0,199}$/;
-const businessDatePattern = /^\d{4}-\d{2}-\d{2}$/;
 
 function canonicalUtc(value: string): boolean {
   const parsed = Date.parse(value);
@@ -155,7 +153,6 @@ function validateInput(input: GenerateProjectBriefInput): void {
     || !canonicalUtc(input.rangeEnd)
     || input.rangeStart >= input.rangeEnd
     || !canonicalUtc(input.now)
-    || !businessDatePattern.test(input.businessDate)
     || !requestKeyPattern.test(input.requestKey)
   ) {
     generationFailure("snapshot", "project_brief_generation_invalid_request");
@@ -283,9 +280,7 @@ export class GenerateProjectBriefUseCase {
     try {
       reservation = await this.dependencies.energyReservations.reserve({
         projectId: input.projectId,
-        businessDate: input.businessDate,
         requestKey: input.requestKey,
-        amount: projectBriefEnergyCost,
       });
     } catch {
       return generationFailure(

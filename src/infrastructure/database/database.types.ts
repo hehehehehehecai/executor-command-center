@@ -1602,6 +1602,10 @@ export type Database = {
         }
         Returns: Json
       }
+      reserve_project_brief_energy: {
+        Args: { p_project_id: string; p_request_key: string }
+        Returns: Json
+      }
       save_project_calibration: {
         Args: {
           p_core_goal: string

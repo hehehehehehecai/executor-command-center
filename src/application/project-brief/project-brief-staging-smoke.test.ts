@@ -105,7 +105,6 @@ describe("ProjectBriefStagingSmokeRunner", () => {
         rangeStart: "2026-08-01T00:00:00.000Z",
         rangeEnd: "2026-08-21T00:00:00.000Z",
         requestKey: "phase10-staging-smoke-stable",
-        businessDate: "2026-08-21",
       },
     })).resolves.toMatchObject({
       contractVersion: projectBriefStagingSmokeContractVersion,
@@ -143,7 +142,6 @@ describe("ProjectBriefStagingSmokeRunner", () => {
         rangeStart: "2026-08-01T00:00:00.000Z",
         rangeEnd: "2026-08-21T00:00:00.000Z",
         requestKey: "phase10-staging-smoke-stable",
-        businessDate: "2026-08-21",
       },
     })).rejects.toThrow("project_brief_staging_smoke_cache_replay_invalid");
   });

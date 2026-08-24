@@ -37,7 +37,6 @@ const generationBody = z.object({
   rangeStart: z.iso.datetime({ offset: true }),
   rangeEnd: z.iso.datetime({ offset: true }),
   requestKey: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9:._-]{0,199}$/),
-  businessDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 }).strict().refine((value) => value.rangeStart < value.rangeEnd);
 
 const followUpBody = z.object({
@@ -197,7 +196,6 @@ export async function handleProjectBriefGenerationRequest(input: {
       rangeEnd: parsed.rangeEnd,
       requestKey: parsed.requestKey,
       now,
-      businessDate: parsed.businessDate ?? now.slice(0, 10),
     });
     return Response.json(outcome, { status: 200, headers: safeHeaders(input.responseHeaders) });
   } catch (error) {
