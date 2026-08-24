@@ -1,9 +1,54 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildProjectBriefGenerationPrompt,
   buildProjectBriefSystemPrompt,
   projectBriefPromptPolicy,
 } from "./project-brief-prompt";
+import {
+  projectBriefActivePromptVersion,
+  projectBriefBoundaryNote,
+  projectBriefEvidenceRefContractVersion,
+  projectBriefSchemaVersion,
+} from "./project-brief-contract";
+
+const projectId = "20000000-0000-4000-8000-000000000002";
+const rangeStart = "2026-08-01T00:00:00.000Z";
+const rangeEnd = "2026-08-18T00:00:00.000Z";
+const fingerprint = "a".repeat(64);
+
+const profileRef = {
+  contractVersion: projectBriefEvidenceRefContractVersion,
+  sourceKind: "project_profile" as const,
+  sourceId: "profile:prompt-contract",
+  projectId,
+};
+const freshnessRef = {
+  contractVersion: projectBriefEvidenceRefContractVersion,
+  sourceKind: "freshness" as const,
+  sourceId: "freshness:prompt-contract",
+  projectId,
+};
+
+function generationPromptInput() {
+  return {
+    projectId,
+    rangeStart,
+    rangeEnd,
+    evidenceFingerprint: fingerprint,
+    canonicalEvidenceSnapshot: '{"snapshot":"synthetic"}',
+    officialStatus: "in_development" as const,
+    freshness: {
+      status: "fresh" as const,
+      evaluatedAt: "2026-08-18T06:00:00.000Z",
+      lastSuccessfulAt: "2026-08-18T05:00:00.000Z",
+      coverageComplete: true,
+    },
+    availableEvidenceRefs: [profileRef, freshnessRef],
+    profileEvidenceRef: profileRef,
+    freshnessEvidenceRef: freshnessRef,
+  };
+}
 
 describe("Project Brief prompt policy", () => {
   it("P4-C-001 binds the prompt to the Evidence Snapshot allow-list", () => {
@@ -72,5 +117,52 @@ describe("Project Brief prompt policy", () => {
       "Do not mark a Project Brief Completed; persistence completion requires Parse, Schema, and Evidence validation.",
       "Preserve the fixed Boundary Note exactly.",
     ].join("\n"));
+  });
+
+  it("P10.5-C-001 builds a deterministic v2 request with every trusted literal", () => {
+    const first = buildProjectBriefGenerationPrompt(generationPromptInput());
+    const second = buildProjectBriefGenerationPrompt(generationPromptInput());
+    expect(first).toEqual(second);
+    expect(first.systemPrompt).toContain("project-brief-v2");
+    expect(first.systemPrompt).toContain("officialStatus");
+    expect(first.systemPrompt).toContain("completedChanges");
+    expect(first.systemPrompt).toContain("unknowns");
+    expect(first.systemPrompt).toContain("evidenceRefs");
+    expect(first.systemPrompt).toContain("Do not return Markdown");
+
+    const envelope = JSON.parse(first.userPrompt) as Record<string, unknown>;
+    expect(envelope).toMatchObject({
+      contractVersion: "project-brief-generation-prompt.v2",
+      trustedConstants: {
+        promptVersion: projectBriefActivePromptVersion,
+        schemaVersion: projectBriefSchemaVersion,
+        projectId,
+        evidenceFingerprint: fingerprint,
+        rangeStart,
+        rangeEnd,
+        boundaryNote: projectBriefBoundaryNote,
+      },
+      canonicalEvidenceSnapshot: { snapshot: "synthetic" },
+    });
+    expect(envelope).toHaveProperty("outputTemplate.officialStatus.evidenceRefs");
+    expect(envelope).toHaveProperty("outputTemplate.summary.evidenceRefs");
+    expect(envelope).toHaveProperty("outputTemplate.freshness.evidenceRefs");
+  });
+
+  it("P10.5-C-002 canonicalizes ref order and rejects duplicate or invalid prompt inputs", () => {
+    const input = generationPromptInput();
+    const reversed = buildProjectBriefGenerationPrompt({
+      ...input,
+      availableEvidenceRefs: [...input.availableEvidenceRefs].reverse(),
+    });
+    expect(reversed).toEqual(buildProjectBriefGenerationPrompt(input));
+    expect(() => buildProjectBriefGenerationPrompt({
+      ...input,
+      availableEvidenceRefs: [profileRef, profileRef, freshnessRef],
+    })).toThrowError("project_brief_prompt_contract_invalid");
+    expect(() => buildProjectBriefGenerationPrompt({
+      ...input,
+      canonicalEvidenceSnapshot: "not-json",
+    })).toThrowError("project_brief_prompt_contract_invalid");
   });
 });

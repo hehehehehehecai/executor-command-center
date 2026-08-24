@@ -5,16 +5,21 @@ import type {
 } from "@/application/project-brief-evidence/build-project-brief-evidence-snapshot";
 import type { ValidateProjectBriefEvidenceUseCase } from "@/application/project-brief-evidence/validate-project-brief-evidence";
 import { ProjectBriefEvidenceError } from "@/domain/project-brief-evidence/contracts";
-import type { ProjectBrief } from "@/domain/project-brief/project-brief-contract";
+import type { EvidenceSourceRef } from "@/domain/project-brief-evidence/evidence-snapshot";
+import type {
+  ProjectBrief,
+  ProjectBriefEvidenceRef,
+} from "@/domain/project-brief/project-brief-contract";
 import {
-  projectBriefPromptVersion,
+  projectBriefActivePromptVersion,
+  projectBriefEvidenceRefContractVersion,
   projectBriefSchemaVersion,
 } from "@/domain/project-brief/project-brief-contract";
 import {
   parseProjectBrief,
   ProjectBriefSchemaError,
 } from "@/domain/project-brief/project-brief-schema";
-import { buildProjectBriefSystemPrompt } from "@/domain/project-brief/project-brief-prompt";
+import { buildProjectBriefGenerationPrompt } from "@/domain/project-brief/project-brief-prompt";
 import type { AIProvider } from "@/shared/ai/ai-provider";
 import { createStructuredGenerationRequest } from "@/shared/ai/structured-generation-request";
 import {
@@ -38,7 +43,7 @@ export const projectBriefGenerationPersistenceContractVersion =
   "project-brief-generation-persistence.v1" as const;
 export const projectBriefEnergyCost = 3 as const;
 export const projectBriefCacheTtlMs = 86_400_000 as const;
-export const projectBriefGenerationSchemaName = "ProjectBriefV1" as const;
+export const projectBriefGenerationSchemaName = "ProjectBriefV2" as const;
 export const projectBriefGenerationMaxOutputTokens = 8_192 as const;
 
 export const projectBriefGenerationFailureStages = [
@@ -132,10 +137,65 @@ type EvidenceValidator = Pick<ValidateProjectBriefEvidenceUseCase, "execute">;
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const requestKeyPattern = /^[A-Za-z0-9][A-Za-z0-9:._-]{0,199}$/;
+const fingerprintPattern = /^[0-9a-f]{64}$/;
 
 function canonicalUtc(value: string): boolean {
   const parsed = Date.parse(value);
   return Number.isFinite(parsed) && new Date(parsed).toISOString() === value;
+}
+
+function artifactMatchesInput(
+  artifact: ProjectBriefEvidenceArtifact,
+  input: GenerateProjectBriefInput,
+): boolean {
+  return artifact.snapshot.userId === input.userId
+    && artifact.snapshot.projectId === input.projectId
+    && artifact.snapshot.rangeStart === input.rangeStart
+    && artifact.snapshot.rangeEnd === input.rangeEnd
+    && artifact.canonicalPayload.trim() !== ""
+    && fingerprintPattern.test(artifact.fingerprint)
+    && fingerprintPattern.test(artifact.cacheEquivalenceFingerprint);
+}
+
+function projectBriefRef(ref: EvidenceSourceRef): ProjectBriefEvidenceRef {
+  return {
+    contractVersion: projectBriefEvidenceRefContractVersion,
+    sourceKind: ref.sourceKind,
+    sourceId: ref.sourceId,
+    projectId: ref.projectId,
+  };
+}
+
+function generationPrompt(
+  input: GenerateProjectBriefInput,
+  artifact: ProjectBriefEvidenceArtifact,
+) {
+  const profileEvidenceRef = projectBriefRef(artifact.snapshot.projectProfile.sourceRef);
+  const freshnessEvidenceRef = projectBriefRef(artifact.snapshot.freshness.sourceRef);
+  const availableEvidenceRefs = [
+    profileEvidenceRef,
+    ...artifact.snapshot.githubActivities.map((item) => projectBriefRef(item.sourceRef)),
+    ...artifact.snapshot.authorizedDocuments.map((item) => projectBriefRef(item.sourceRef)),
+    ...artifact.snapshot.confirmedDecisions.items.map((item) => projectBriefRef(item.sourceRef)),
+    freshnessEvidenceRef,
+  ];
+  return buildProjectBriefGenerationPrompt({
+    projectId: input.projectId,
+    rangeStart: input.rangeStart,
+    rangeEnd: input.rangeEnd,
+    evidenceFingerprint: artifact.fingerprint,
+    canonicalEvidenceSnapshot: artifact.canonicalPayload,
+    officialStatus: artifact.snapshot.projectProfile.status,
+    freshness: {
+      status: artifact.snapshot.freshness.status,
+      evaluatedAt: artifact.snapshot.freshness.evaluatedAt,
+      lastSuccessfulAt: artifact.snapshot.freshness.lastSuccessfulAt,
+      coverageComplete: artifact.snapshot.freshness.coverageComplete,
+    },
+    availableEvidenceRefs,
+    profileEvidenceRef,
+    freshnessEvidenceRef,
+  });
 }
 
 function generationFailure(
@@ -169,7 +229,7 @@ function cacheRecordMatches(
     && record.rangeStart === input.rangeStart
     && record.rangeEnd === input.rangeEnd
     && record.status === "completed"
-    && record.promptVersion === projectBriefPromptVersion
+    && record.promptVersion === projectBriefActivePromptVersion
     && record.schemaVersion === projectBriefSchemaVersion
     && record.evidenceFingerprint !== null
     && record.cacheEquivalenceFingerprint === artifact.cacheEquivalenceFingerprint
@@ -187,7 +247,7 @@ function briefMatchesArtifact(
   return brief.projectId === input.projectId
     && brief.rangeStart === input.rangeStart
     && brief.rangeEnd === input.rangeEnd
-    && brief.promptVersion === projectBriefPromptVersion
+    && brief.promptVersion === projectBriefActivePromptVersion
     && brief.schemaVersion === projectBriefSchemaVersion
     && brief.evidenceFingerprint === artifact.fingerprint;
 }
@@ -202,7 +262,7 @@ function briefMatchesEquivalentArtifact(
     brief.projectId !== input.projectId
     || brief.rangeStart !== input.rangeStart
     || brief.rangeEnd !== input.rangeEnd
-    || brief.promptVersion !== projectBriefPromptVersion
+    || brief.promptVersion !== projectBriefActivePromptVersion
     || brief.schemaVersion !== projectBriefSchemaVersion
     || brief.evidenceFingerprint !== record.evidenceFingerprint
     || record.cacheEquivalenceFingerprint !== artifact.cacheEquivalenceFingerprint
@@ -305,7 +365,11 @@ export class GenerateProjectBriefUseCase {
     input: GenerateProjectBriefInput,
   ): Promise<ProjectBriefEvidenceArtifact> {
     try {
-      return await this.dependencies.evidenceBuilder.execute(input);
+      const artifact = await this.dependencies.evidenceBuilder.execute(input);
+      if (!artifactMatchesInput(artifact, input)) {
+        return generationFailure("snapshot", "project_brief_snapshot_failed");
+      }
+      return artifact;
     } catch (error) {
       if (error instanceof ProjectBriefEvidenceError) {
         if (
@@ -333,7 +397,7 @@ export class GenerateProjectBriefUseCase {
         projectId: input.projectId,
         rangeStart: input.rangeStart,
         rangeEnd: input.rangeEnd,
-        promptVersion: projectBriefPromptVersion,
+        promptVersion: projectBriefActivePromptVersion,
         schemaVersion: projectBriefSchemaVersion,
         evidenceFingerprint: artifact.fingerprint,
         cacheEquivalenceFingerprint: artifact.cacheEquivalenceFingerprint,
@@ -436,10 +500,11 @@ export class GenerateProjectBriefUseCase {
   ): Promise<ProjectBriefGenerationSuccess> {
     let result: StructuredGenerationResult<unknown>;
     try {
+      const prompt = generationPrompt(input, artifact);
       result = await this.dependencies.provider.generateStructured(
         createStructuredGenerationRequest({
-          systemPrompt: buildProjectBriefSystemPrompt(),
-          userPrompt: artifact.canonicalPayload,
+          systemPrompt: prompt.systemPrompt,
+          userPrompt: prompt.userPrompt,
           schemaName: projectBriefGenerationSchemaName,
           maxOutputTokens: projectBriefGenerationMaxOutputTokens,
         }),
@@ -516,7 +581,7 @@ export class GenerateProjectBriefUseCase {
         reservationId,
         rangeStart: input.rangeStart,
         rangeEnd: input.rangeEnd,
-        promptVersion: projectBriefPromptVersion,
+        promptVersion: projectBriefActivePromptVersion,
         schemaVersion: projectBriefSchemaVersion,
         evidenceFingerprint: artifact.fingerprint,
         cacheEquivalenceFingerprint: artifact.cacheEquivalenceFingerprint,

@@ -9,7 +9,7 @@ import {
   projectBriefLimits,
   projectBriefItemSections,
   projectBriefOfficialStatuses,
-  projectBriefPromptVersion,
+  projectBriefSupportedPromptVersions,
   projectBriefSchemaVersion,
   type ProjectBrief,
   type ProjectBriefEvidenceRef,
@@ -88,7 +88,7 @@ const unknownItemSchema = z.object({
 }).strict();
 
 const briefBaseSchema = z.object({
-  promptVersion: z.literal(projectBriefPromptVersion),
+  promptVersion: z.enum(projectBriefSupportedPromptVersions),
   schemaVersion: z.literal(projectBriefSchemaVersion),
   projectId: projectIdSchema,
   evidenceFingerprint: z.string().regex(fingerprintPattern),

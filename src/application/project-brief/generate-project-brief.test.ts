@@ -5,6 +5,7 @@ import type { ProjectBriefEvidenceValidationSuccess } from "@/domain/project-bri
 import { ProjectBriefEvidenceError } from "@/domain/project-brief-evidence/contracts";
 import {
   projectBriefBoundaryNote,
+  projectBriefActivePromptVersion,
   projectBriefEvidenceRefContractVersion,
   projectBriefPromptVersion,
   projectBriefSchemaVersion,
@@ -85,6 +86,10 @@ function validBrief(overrides: Partial<ProjectBrief> = {}): ProjectBrief {
   };
 }
 
+function activeBrief(overrides: Partial<ProjectBrief> = {}): ProjectBrief {
+  return validBrief({ promptVersion: projectBriefActivePromptVersion, ...overrides });
+}
+
 function artifact(): ProjectBriefEvidenceArtifact {
   return {
     snapshot: {
@@ -103,6 +108,10 @@ function artifact(): ProjectBriefEvidenceArtifact {
           sourceVersion: "synthetic-v1",
           sourceSha: null,
         },
+        coreGoal: "Synthetic core goal.",
+        currentStageGoal: "Synthetic current stage goal.",
+        status: "in_development",
+        currentBlocker: null,
       },
       githubActivities: [],
       authorizedDocuments: [],
@@ -118,6 +127,10 @@ function artifact(): ProjectBriefEvidenceArtifact {
           sourceVersion: "freshness-status.v1",
           sourceSha: null,
         },
+        status: "fresh",
+        evaluatedAt: now,
+        lastSuccessfulAt: now,
+        coverageComplete: true,
       },
     } as unknown as ProjectBriefEvidenceArtifact["snapshot"],
     canonicalPayload: "{\"synthetic\":\"phase7\"}",
@@ -137,7 +150,7 @@ function input() {
   } as const;
 }
 
-function completedDurable(brief = validBrief()) {
+function completedDurable(brief = activeBrief()) {
   return {
     status: "completed" as const,
     outcome: "completed" as const,
@@ -159,7 +172,7 @@ function harness(options: {
 } = {}) {
   const calls: string[] = [];
   const builtArtifact = artifact();
-  const brief = validBrief();
+  const brief = activeBrief();
   const evidenceBuilder = {
     execute: vi.fn(async () => {
       calls.push("authorization:freshness:snapshot:fingerprint");
@@ -275,7 +288,7 @@ describe("GenerateProjectBriefUseCase", () => {
       "project-brief-generation-persistence.v1",
     );
     expect(projectBriefEnergyCost).toBe(3);
-    expect(projectBriefGenerationSchemaName).toBe("ProjectBriefV1");
+    expect(projectBriefGenerationSchemaName).toBe("ProjectBriefV2");
     expect(projectBriefGenerationMaxOutputTokens).toBe(8_192);
   });
 
@@ -302,15 +315,30 @@ describe("GenerateProjectBriefUseCase", () => {
       requestKey: "brief:phase7:synthetic",
     });
     expect(h.provider.generateStructured).toHaveBeenCalledWith(expect.objectContaining({
-      schemaName: "ProjectBriefV1",
+      schemaName: "ProjectBriefV2",
       maxOutputTokens: 8_192,
-      userPrompt: artifact().canonicalPayload,
+      userPrompt: expect.stringContaining(fingerprint),
     }));
+    const request = vi.mocked(h.provider.generateStructured).mock.calls[0]?.[0];
+    expect(request?.systemPrompt).toContain("project-brief-v2");
+    expect(request?.systemPrompt).toContain("completedChanges");
+    expect(JSON.parse(request?.userPrompt ?? "{}")).toMatchObject({
+      trustedConstants: {
+        promptVersion: "project-brief-v2",
+        schemaVersion: "project-brief-schema-v1",
+        projectId,
+        evidenceFingerprint: fingerprint,
+        rangeStart,
+        rangeEnd,
+        boundaryNote: projectBriefBoundaryNote,
+      },
+      canonicalEvidenceSnapshot: { synthetic: "phase7" },
+    });
   });
 
   it("preserves fractional provider latency until the persistence boundary finalizes", async () => {
     const h = harness({
-      provider: completedStructuredGeneration(validBrief(), {
+      provider: completedStructuredGeneration(activeBrief(), {
         provider: "synthetic",
         latencyMs: 27.5,
       }),
@@ -323,7 +351,7 @@ describe("GenerateProjectBriefUseCase", () => {
   });
 
   it("returns a revalidated exact cache hit for zero energy without reserving or calling provider", async () => {
-    const cachedBrief = validBrief();
+    const cachedBrief = activeBrief();
     const h = harness({
       cache: {
         id: briefId,
@@ -331,7 +359,7 @@ describe("GenerateProjectBriefUseCase", () => {
         projectId,
         rangeStart,
         rangeEnd,
-        promptVersion: projectBriefPromptVersion,
+        promptVersion: projectBriefActivePromptVersion,
         schemaVersion: projectBriefSchemaVersion,
         evidenceFingerprint: fingerprint,
         cacheEquivalenceFingerprint,
@@ -357,7 +385,7 @@ describe("GenerateProjectBriefUseCase", () => {
   });
 
   it("returns the original validated Brief when only evaluation time changes", async () => {
-    const cachedBrief = validBrief();
+    const cachedBrief = activeBrief();
     const h = harness({
       cache: {
         id: briefId,
@@ -365,7 +393,7 @@ describe("GenerateProjectBriefUseCase", () => {
         projectId,
         rangeStart,
         rangeEnd,
-        promptVersion: projectBriefPromptVersion,
+        promptVersion: projectBriefActivePromptVersion,
         schemaVersion: projectBriefSchemaVersion,
         evidenceFingerprint: fingerprint,
         cacheEquivalenceFingerprint,
@@ -397,13 +425,13 @@ describe("GenerateProjectBriefUseCase", () => {
       cacheHitError: new Error("private observation storage error"),
       cache: {
         id: briefId, userId, projectId, rangeStart, rangeEnd,
-        promptVersion: projectBriefPromptVersion,
+        promptVersion: projectBriefActivePromptVersion,
         schemaVersion: projectBriefSchemaVersion,
         evidenceFingerprint: fingerprint,
         cacheEquivalenceFingerprint,
         payloadFingerprint: "d".repeat(64),
         status: "completed",
-        payload: validBrief(),
+        payload: activeBrief(),
         expiresAt: "2026-08-19T06:00:00.000Z",
       },
     });
@@ -453,8 +481,32 @@ describe("GenerateProjectBriefUseCase", () => {
     ["prompt version", { promptVersion: "project-brief-old" }],
     ["fingerprint", { evidenceFingerprint: "b".repeat(64) }],
     ["range", { rangeEnd: "2026-08-17T00:00:00.000Z" }],
-    ["payload binding", { payload: validBrief({ projectId: "60000000-0000-4000-8000-000000000006" }) }],
+    ["payload binding", { payload: activeBrief({ projectId: "60000000-0000-4000-8000-000000000006" }) }],
   ])("treats %s cache entry as a miss", async (_caseId, override) => {
+    const h = harness({
+      cache: {
+        id: briefId,
+        userId,
+        projectId,
+        rangeStart,
+        rangeEnd,
+        promptVersion: projectBriefActivePromptVersion,
+        schemaVersion: projectBriefSchemaVersion,
+        evidenceFingerprint: fingerprint,
+        cacheEquivalenceFingerprint,
+        payloadFingerprint: "d".repeat(64),
+        status: "completed",
+        payload: activeBrief(),
+        expiresAt: "2026-08-19T06:00:00.000Z",
+        ...override,
+      },
+    });
+    await expect(h.useCase.execute(input())).resolves.toMatchObject({ status: "generated" });
+    expect(h.energyReservations.reserve).toHaveBeenCalledOnce();
+    expect(h.provider.generateStructured).toHaveBeenCalledOnce();
+  });
+
+  it("never lets a readable v1 Brief satisfy an active v2 cache lookup", async () => {
     const h = harness({
       cache: {
         id: briefId,
@@ -470,12 +522,28 @@ describe("GenerateProjectBriefUseCase", () => {
         status: "completed",
         payload: validBrief(),
         expiresAt: "2026-08-19T06:00:00.000Z",
-        ...override,
       },
     });
     await expect(h.useCase.execute(input())).resolves.toMatchObject({ status: "generated" });
-    expect(h.energyReservations.reserve).toHaveBeenCalledOnce();
+    expect(h.cache.find).toHaveBeenCalledWith(expect.objectContaining({
+      promptVersion: projectBriefActivePromptVersion,
+    }));
     expect(h.provider.generateStructured).toHaveBeenCalledOnce();
+  });
+
+  it("fails before cache, reserve and provider when artifact binding contradicts input", async () => {
+    const h = harness();
+    vi.mocked(h.evidenceBuilder.execute).mockResolvedValueOnce({
+      ...artifact(),
+      snapshot: { ...artifact().snapshot, rangeEnd: "2026-08-17T00:00:00.000Z" },
+    });
+    await expect(h.useCase.execute(input())).rejects.toMatchObject({
+      stage: "snapshot",
+      code: "project_brief_snapshot_failed",
+    });
+    expect(h.cache.find).not.toHaveBeenCalled();
+    expect(h.energyReservations.reserve).not.toHaveBeenCalled();
+    expect(h.provider.generateStructured).not.toHaveBeenCalled();
   });
 
   it.each([

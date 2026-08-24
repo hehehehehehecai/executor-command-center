@@ -9,6 +9,13 @@ import {
 } from "@/domain/synchronization/synchronization-state";
 
 export const projectBriefPromptVersion = "project-brief-v1" as const;
+export const projectBriefActivePromptVersion = "project-brief-v2" as const;
+export const projectBriefSupportedPromptVersions = [
+  projectBriefPromptVersion,
+  projectBriefActivePromptVersion,
+] as const;
+export type ProjectBriefPromptVersion =
+  (typeof projectBriefSupportedPromptVersions)[number];
 export const projectBriefSchemaVersion = "project-brief-schema-v1" as const;
 export const projectBriefEvidenceRefContractVersion =
   projectBriefEvidenceSourceRefContractVersion;
@@ -75,7 +82,7 @@ export interface ProjectBriefUnknownItem {
 }
 
 export interface ProjectBrief {
-  readonly promptVersion: typeof projectBriefPromptVersion;
+  readonly promptVersion: ProjectBriefPromptVersion;
   readonly schemaVersion: typeof projectBriefSchemaVersion;
   readonly projectId: string;
   readonly evidenceFingerprint: string;

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { ProjectBriefRecord } from "@/domain/project-brief/project-brief";
+import { projectBriefActivePromptVersion } from "@/domain/project-brief/project-brief-contract";
 import {
   syntheticBriefEvaluatedAt,
   syntheticBriefFingerprint,
@@ -83,6 +84,20 @@ describe("LoadValidatedProjectBriefUseCase", () => {
       now: syntheticBriefEvaluatedAt,
     });
     expect(h.validate).toHaveBeenCalledOnce();
+  });
+
+  it("reads a v2 Completed row without rewriting the readable v1 contract", async () => {
+    const payload = {
+      ...syntheticProjectBrief(),
+      promptVersion: projectBriefActivePromptVersion,
+    };
+    const h = harness([record({
+      promptVersion: projectBriefActivePromptVersion,
+      payload: payload as unknown as Readonly<Record<string, unknown>>,
+    })]);
+    await expect(h.useCase.execute(input)).resolves.toMatchObject({
+      brief: { promptVersion: "project-brief-v2" },
+    });
   });
 
   it.each([

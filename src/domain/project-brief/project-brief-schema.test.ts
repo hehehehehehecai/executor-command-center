@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import { projectBriefPersistenceContract } from "./project-brief";
 import {
   projectBriefBoundaryNote,
+  projectBriefActivePromptVersion,
   projectBriefEvidenceRefContractVersion,
   projectBriefFailureCodes,
   projectBriefPromptVersion,
+  projectBriefSupportedPromptVersions,
   projectBriefSchemaVersion,
   type ProjectBrief,
 } from "./project-brief-contract";
@@ -140,12 +142,16 @@ describe("Project Brief Schema contract", () => {
   it("P4-A-001 freezes prompt, schema, evidence-ref and persistence contracts", () => {
     expect({
       prompt: projectBriefPromptVersion,
+      activePrompt: projectBriefActivePromptVersion,
+      supportedPrompts: projectBriefSupportedPromptVersions,
       schema: projectBriefSchemaVersion,
       evidenceRef: projectBriefEvidenceRefContractVersion,
       persistence: projectBriefPersistenceContract,
       failures: projectBriefFailureCodes,
     }).toEqual({
       prompt: "project-brief-v1",
+      activePrompt: "project-brief-v2",
+      supportedPrompts: ["project-brief-v1", "project-brief-v2"],
       schema: "project-brief-schema-v1",
       evidenceRef: "project-brief-evidence-source-ref.v1",
       persistence: "project-brief-persistence.v1",
@@ -166,6 +172,18 @@ describe("Project Brief Schema contract", () => {
 
   it("P4-A-003 accepts every output section without claiming evidence existence", () => {
     expect(parseProjectBrief(completeBrief())).toEqual(completeBrief());
+  });
+
+  it("P10.5-A-001 reads both frozen v1 and active v2 while rejecting unknown versions", () => {
+    expect(parseProjectBrief(minimalBrief()).promptVersion).toBe("project-brief-v1");
+    expect(parseProjectBrief({
+      ...minimalBrief(),
+      promptVersion: projectBriefActivePromptVersion,
+    }).promptVersion).toBe("project-brief-v2");
+    expect(failure({
+      ...minimalBrief(),
+      promptVersion: "project-brief-v3",
+    })).toMatchObject({ code: "project_brief_version_invalid", path: "$.promptVersion" });
   });
 
   it.each([

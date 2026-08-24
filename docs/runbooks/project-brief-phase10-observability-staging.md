@@ -9,6 +9,9 @@
 - Observation：`project-brief-ai-observation.v1`
 - Smoke：`project-brief-staging-smoke.v1`
 - Cache Equivalence：`project-brief-evidence-cache-equivalence.v1`
+- Active Generation Prompt：`project-brief-v2`
+- Supported Read Prompts：`project-brief-v1`、`project-brief-v2`
+- Schema：`project-brief-schema-v1`
 - Phase 9 Dataset：`83b64904bb184ba35bc9cb965de5560202794adfe41df4974cb6091a05028fdb`
 - Phase 9 Result：`9db13d98a88f4f33752885afa13c589a52f5364f725c334030f332e2bee0bb70`
 
@@ -54,6 +57,8 @@ Cost 只接受已持久化的 `cost_microunits`。供应商没有可信单价时
 - 全部本地门禁已通过。
 
 任一项不可证明，必须在真实调用前停止。Phase 3 完整 Evidence Fingerprint 继续绑定 `now/evaluatedAt`，不得删除或重签。`project-brief-evidence-cache-equivalence.v1` 只从缓存身份中排除 Freshness 本次评估动作产生的 `evaluatedAt` 和 Freshness Source Ref `occurredAt`；用户、项目、范围、版本、全部来源成员/身份/内容/时间、Freshness status、`lastSuccessfulAt` 与 `coverageComplete` 全部保留。任一语义变化均为 cache miss，旧记录无等价指纹也必须 miss。
+
+新生成只允许 active `project-brief-v2`。Provider 请求必须携带由应用绑定的 prompt/schema/project/range/完整 Evidence Fingerprint/Boundary 常量、完整 JSON 输出结构和当前 Snapshot 的 Evidence Ref allow-list；模型不得计算或改写这些常量。旧 `project-brief-v1` 只允许在读取时按行版本严格重验，不得命中 v2 生成缓存，也不得被重签或静默升级。Provider JSON parse 成功后仍必须依次通过严格 Schema、Artifact exact match、Evidence Validator 和原子 persistence/consume；不得在应用层补造或修复 Provider 输出。
 
 ## Smoke 顺序
 
