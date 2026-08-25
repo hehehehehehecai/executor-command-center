@@ -38,6 +38,16 @@ export class ExecuteProjectSynchronization {
     if (!context || context.projectId !== job.projectId) return fail(new Error("github_activity_not_found"));
     if (context.installation.status !== "active") return fail(new Error("github_activity_authorization_revoked"));
     if (job.webhookDelivery && (job.webhookDelivery.installationId !== context.installation.installationId || job.webhookDelivery.repositoryId !== Number(context.repository.githubObjectId) || job.webhookDelivery.repositoryFullName !== context.repository.fullName)) throw new Error("project_sync_identity_invalid");
+    const assertActive = async () => {
+      const current = await this.dependencies.contexts.getByProjectId(job.projectId);
+      if (!current || current.projectId !== job.projectId) throw new Error("github_activity_not_found");
+      if (
+        current.repository.fullName !== context.repository.fullName
+        || current.installation.installationId !== context.installation.installationId
+      ) throw new Error("project_sync_identity_invalid");
+      if (current.installation.status !== "active") throw new Error("github_activity_authorization_revoked");
+    };
+    try { await assertActive(); } catch (error) { return fail(error); }
     let token: string;
     try { token = (await this.dependencies.tokens.issue({ installationId: context.installation.installationId, signal: input.signal })).token; } catch (error) { return fail(error); }
     const request = { repository: { owner: context.repository.owner, name: context.repository.name }, installationToken: token, since: windowStart(job.requestedAt), pagination: { maxPages: 100, maxObjects: 10_000 }, signal: input.signal };
@@ -46,6 +56,7 @@ export class ExecuteProjectSynchronization {
       : null;
     for (const groupName of groups) {
       try {
+        await assertActive();
         let items: readonly { githubObjectId: string }[];
         switch (groupName) {
           case "repository": items = [await this.dependencies.metadata.read({ context, readAt: now, signal: input.signal })]; break;
@@ -59,6 +70,7 @@ export class ExecuteProjectSynchronization {
           case "release": items = unique(await this.dependencies.reader.listReleases(request), context.repository.fullName); break;
           case "workflow_run": items = unique(await this.dependencies.reader.listWorkflowRuns(request), context.repository.fullName); break;
         }
+        await assertActive();
         receipts.push(await this.dependencies.writer.upsertGroup({ projectId: job.projectId, groupName, items } as ProjectScopedSnapshotGroup));
       } catch (error) { return fail(error); }
     }

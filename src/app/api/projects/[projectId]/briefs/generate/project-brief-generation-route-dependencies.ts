@@ -15,6 +15,7 @@ import { NodeProjectBriefEvidenceFingerprint } from "@/infrastructure/project-br
 import { SupabaseProjectBriefEvidenceReader } from "@/infrastructure/project-brief-evidence/supabase-project-brief-evidence-reader";
 import { SupabaseProjectBriefCache } from "@/infrastructure/project-brief/supabase-project-brief-cache";
 import { SupabaseProjectBriefGenerationPersistence } from "@/infrastructure/project-brief/supabase-project-brief-generation-persistence";
+import { SupabaseProjectBriefAuthorizationGate } from "@/infrastructure/project-brief/supabase-project-brief-authorization-gate";
 import { SupabaseProjectFreshnessReader } from "@/infrastructure/synchronization/supabase-project-freshness-reader";
 import { parseServerEnvironment } from "@/shared/configuration/server-environment";
 
@@ -65,6 +66,9 @@ export async function createProjectBriefGenerationRouteDependencies(
         timeoutMs: 60_000,
       });
       return new GenerateProjectBriefUseCase({
+        authorization: new SupabaseProjectBriefAuthorizationGate(
+          sessionClient as ConstructorParameters<typeof SupabaseProjectBriefAuthorizationGate>[0],
+        ),
         evidenceBuilder,
         evidenceValidator,
         cache: new SupabaseProjectBriefCache(

@@ -282,8 +282,9 @@ function setup(input: {
   reader?: GitHubActivityReader;
 } = {}) {
   const runs = new MemoryFirstSyncRunStore();
+  let contextStatus = input.contextStatus ?? "active";
   const contexts: FirstSyncProjectContextReader = {
-    getByProjectId: vi.fn(async (projectId: string) => context(projectId, input.contextStatus)),
+    getByProjectId: vi.fn(async (projectId: string) => context(projectId, contextStatus)),
   };
   const dispatcher: JobDispatcher = {
     dispatch: vi.fn(async () => ({ providerJobId: "provider-event-001" })),
@@ -302,7 +303,12 @@ function setup(input: {
     writer,
     clock: { now: () => new Date("2026-08-06T02:30:00.000Z") },
   });
-  return { runs, contexts, dispatcher, tokens, writer, activityReader, start, execute };
+  return {
+    runs, contexts, dispatcher, tokens, writer, activityReader, start, execute,
+    setContextStatus(status: "active" | "suspended" | "revoked") {
+      contextStatus = status;
+    },
+  };
 }
 
 async function startJob(fixture: ReturnType<typeof setup>, projectId = projectA) {
@@ -384,6 +390,17 @@ describe("StartFirstRepositorySync", () => {
     expect(fixture.runs.runs).toHaveLength(0);
     expect(fixture.dispatcher.dispatch).not.toHaveBeenCalled();
   });
+
+  it.each(["revoked", "suspended"] as const)(
+    "rejects a new First Sync before run creation and dispatch when installation is %s",
+    async (contextStatus) => {
+      const fixture = setup({ contextStatus });
+      await expect(fixture.start.execute({ projectId: projectA, requestId: "request-revoked" }))
+        .rejects.toThrow("first_sync_authorization_revoked");
+      expect(fixture.runs.runs).toHaveLength(0);
+      expect(fixture.dispatcher.dispatch).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe("ExecuteFirstRepositorySync", () => {
@@ -482,8 +499,9 @@ describe("ExecuteFirstRepositorySync", () => {
   it.each(["revoked", "suspended"] as const)(
     "stops before token/read/write when installation is %s",
     async (contextStatus) => {
-      const fixture = setup({ contextStatus });
+      const fixture = setup();
       const { job } = await startJob(fixture);
+      fixture.setContextStatus(contextStatus);
       const result = await fixture.execute.execute({ job });
       expect(result.status).toBe("failed");
       expect(result.authorizationRevoked).toBe(true);
@@ -494,6 +512,23 @@ describe("ExecuteFirstRepositorySync", () => {
       expect(fixture.writer.calls).toHaveLength(0);
     },
   );
+
+  it("rechecks authorization after a GitHub read and rejects the late result before persistence", async () => {
+    const fixture = setup();
+    const { job } = await startJob(fixture);
+    const original = fixture.activityReader.listCommits;
+    vi.mocked(fixture.activityReader.listCommits).mockImplementationOnce(async (request) => {
+      const result = await original(request);
+      fixture.setContextStatus("revoked");
+      return result;
+    });
+
+    const result = await fixture.execute.execute({ job });
+
+    expect(result).toMatchObject({ status: "failed", authorizationRevoked: true });
+    expect(fixture.writer.calls.map((call) => call.groupName)).toEqual(["repository"]);
+    expect(fixture.activityReader.listIssues).not.toHaveBeenCalled();
+  });
 
   it("maps token revocation and stops after the local repository group", async () => {
     const fixture = setup();

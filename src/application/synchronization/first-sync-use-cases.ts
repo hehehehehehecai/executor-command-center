@@ -224,6 +224,13 @@ export class StartFirstRepositorySync {
   async execute(input: unknown): Promise<FirstSyncDispatchReceipt> {
     const command = parseStartInput(input);
     const idempotencyKey = `first-sync:${command.requestId}`;
+    let context = await this.dependencies.contexts.getByProjectId(command.projectId);
+    if (context === null || context.projectId !== command.projectId) {
+      throw new Error("first_sync_project_not_found");
+    }
+    if (context.installation.status !== "active") {
+      throw new Error("first_sync_authorization_revoked");
+    }
     let run = await this.dependencies.runs.createQueued({
       projectId: command.projectId,
       idempotencyKey,
@@ -243,9 +250,12 @@ export class StartFirstRepositorySync {
     }
     if (run.status !== "queued") throw new Error("first_sync_run_terminal");
 
-    const context = await this.dependencies.contexts.getByProjectId(command.projectId);
+    context = await this.dependencies.contexts.getByProjectId(command.projectId);
     if (context === null || context.projectId !== command.projectId) {
       throw new Error("first_sync_project_not_found");
+    }
+    if (context.installation.status !== "active") {
+      throw new Error("first_sync_authorization_revoked");
     }
 
     const window = freezeFirstSyncWindow(canonical(run.queuedAt));
@@ -466,6 +476,22 @@ export class ExecuteFirstRepositorySync {
       return terminate(remainingFirstSyncGroups(cursor)[0]!, new Error("github_activity_authorization_revoked"));
     }
 
+    const assertActive = async () => {
+      const current = await this.dependencies.contexts.getByProjectId(job.projectId);
+      if (current === null || current.projectId !== job.projectId) {
+        throw new Error("github_activity_not_found");
+      }
+      if (
+        current.repository.fullName !== cursor.repositoryFullName
+        || current.installation.installationId !== cursor.installationId
+      ) {
+        throw new Error("first_sync_cursor_invalid");
+      }
+      if (current.installation.status !== "active") {
+        throw new Error("github_activity_authorization_revoked");
+      }
+    };
+
     let installationToken: string | null = null;
     const token = async () => {
       if (installationToken !== null) return installationToken;
@@ -486,6 +512,7 @@ export class ExecuteFirstRepositorySync {
 
     for (const groupName of remainingFirstSyncGroups(cursor)) {
       try {
+        await assertActive();
         let items: readonly { readonly githubObjectId: string }[];
         switch (groupName) {
           case "repository":
@@ -522,6 +549,7 @@ export class ExecuteFirstRepositorySync {
             );
             break;
         }
+        await assertActive();
         const receipt = await this.dependencies.writer.upsertGroup(
           groupPayload(job.projectId, groupName, items),
         );

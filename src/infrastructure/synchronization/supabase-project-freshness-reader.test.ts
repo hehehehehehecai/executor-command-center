@@ -41,11 +41,16 @@ const completedRun = {
   finished_at: "2026-08-12T12:00:00.000Z",
   error_code: null,
 };
+const activeProject = {
+  id: projectId,
+  updated_at: "2026-08-12T12:00:00.000Z",
+  selected_repositories: { github_installations: { status: "active" } },
+};
 
 describe("SupabaseProjectFreshnessReader", () => {
   it("selects the most recently updated active project owned by the verified user", async () => {
     const f = setup([
-      { data: [{ id: projectId, updated_at: "2026-08-12T12:00:00.000Z" }], error: null },
+      { data: [activeProject], error: null },
       { data: [completedRun], error: null },
       { data: [completedRun], error: null },
     ]);
@@ -61,7 +66,7 @@ describe("SupabaseProjectFreshnessReader", () => {
   });
 
   it("applies project id and user id together for an explicit project", async () => {
-    const f = setup([{ data: [{ id: projectId, updated_at: "2026-08-12T12:00:00.000Z" }], error: null }, { data: [], error: null }, { data: [], error: null }]);
+    const f = setup([{ data: [activeProject], error: null }, { data: [], error: null }, { data: [], error: null }]);
     await f.reader.read({ userId, projectId, now: "2026-08-12T13:00:00.000Z" });
     expect(f.queries[0]?.calls).toEqual(expect.arrayContaining([
       ["eq", "user_id", userId], ["eq", "id", projectId],
@@ -77,7 +82,7 @@ describe("SupabaseProjectFreshnessReader", () => {
 
   it("maps the latest run and latest successful completion to real presentation input", async () => {
     const running = { id: "55555555-5555-4555-8555-555555555555", status: "running", finished_at: null, error_code: null };
-    const f = setup([{ data: [{ id: projectId, updated_at: "2026-08-12T12:00:00.000Z" }], error: null }, { data: [running], error: null }, { data: [completedRun], error: null }]);
+    const f = setup([{ data: [activeProject], error: null }, { data: [running], error: null }, { data: [completedRun], error: null }]);
     await expect(f.reader.read({ userId, projectId, now: "2026-08-12T13:00:00.000Z" })).resolves.toEqual({
       projectId,
       input: {
@@ -93,17 +98,33 @@ describe("SupabaseProjectFreshnessReader", () => {
 
   it("maps a partial latest successful run to incomplete coverage", async () => {
     const partial = { ...completedRun, status: "partial" };
-    const f = setup([{ data: [{ id: projectId, updated_at: "2026-08-12T12:00:00.000Z" }], error: null }, { data: [partial], error: null }, { data: [partial], error: null }]);
+    const f = setup([{ data: [activeProject], error: null }, { data: [partial], error: null }, { data: [partial], error: null }]);
     await expect(f.reader.read({ userId, projectId, now: "2026-08-12T13:00:00.000Z" }))
       .resolves.toMatchObject({ input: { coverageComplete: false } });
   });
 
   it("maps the authorization revoked safe code without reading error_summary", async () => {
     const revoked = { ...completedRun, status: "failed", error_code: "github_activity_authorization_revoked" };
-    const f = setup([{ data: [{ id: projectId, updated_at: "2026-08-12T12:00:00.000Z" }], error: null }, { data: [revoked], error: null }, { data: [], error: null }]);
+    const f = setup([{ data: [activeProject], error: null }, { data: [revoked], error: null }, { data: [], error: null }]);
     await expect(f.reader.read({ userId, projectId, now: "2026-08-12T13:00:00.000Z" }))
       .resolves.toMatchObject({ input: { authorizationRevoked: true, lastSuccessfulAt: null } });
     expect(f.queries[1]?.calls[0]).toEqual(["select", "id,status,finished_at,error_code"]);
+  });
+
+  it("maps the real Installation revoked state even when the latest SyncRun was successful", async () => {
+    const f = setup([
+      {
+        data: [{
+          ...activeProject,
+          selected_repositories: { github_installations: { status: "revoked" } },
+        }],
+        error: null,
+      },
+      { data: [completedRun], error: null },
+      { data: [completedRun], error: null },
+    ]);
+    await expect(f.reader.read({ userId, projectId, now: "2026-08-12T13:00:00.000Z" }))
+      .resolves.toMatchObject({ input: { authorizationRevoked: true } });
   });
 
   it("rejects invalid identities before querying", async () => {

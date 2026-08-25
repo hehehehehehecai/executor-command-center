@@ -172,6 +172,7 @@ function harness(options: {
   finalizeError?: Error;
   failError?: Error;
   cacheHitError?: Error;
+  revokeAtAuthorizationCheck?: number;
 } = {}) {
   const calls: string[] = [];
   const builtArtifact = artifact();
@@ -180,6 +181,15 @@ function harness(options: {
     execute: vi.fn(async () => {
       calls.push("authorization:freshness:snapshot:fingerprint");
       return builtArtifact;
+    }),
+  };
+  let authorizationChecks = 0;
+  const authorization = {
+    assertActive: vi.fn(async () => {
+      authorizationChecks += 1;
+      if (authorizationChecks === options.revokeAtAuthorizationCheck) {
+        throw new Error("project_brief_authorization_failed");
+      }
     }),
   };
   const cache: ProjectBriefCache = {
@@ -264,6 +274,7 @@ function harness(options: {
     }),
   };
   const useCase = new GenerateProjectBriefUseCase({
+    authorization,
     evidenceBuilder,
     cache,
     energyReservations,
@@ -280,6 +291,7 @@ function harness(options: {
     provider: { generateStructured },
     evidenceValidator,
     persistence,
+    authorization,
   };
 }
 
@@ -337,6 +349,29 @@ describe("GenerateProjectBriefUseCase", () => {
       },
       canonicalEvidenceSnapshot: { synthetic: "phase7" },
     });
+  });
+
+  it("blocks the provider when Installation is revoked after reservation", async () => {
+    const h = harness({ revokeAtAuthorizationCheck: 3 });
+
+    await expect(h.useCase.execute(input())).rejects.toMatchObject({
+      stage: "authorization",
+      code: "project_brief_authorization_failed",
+    });
+    expect(h.energyReservations.reserve).toHaveBeenCalledOnce();
+    expect(h.provider.generateStructured).not.toHaveBeenCalled();
+    expect(h.persistence.finalize).not.toHaveBeenCalled();
+  });
+
+  it("drops a completed provider result when Installation is revoked before persistence", async () => {
+    const h = harness({ revokeAtAuthorizationCheck: 4 });
+
+    await expect(h.useCase.execute(input())).rejects.toMatchObject({
+      stage: "authorization",
+      code: "project_brief_authorization_failed",
+    });
+    expect(h.provider.generateStructured).toHaveBeenCalledOnce();
+    expect(h.persistence.finalize).not.toHaveBeenCalled();
   });
 
   it("preserves fractional provider latency until the persistence boundary finalizes", async () => {

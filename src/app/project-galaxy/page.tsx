@@ -2,7 +2,6 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { loadProjectGalaxyPreviewFixture } from "@/content/demo-data/project-galaxy-preview-fixture";
 import {
   ProjectGalaxyPanel,
   RepositoryRemovalPanel,
@@ -98,8 +97,11 @@ export default async function ProjectGalaxyPage(input: {
   }
 
   if (mode === "preview") {
+    const { loadProjectGalaxyPreviewSource } = await import(
+      "./project-galaxy-preview-source"
+    );
     const previewResult = await createProjectGalaxyPreviewQuery(
-      loadProjectGalaxyPreviewFixture,
+      loadProjectGalaxyPreviewSource,
     )
       .load()
       .then((viewModel) => ({ kind: "success", viewModel }) as const)

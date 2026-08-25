@@ -25,7 +25,15 @@ export interface ProjectFreshnessView {
 
 const uuid = z.string().uuid();
 const canonicalTime = z.iso.datetime({ offset: true });
-const projectRows = z.array(z.object({ id: uuid, updated_at: canonicalTime }).strict()).max(1);
+const projectRows = z.array(z.object({
+  id: uuid,
+  updated_at: canonicalTime,
+  selected_repositories: z.object({
+    github_installations: z.object({
+      status: z.enum(["active", "suspended", "revoked"]),
+    }).strict(),
+  }).strict(),
+}).strict()).max(1);
 const runRows = z.array(z.object({
   id: uuid,
   status: z.string().refine(isSyncStatus),
@@ -73,7 +81,9 @@ export class SupabaseProjectFreshnessReader {
       throw new Error("project_freshness_invalid_input");
     }
 
-    let projects = this.client.from("projects").select("id,updated_at");
+    let projects = this.client.from("projects").select(
+      "id,updated_at,selected_repositories!inner(github_installations!inner(status))",
+    );
     projects = projects.eq("user_id", input.userId).neq("status", "archived");
     if (input.projectId !== null) projects = projects.eq("id", input.projectId);
     const projectResult = await result(projects.order("updated_at", { ascending: false }).limit(1));
@@ -104,7 +114,9 @@ export class SupabaseProjectFreshnessReader {
       projectId: project.id,
       input: {
         provenance: "real",
-        authorizationRevoked: latest?.error_code === "github_activity_authorization_revoked",
+        authorizationRevoked:
+          project.selected_repositories.github_installations.status === "revoked"
+          || latest?.error_code === "github_activity_authorization_revoked",
         latestRun: mapRun(latest),
         lastSuccessfulAt: successful?.finished_at ?? null,
         coverageComplete: latest?.status !== "partial",

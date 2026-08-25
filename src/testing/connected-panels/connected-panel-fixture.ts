@@ -55,6 +55,28 @@ export interface ConnectedPanelFixtureAccessInput {
 }
 
 function projectGalaxy(identity: ConnectedPanelFixtureIdentity): ProjectGalaxySource {
+  const freshness: ProjectGalaxySource["freshness"] = identity.label === "Alpha"
+    ? {
+        kind: "known",
+        input: {
+          provenance: "real",
+          authorizationRevoked: true,
+          latestRun: {
+            id: "aaaaaaaa-0000-4000-8000-000000000002",
+            status: "completed",
+            finishedAt: "2026-08-15T10:00:00.000Z",
+            errorCode: null,
+          },
+          lastSuccessfulAt: "2026-08-15T10:00:00.000Z",
+          coverageComplete: true,
+          now: "2026-08-17T12:00:00.000Z",
+        },
+      }
+    : {
+        kind: "unknown",
+        provenanceLabel: `Connected test double · ${identity.label}`,
+        description: "进程内 Connected 合同数据；未访问外部服务。",
+      };
   return {
     project: {
       id: identity.projectId,
@@ -70,11 +92,7 @@ function projectGalaxy(identity: ConnectedPanelFixtureIdentity): ProjectGalaxySo
         occurredAt: "2026-08-17T10:00:00.000Z",
       },
     ],
-    freshness: {
-      kind: "unknown",
-      provenanceLabel: `Connected test double · ${identity.label}`,
-      description: "进程内 Connected 合同数据；未访问外部服务。",
-    },
+    freshness,
     coreGoal: `${identity.label} 用户专属项目目标`,
     currentStageGoal: "验证 Connected 面板旅程",
     currentBlockers: [],

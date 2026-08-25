@@ -43,6 +43,8 @@ const allowedFailures = new Set([
   "sync_run_invalid_transition",
   "sync_run_concurrency_conflict",
   "sync_run_invalid_request",
+  "sync_run_authorization_revoked",
+  "sync_run_authorization_suspended",
 ]);
 
 function storageFailure(): Error {

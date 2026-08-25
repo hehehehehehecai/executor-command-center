@@ -134,6 +134,12 @@ export interface ProjectBriefGenerationSuccess {
 
 type EvidenceBuilder = Pick<BuildProjectBriefEvidenceSnapshotUseCase, "execute">;
 type EvidenceValidator = Pick<ValidateProjectBriefEvidenceUseCase, "execute">;
+export interface ProjectBriefAuthorizationGate {
+  assertActive(input: {
+    readonly actorUserId: string;
+    readonly projectId: string;
+  }): Promise<void>;
+}
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const requestKeyPattern = /^[A-Za-z0-9][A-Za-z0-9:._-]{0,199}$/;
@@ -322,6 +328,7 @@ function replaySuccess(
 
 export class GenerateProjectBriefUseCase {
   constructor(private readonly dependencies: {
+    readonly authorization: ProjectBriefAuthorizationGate;
     readonly evidenceBuilder: EvidenceBuilder;
     readonly cache: ProjectBriefCache;
     readonly energyReservations: Pick<EnergyReservationPersistence, "reserve">;
@@ -333,16 +340,21 @@ export class GenerateProjectBriefUseCase {
   async execute(input: GenerateProjectBriefInput): Promise<ProjectBriefGenerationSuccess> {
     validateInput(input);
     const artifact = await this.buildArtifact(input);
+    await this.assertActive(input);
     const cached = await this.readCache(input, artifact);
     if (cached) return cached;
 
     let reservation;
+    await this.assertActive(input);
     try {
       reservation = await this.dependencies.energyReservations.reserve({
         projectId: input.projectId,
         requestKey: input.requestKey,
       });
-    } catch {
+    } catch (error) {
+      if (error instanceof Error && error.message === "project_brief_authorization_failed") {
+        return generationFailure("authorization", "project_brief_authorization_failed");
+      }
       return generationFailure(
         "quota_reservation",
         "project_brief_quota_reservation_failed",
@@ -359,6 +371,17 @@ export class GenerateProjectBriefUseCase {
     }
 
     return this.generateAsOwner(reservation.reservationId, input, artifact);
+  }
+
+  private async assertActive(input: GenerateProjectBriefInput): Promise<void> {
+    try {
+      await this.dependencies.authorization.assertActive({
+        actorUserId: input.userId,
+        projectId: input.projectId,
+      });
+    } catch {
+      return generationFailure("authorization", "project_brief_authorization_failed");
+    }
   }
 
   private async buildArtifact(
@@ -415,6 +438,7 @@ export class GenerateProjectBriefUseCase {
       return null;
     }
     try {
+      await this.assertActive(input);
       const observed = await this.dependencies.persistence.recordCacheHit({
         briefId: record.id,
         currentEvidenceFingerprint: artifact.fingerprint,
@@ -498,6 +522,7 @@ export class GenerateProjectBriefUseCase {
     input: GenerateProjectBriefInput,
     artifact: ProjectBriefEvidenceArtifact,
   ): Promise<ProjectBriefGenerationSuccess> {
+    await this.assertActive(input);
     let result: StructuredGenerationResult<unknown>;
     try {
       const prompt = generationPrompt(input, artifact);
@@ -576,6 +601,7 @@ export class GenerateProjectBriefUseCase {
       );
     }
 
+    await this.assertActive(input);
     try {
       const outcome = await this.dependencies.persistence.finalize({
         reservationId,

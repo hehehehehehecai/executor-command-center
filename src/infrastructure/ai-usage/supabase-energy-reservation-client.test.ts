@@ -40,6 +40,17 @@ describe("SupabaseEnergyReservationClient", () => {
     })).rejects.toThrow("energy_insufficient_balance");
   });
 
+  it("preserves the shared Installation revocation error", async () => {
+    const client = new SupabaseEnergyReservationClient({
+      rpc: vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: "project_brief_authorization_failed", details: "private" },
+      }),
+    });
+    await expect(client.reserve({ projectId, requestKey: "brief:fixture:revoked" }))
+      .rejects.toThrow("project_brief_authorization_failed");
+  });
+
   it("maps unknown failures to a non-sensitive storage error", async () => {
     const client = new SupabaseEnergyReservationClient({
       rpc: vi.fn().mockResolvedValue({ data: null, error: { message: "raw_database_detail" } }),

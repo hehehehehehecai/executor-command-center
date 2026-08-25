@@ -75,6 +75,9 @@ test("selects an authorized Project Galaxy project and denies both cross-user di
   await expect(page.getByLabel("数据来源")).toContainText("Connected Mode");
   await expect(page.getByText("Alpha Connected Project")).toBeVisible();
   await expect(page.getByText("Beta Connected Project")).not.toBeVisible();
+  await expect(page.getByText("Authorization revoked")).toBeVisible();
+  await expect(page.getByText("GitHub 授权已撤销，同步已停止。")).toBeVisible();
+  await expect(page.getByText("Alpha 用户的确定性 Connected 活动")).toBeVisible();
 
   await page.goto(
     `/project-galaxy?mode=connected&project=${identities.beta.projectId}`,

@@ -188,13 +188,19 @@ export default async function CopilotPage(input: {
       : ({ kind: "disabled" } as const);
   const fixtureSession =
     fixtureAccess.kind === "authorized" ? fixtureAccess.session : null;
-  const connectedPort = mode === "connected"
-    ? input.connectedPort
-      ?? (fixtureSession
-        ? { load: async () => fixtureSession.copilot }
-        : await import("./copilot-connected-dependencies").then(({ createCopilotConnectedPort }) =>
-            createCopilotConnectedPort(projectIdForConnectedLoad(searchParams))))
-    : null;
+  let connectedPort: CopilotWorkspaceConnectedPort | null = null;
+  if (mode === "connected") {
+    if (input.connectedPort) {
+      connectedPort = input.connectedPort;
+    } else if (fixtureSession) {
+      connectedPort = { load: async () => fixtureSession.copilot };
+    } else {
+      connectedPort = await import("./copilot-connected-dependencies")
+        .then(({ createCopilotConnectedPort }) =>
+          createCopilotConnectedPort(projectIdForConnectedLoad(searchParams)))
+        .catch(() => unavailableConnectedPort);
+    }
+  }
 
   const query =
     mode === "preview"

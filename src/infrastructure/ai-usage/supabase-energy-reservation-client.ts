@@ -23,7 +23,10 @@ const receiptSchema = z.object({
   business_date: z.iso.date().nullable().optional(),
 }).strict();
 
-const allowedErrors = new Set<string>(aiUsageErrorCodes);
+const allowedErrors = new Set<string>([
+  ...aiUsageErrorCodes,
+  "project_brief_authorization_failed",
+]);
 
 function errorMessage(value: unknown): string | null {
   if (

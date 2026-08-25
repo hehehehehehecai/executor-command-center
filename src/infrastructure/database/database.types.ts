@@ -1052,6 +1052,7 @@ export type Database = {
       }
       project_sync_dispatches: {
         Row: {
+          cancelled_at: string | null
           created_at: string
           dispatch_status: string
           dispatched_at: string | null
@@ -1061,12 +1062,14 @@ export type Database = {
           provider_job_id: string | null
           request_identity: string
           requested_at: string
+          safe_error_code: string | null
           sync_run_id: string
           trigger_source: string
           updated_at: string
           version: number
         }
         Insert: {
+          cancelled_at?: string | null
           created_at?: string
           dispatch_status?: string
           dispatched_at?: string | null
@@ -1076,12 +1079,14 @@ export type Database = {
           provider_job_id?: string | null
           request_identity: string
           requested_at: string
+          safe_error_code?: string | null
           sync_run_id: string
           trigger_source: string
           updated_at?: string
           version?: number
         }
         Update: {
+          cancelled_at?: string | null
           created_at?: string
           dispatch_status?: string
           dispatched_at?: string | null
@@ -1091,6 +1096,7 @@ export type Database = {
           provider_job_id?: string | null
           request_identity?: string
           requested_at?: string
+          safe_error_code?: string | null
           sync_run_id?: string
           trigger_source?: string
           updated_at?: string
