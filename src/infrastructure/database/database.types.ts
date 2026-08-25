@@ -38,6 +38,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      account_deletion_result: {
+        Args: {
+          operation: Database["public"]["Tables"]["account_deletion_operations"]["Row"]
+          p_outcome: string
+        }
+        Returns: Json
+      }
       available_energy: {
         Args: { p_business_date: string; p_user_id: string }
         Returns: number
@@ -50,6 +57,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      lock_account_write_gate: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
       utf16_code_units: { Args: { value: string }; Returns: number }
     }
     Enums: {
@@ -61,6 +72,69 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_deletion_operations: {
+        Row: {
+          auth_delete_outcome: string | null
+          auth_receipt_fingerprint: string | null
+          business_deleted_at: string | null
+          claimed_at: string | null
+          completed_at: string | null
+          created_at: string
+          due_at: string | null
+          failed_at: string | null
+          failure_code: string | null
+          idempotency_key: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          operation_id: string | null
+          requested_at: string | null
+          retry_count: number
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auth_delete_outcome?: string | null
+          auth_receipt_fingerprint?: string | null
+          business_deleted_at?: string | null
+          claimed_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          due_at?: string | null
+          failed_at?: string | null
+          failure_code?: string | null
+          idempotency_key?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          operation_id?: string | null
+          requested_at?: string | null
+          retry_count?: number
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auth_delete_outcome?: string | null
+          auth_receipt_fingerprint?: string | null
+          business_deleted_at?: string | null
+          claimed_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          due_at?: string | null
+          failed_at?: string | null
+          failure_code?: string | null
+          idempotency_key?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          operation_id?: string | null
+          requested_at?: string | null
+          retry_count?: number
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_invocations: {
         Row: {
           brief_id: string | null
@@ -1392,6 +1466,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cancel_account_deletion: {
+        Args: { p_actor_user_id: string; p_operation_id: string }
+        Returns: Json
+      }
       checkpoint_first_sync_run: {
         Args: {
           p_checkpointed_at: string
@@ -1401,6 +1479,10 @@ export type Database = {
           p_project_id: string
           p_run_id: string
         }
+        Returns: Json
+      }
+      claim_account_deletion: {
+        Args: { p_lease_duration: string; p_operation_id: string }
         Returns: Json
       }
       claim_github_webhook_dispatch: {
@@ -1426,6 +1508,20 @@ export type Database = {
           p_expected_version: number
           p_project_id: string
           p_sync_run_id: string
+        }
+        Returns: Json
+      }
+      cleanup_account_business_data: {
+        Args: { p_lease_token: string; p_operation_id: string }
+        Returns: Json
+      }
+      complete_account_deletion: {
+        Args: {
+          p_error_code: string
+          p_lease_token: string
+          p_operation_id: string
+          p_outcome: string
+          p_receipt_fingerprint: string
         }
         Returns: Json
       }
@@ -1669,6 +1765,10 @@ export type Database = {
             }
             Returns: Json
           }
+      get_account_deletion_status: {
+        Args: { p_actor_user_id: string }
+        Returns: Json
+      }
       get_available_energy: {
         Args: { p_business_date: string }
         Returns: number
@@ -1750,6 +1850,14 @@ export type Database = {
       remove_selected_github_repository: {
         Args: { p_github_repository_id: number; p_user_id: string }
         Returns: undefined
+      }
+      request_account_deletion: {
+        Args: {
+          p_actor_user_id: string
+          p_confirmation: string
+          p_idempotency_key: string
+        }
+        Returns: Json
       }
       request_project_sync: {
         Args: {

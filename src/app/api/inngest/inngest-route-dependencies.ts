@@ -1,5 +1,9 @@
 import "server-only";
 import { Inngest } from "inngest";
+import { createClient } from "@supabase/supabase-js";
+import { ExecuteDueAccountDeletion } from "@/application/account-deletion/account-deletion-use-cases";
+import { SupabaseAccountDeletionRepository } from "@/infrastructure/account-deletion/supabase-account-deletion-repository";
+import { SupabaseAuthIdentityAdmin } from "@/infrastructure/account-deletion/supabase-auth-identity-admin";
 import { ExecuteFirstRepositorySync } from "@/application/synchronization/first-sync-use-cases";
 import { ExecuteProjectSynchronization } from "@/application/synchronization/project-sync-use-cases";
 import { ProjectSyncRequestCoordinator, RunDailyRepositoryReconciliation } from "@/application/synchronization/reconciliation-use-cases";
@@ -45,5 +49,18 @@ export function createInngestRouteDependencies(source: Environment) {
   const coordinator = new ProjectSyncRequestCoordinator({ store: reconciliationStore, dispatcher });
   const dailyUseCase = new RunDailyRepositoryReconciliation({ projects: reconciliationStore, reader: reconciliationReader, coordinator });
   const daily = new DailyReconciliationSchedulerAdapter(dailyUseCase);
-  return { client, functions: createInngestSynchronizationFunctions(client, { firstSync, projectSync, webhooks, daily }) };
+  const accountDeletionRepository = new SupabaseAccountDeletionRepository({
+    supabaseUrl: environment.NEXT_PUBLIC_SUPABASE_URL,
+    serviceRoleKey: environment.SUPABASE_SERVICE_ROLE_KEY,
+  });
+  const accountDeletionAdminClient = createClient(
+    environment.NEXT_PUBLIC_SUPABASE_URL,
+    environment.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } },
+  );
+  const accountDeletion = new ExecuteDueAccountDeletion({
+    repository: accountDeletionRepository,
+    authAdmin: new SupabaseAuthIdentityAdmin(accountDeletionAdminClient),
+  });
+  return { client, functions: createInngestSynchronizationFunctions(client, { firstSync, projectSync, webhooks, daily, accountDeletion }) };
 }

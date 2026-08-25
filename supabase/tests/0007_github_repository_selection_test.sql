@@ -179,8 +179,8 @@ select results_eq(
     where trigger_record.tgrelid = 'public.selected_repositories'::regclass
       and not trigger_record.tgisinternal
   $$,
-  array['selected_repositories_set_updated_at'],
-  'selection reuses one explicit updated_at trigger'
+  array['selected_repositories_set_updated_at','account_gate_selected_repositories'],
+  'selection keeps its updated_at trigger and adds the account lifecycle write gate'
 );
 
 select results_eq(

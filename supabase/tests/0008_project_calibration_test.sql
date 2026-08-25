@@ -150,8 +150,8 @@ select results_eq(
       and not trigger_record.tgisinternal
       and namespace_record.nspname = 'app_private'
   $$,
-  array['set_updated_at'],
-  'projects reuses app_private.set_updated_at'
+  array['set_updated_at','guard_account_derived_write'],
+  'projects keeps updated_at behavior and adds the account lifecycle write gate'
 );
 
 insert into auth.users (

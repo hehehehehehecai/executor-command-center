@@ -2,6 +2,7 @@ import "server-only";
 import { cron, type Inngest } from "inngest";
 import { parseBackgroundJob } from "@/domain/jobs/background-job";
 import { parseWebhookInternalEvent } from "@/application/webhooks/ingest-github-webhook";
+import { parseAccountDeletionJob } from "@/domain/account-deletion/account-deletion-job";
 
 export const inngestSynchronizationRuntimeContract = "inngest-synchronization-runtime.v1" as const;
 const pushCommitShaPattern = /^(?!0{40}$)[0-9a-f]{40}$/;
@@ -17,6 +18,7 @@ export const inngestSynchronizationFunctionDefinitions = [
   { id: "executor-project-sync-consumer", trigger: "executor/project.sync.requested.v1", idempotency: "event.data.jobId", concurrency: "event.data.projectId" },
   { id: "executor-github-webhook-consumer", trigger: "executor/github.webhook.received.v1", idempotency: "event.data.eventId", concurrency: "event.data.deliveryId" },
   { id: "executor-daily-reconciliation", trigger: "cron:0 2 * * *", idempotency: "domain:reconciliation:<UTC-day>", concurrency: "daily-reconciliation" },
+  { id: "executor-account-deletion", trigger: "executor/account.deletion.due.v1", idempotency: "event.data.operationId", concurrency: "event.data.operationId" },
 ] as const;
 
 export type InngestSynchronizationRuntimeDependencies = {
@@ -24,6 +26,7 @@ export type InngestSynchronizationRuntimeDependencies = {
   readonly projectSync: { execute(input: { job: unknown; signal?: AbortSignal }): Promise<unknown> };
   readonly webhooks: { request(input: unknown): Promise<unknown>; execute(input: { job: unknown; signal?: AbortSignal }): Promise<unknown> };
   readonly daily: { handle(input: { scheduledAt: string; signal?: AbortSignal }): Promise<unknown> | unknown };
+  readonly accountDeletion: { execute(input: { operationId: string }): Promise<unknown> };
 };
 
 export function createInngestSynchronizationHandlers(dependencies: InngestSynchronizationRuntimeDependencies) {
@@ -48,6 +51,15 @@ export function createInngestSynchronizationHandlers(dependencies: InngestSynchr
       if (!Number.isFinite(parsed) || new Date(parsed).toISOString() !== scheduledAt) throw new Error("reconciliation_schedule_invalid");
       return dependencies.daily.handle({ scheduledAt });
     },
+    accountDeletion: async (data: unknown) => {
+      const job = parseAccountDeletionJob(data);
+      const result = await dependencies.accountDeletion.execute({ operationId: job.operationId });
+      if (typeof result === "object" && result !== null && "status" in result
+        && (result as { status?: unknown }).status === "deletion_failed") {
+        throw new Error("account_deletion_retryable_failure");
+      }
+      return result;
+    },
   };
 }
 
@@ -68,5 +80,13 @@ export function createInngestSynchronizationFunctions(client: Inngest, dependenc
     { id: "executor-daily-reconciliation", triggers: cron("0 2 * * *"), retries: 5, concurrency: 1 },
     async ({ event, step }) => step.run("run-daily-reconciliation", () => handlers.daily(new Date(event.ts).toISOString())),
   );
-  return [projectSync, webhook, daily] as const;
+  const accountDeletion = client.createFunction(
+    { id: "executor-account-deletion", triggers: { event: "executor/account.deletion.due.v1" }, retries: 8, concurrency: { limit: 1, key: "event.data.operationId" }, idempotency: "event.data.operationId" },
+    async ({ event, step }) => {
+      const job = parseAccountDeletionJob(event.data);
+      await step.sleepUntil("await-account-deletion-due", new Date(job.dueAt));
+      return step.run("execute-account-deletion", () => handlers.accountDeletion(job));
+    },
+  );
+  return [projectSync, webhook, daily, accountDeletion] as const;
 }
