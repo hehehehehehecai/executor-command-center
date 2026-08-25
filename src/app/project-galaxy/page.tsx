@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadProjectGalaxyPreviewFixture } from "@/content/demo-data/project-galaxy-preview-fixture";
 import {
   ProjectGalaxyPanel,
+  RepositoryRemovalPanel,
   createProjectGalaxyConnectedQuery,
   createProjectGalaxyPreviewQuery,
   type ProjectGalaxySource,
@@ -156,7 +157,12 @@ export default async function ProjectGalaxyPage(input: {
       );
     }
 
-    return <ProjectGalaxyPanel viewModel={fixtureResult.viewModel} />;
+    return (
+      <>
+        <ProjectGalaxyPanel viewModel={fixtureResult.viewModel} />
+        <RepositoryRemovalPanel projectId={fixtureResult.viewModel.project.id} />
+      </>
+    );
   }
 
   let client: SupabaseClient<Database>;
@@ -234,5 +240,10 @@ export default async function ProjectGalaxyPage(input: {
     );
   }
 
-  return <ProjectGalaxyPanel viewModel={connectedResult.viewModel} />;
+  return (
+    <>
+      <ProjectGalaxyPanel viewModel={connectedResult.viewModel} />
+      <RepositoryRemovalPanel projectId={connectedResult.viewModel.project.id} />
+    </>
+  );
 }

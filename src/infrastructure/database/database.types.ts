@@ -193,6 +193,8 @@ export type Database = {
           invocation_id: string | null
           metadata: Json
           project_id: string | null
+          project_reference_removed_at: string | null
+          repository_removal_operation_id: string | null
           reservation_id: string | null
           user_id: string
         }
@@ -207,6 +209,8 @@ export type Database = {
           invocation_id?: string | null
           metadata?: Json
           project_id?: string | null
+          project_reference_removed_at?: string | null
+          repository_removal_operation_id?: string | null
           reservation_id?: string | null
           user_id: string
         }
@@ -221,6 +225,8 @@ export type Database = {
           invocation_id?: string | null
           metadata?: Json
           project_id?: string | null
+          project_reference_removed_at?: string | null
+          repository_removal_operation_id?: string | null
           reservation_id?: string | null
           user_id?: string
         }
@@ -238,6 +244,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "energy_ledger_entries_repository_removal_operation_id_fkey"
+            columns: ["repository_removal_operation_id"]
+            isOneToOne: false
+            referencedRelation: "repository_removal_operations"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "energy_ledger_entries_reservation_id_fkey"
@@ -308,6 +321,60 @@ export type Database = {
           },
           {
             foreignKeyName: "energy_reservations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evidence_reference_invalidations: {
+        Row: {
+          id: string
+          invalidated_at: string
+          invalidation_reason: string
+          reference_fingerprint: string
+          repository_removal_operation_id: string
+          source_id: string
+          source_kind: string
+          source_version: string | null
+          target_project_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          invalidated_at: string
+          invalidation_reason?: string
+          reference_fingerprint: string
+          repository_removal_operation_id: string
+          source_id: string
+          source_kind: string
+          source_version?: string | null
+          target_project_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          invalidated_at?: string
+          invalidation_reason?: string
+          reference_fingerprint?: string
+          repository_removal_operation_id?: string
+          source_id?: string
+          source_kind?: string
+          source_version?: string | null
+          target_project_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evidence_reference_invalidati_repository_removal_operation_fkey"
+            columns: ["repository_removal_operation_id"]
+            isOneToOne: false
+            referencedRelation: "repository_removal_operations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_reference_invalidations_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -1053,6 +1120,9 @@ export type Database = {
           current_blocker: string | null
           current_stage_goal: string
           id: string
+          repository_data_state: string
+          repository_data_version: number
+          repository_removed_at: string | null
           selected_repository_id: string
           status: string
           updated_at: string
@@ -1064,6 +1134,9 @@ export type Database = {
           current_blocker?: string | null
           current_stage_goal: string
           id?: string
+          repository_data_state?: string
+          repository_data_version?: number
+          repository_removed_at?: string | null
           selected_repository_id: string
           status: string
           updated_at?: string
@@ -1075,6 +1148,9 @@ export type Database = {
           current_blocker?: string | null
           current_stage_goal?: string
           id?: string
+          repository_data_state?: string
+          repository_data_version?: number
+          repository_removed_at?: string | null
           selected_repository_id?: string
           status?: string
           updated_at?: string
@@ -1090,6 +1166,62 @@ export type Database = {
           },
           {
             foreignKeyName: "projects_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      repository_removal_operations: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error_code: string | null
+          failure_stage: string | null
+          id: string
+          idempotency_key: string
+          mode: string
+          request_fingerprint: string
+          result: Json | null
+          safely_retryable: boolean
+          status: string
+          target_project_id: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error_code?: string | null
+          failure_stage?: string | null
+          id?: string
+          idempotency_key: string
+          mode: string
+          request_fingerprint: string
+          result?: Json | null
+          safely_retryable?: boolean
+          status?: string
+          target_project_id: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error_code?: string | null
+          failure_stage?: string | null
+          id?: string
+          idempotency_key?: string
+          mode?: string
+          request_fingerprint?: string
+          result?: Json | null
+          safely_retryable?: boolean
+          status?: string
+          target_project_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "repository_removal_operations_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -1398,6 +1530,17 @@ export type Database = {
           p_github_user_id: number
         }
         Returns: string
+      }
+      execute_repository_removal: {
+        Args: {
+          p_actor_user_id: string
+          p_confirmation_project_id: string
+          p_confirmation_text: string
+          p_idempotency_key: string
+          p_mode: string
+          p_project_id: string
+        }
+        Returns: Json
       }
       fail_github_webhook_processing: {
         Args: {

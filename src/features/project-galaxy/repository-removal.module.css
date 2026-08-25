@@ -1,0 +1,150 @@
+.panel {
+  width: min(1120px, calc(100% - 32px));
+  margin: 32px auto 72px;
+  padding: clamp(24px, 4vw, 40px);
+  border: 1px solid rgb(239 68 68 / 22%);
+  border-radius: 24px;
+  background: linear-gradient(145deg, rgb(24 24 27 / 96%), rgb(9 9 11 / 98%));
+  color: #f4f4f5;
+  box-shadow: 0 28px 80px rgb(0 0 0 / 28%);
+}
+
+.heading h2,
+.option h3,
+.dialog h3,
+.success h3 {
+  margin: 0;
+}
+
+.heading > p:last-child,
+.option p,
+.dialog p,
+.success p {
+  color: #a1a1aa;
+  line-height: 1.65;
+}
+
+.kicker {
+  margin: 0 0 8px;
+  color: #fca5a5;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 210px;
+  padding: 24px;
+  border: 1px solid rgb(161 161 170 / 18%);
+  border-radius: 18px;
+  background: rgb(255 255 255 / 3%);
+}
+
+.option p {
+  flex: 1;
+}
+
+.option button,
+.dialog button {
+  min-height: 42px;
+  padding: 10px 16px;
+  border: 1px solid rgb(244 63 94 / 45%);
+  border-radius: 10px;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.secondaryDanger {
+  background: rgb(127 29 29 / 32%);
+}
+
+.primaryDanger {
+  background: #be123c;
+}
+
+.option button:disabled,
+.dialog button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.dialog {
+  margin-top: 22px;
+  padding: 24px;
+  border: 1px solid rgb(251 113 133 / 35%);
+  border-radius: 18px;
+  background: #18181b;
+}
+
+.dialog code {
+  overflow-wrap: anywhere;
+  color: #fecdd3;
+}
+
+.dialog label {
+  display: block;
+  margin: 18px 0 8px;
+  font-weight: 700;
+}
+
+.dialog input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #52525b;
+  border-radius: 10px;
+  background: #09090b;
+  color: #fafafa;
+  font: inherit;
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.dialogActions > button:first-child {
+  border-color: #52525b;
+  background: transparent;
+}
+
+.failure {
+  color: #fecaca !important;
+}
+
+.success {
+  margin-top: 22px;
+  padding: 22px;
+  border: 1px solid rgb(52 211 153 / 30%);
+  border-radius: 18px;
+  background: rgb(6 78 59 / 24%);
+}
+
+@media (max-width: 720px) {
+  .options {
+    grid-template-columns: 1fr;
+  }
+
+  .dialogActions {
+    flex-direction: column-reverse;
+  }
+
+  .dialogActions button {
+    width: 100%;
+  }
+}

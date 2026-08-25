@@ -16,9 +16,12 @@ select columns_are(
     'status',
     'current_blocker',
     'created_at',
-    'updated_at'
+    'updated_at',
+    'repository_data_state',
+    'repository_data_version',
+    'repository_removed_at'
   ],
-  'projects stores only internal lineage, four calibration fields and timestamps'
+  'projects stores calibration fields, timestamps and the repository-data write fence'
 );
 select results_eq(
   $$
@@ -31,9 +34,10 @@ select results_eq(
     'projects_id_user_id_key',
     'projects_one_active_per_selected_repository_idx',
     'projects_pkey',
+    'projects_repository_data_state_idx',
     'projects_user_sort_idx'
   ],
-  'project indexes retain active uniqueness and add the composite ownership boundary'
+  'project indexes retain active uniqueness, ownership and removal-state lookup'
 );
 select results_eq(
   $$

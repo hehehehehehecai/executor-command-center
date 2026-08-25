@@ -22,9 +22,10 @@ select columns_are(
   array[
     'id', 'user_id', 'project_id', 'business_date', 'idempotency_key',
     'entry_type', 'amount', 'delta', 'reservation_id', 'invocation_id',
-    'created_at', 'metadata'
+    'created_at', 'metadata', 'repository_removal_operation_id',
+    'project_reference_removed_at'
   ],
-  'ledger columns freeze immutable daily accounting facts'
+  'ledger columns freeze accounting facts and controlled removal detachment'
 );
 select columns_are(
   'public', 'ai_invocations',

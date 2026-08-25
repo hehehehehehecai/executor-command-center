@@ -61,7 +61,13 @@ describe("project-calibration-storage.v1", () => {
 
   it("writes only through the dedicated service-role RPC", async () => {
     const fetcher = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ ...projectRow, selected_repositories: repositoryRow }), {
+      new Response(JSON.stringify({
+        ...projectRow,
+        repository_data_state: "connected",
+        repository_data_version: 1,
+        repository_removed_at: null,
+        selected_repositories: repositoryRow,
+      }), {
         status: 200,
         headers: { "content-type": "application/json" },
       }),

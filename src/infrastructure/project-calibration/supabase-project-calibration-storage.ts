@@ -38,6 +38,11 @@ const projectRowSchema = z.object({
   created_at: z.iso.datetime({ offset: true }),
   updated_at: z.iso.datetime({ offset: true }),
 }).strict();
+const writeProjectRowSchema = projectRowSchema.extend({
+  repository_data_state: z.enum(["connected", "removing", "removed"]),
+  repository_data_version: z.number().int().positive(),
+  repository_removed_at: z.iso.datetime({ offset: true }).nullable(),
+}).strict();
 
 const repositoryFactsSchema = z.object({
   id: z.string().uuid(),
@@ -50,7 +55,7 @@ const repositoryFactsSchema = z.object({
 const readRowSchema = repositoryFactsSchema.extend({
   projects: z.array(projectRowSchema),
 }).strict();
-const writeRowSchema = projectRowSchema.extend({
+const writeRowSchema = writeProjectRowSchema.extend({
   selected_repositories: readRowSchema,
 }).strict();
 const readRowsSchema = z.array(readRowSchema);

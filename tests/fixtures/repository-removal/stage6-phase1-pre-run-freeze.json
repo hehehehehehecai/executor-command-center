@@ -1,0 +1,68 @@
+{
+  "contractVersion": "repository-removal-pre-run-freeze.v1",
+  "batchId": "explorer-stage6-phase1-bootstrap-e4abc85942c526ac",
+  "promptInstanceId": "explorer-stage6-phase1-bootstrap-0530a43a621ba672",
+  "capturedAt": "2026-08-24T00:00:00+08:00",
+  "repository": {
+    "root": "D:\\AI workplace\\探索者号",
+    "baselineHead": "e0639b5847ec61f4816425374abcf9df956310be",
+    "baselineStatusSha256": "472f554325ed3ede223b15fa6f03ca9e2093b761fd83b259feeb880b93e0e757",
+    "baselineStatusChars": 332061,
+    "branch": "feature/stage4-bridge-five-panels",
+    "origin": "ssh://git@ssh.github.com:443/hehehehehehecai/executor-command-center.git",
+    "gitCommonDir": "D:\\AI workplace\\探索者号\\.git",
+    "linkedWorktree": false
+  },
+  "baselineNoise": {
+    "path": ".pnpm-store/",
+    "porcelainEntries": 1863,
+    "treatment": "FORBIDDEN_TO_TOUCH_OR_COMMIT"
+  },
+  "foreignKeyDisposition": [
+    { "table": "public.users", "removeRepositoryData": "PRESERVE", "deleteProjectSubtree": "PRESERVE", "reason": "account scope" },
+    { "table": "public.github_identities", "removeRepositoryData": "PRESERVE", "deleteProjectSubtree": "PRESERVE", "reason": "account identity scope" },
+    { "table": "public.github_installations", "removeRepositoryData": "PRESERVE", "deleteProjectSubtree": "PRESERVE", "reason": "Phase 2 owns installation revocation" },
+    { "table": "public.github_installation_states", "removeRepositoryData": "PRESERVE", "deleteProjectSubtree": "PRESERVE", "reason": "installation flow scope" },
+    { "table": "public.selected_repositories", "removeRepositoryData": "PRESERVE", "deleteProjectSubtree": "PRESERVE", "reason": "minimal repository selection identity; reconnect is separate" },
+    { "table": "public.projects", "removeRepositoryData": "PRESERVE", "deleteProjectSubtree": "DELETE", "reason": "project lifecycle root" },
+    { "table": "public.github_repository_snapshots", "removeRepositoryData": "DELETE", "deleteProjectSubtree": "DELETE", "reason": "repository-derived data" },
+    { "table": "public.github_commits", "removeRepositoryData": "DELETE", "deleteProjectSubtree": "DELETE", "reason": "repository-derived data" },
+    { "table": "public.github_issues", "removeRepositoryData": "DELETE", "deleteProjectSubtree": "DELETE", "reason": "repository-derived data" },
+    { "table": "public.github_pull_requests", "removeRepositoryData": "DELETE", "deleteProjectSubtree": "DELETE", "reason": "repository-derived data" },
+    { "table": "public.github_releases", "removeRepositoryData": "DELETE", "deleteProjectSubtree": "DELETE", "reason": "repository-derived data" },
+    { "table": "public.github_workflow_runs", "removeRepositoryData": "DELETE", "deleteProjectSubtree": "DELETE", "reason": "repository-derived data" },
+    { "table": "public.github_document_snapshots", "removeRepositoryData": "DELETE", "deleteProjectSubtree": "DELETE", "reason": "document body and derived content" },
+    { "table": "public.sync_runs", "removeRepositoryData": "DELETE", "deleteProjectSubtree": "DELETE", "reason": "project sync execution data" },
+    { "table": "public.project_sync_dispatches", "removeRepositoryData": "DELETE", "deleteProjectSubtree": "DELETE", "reason": "project sync dispatch data" },
+    { "table": "public.github_webhook_deliveries", "removeRepositoryData": "DELETE", "deleteProjectSubtree": "DELETE", "reason": "project-bound repository event data" },
+    { "table": "public.project_briefs", "removeRepositoryData": "DELETE", "deleteProjectSubtree": "DELETE", "reason": "AI-generated project content and cache" },
+    { "table": "public.ai_invocations", "removeRepositoryData": "DELETE", "deleteProjectSubtree": "DELETE", "reason": "project-owned AI execution facts" },
+    { "table": "public.energy_reservations", "removeRepositoryData": "DELETE", "deleteProjectSubtree": "DELETE", "reason": "project-owned reservation state" },
+    { "table": "public.energy_ledger_entries", "removeRepositoryData": "INVALIDATE", "deleteProjectSubtree": "INVALIDATE", "reason": "immutable account ledger is preserved while project/reservation/invocation references are detached" },
+    { "table": "public.repository_removal_operations", "removeRepositoryData": "PRESERVE", "deleteProjectSubtree": "PRESERVE", "reason": "minimal idempotency tombstone and audit result" },
+    { "table": "public.evidence_reference_invalidations", "removeRepositoryData": "PRESERVE", "deleteProjectSubtree": "NOT_APPLICABLE", "reason": "preserved evidence identity is explicitly invalidated only when project remains" }
+  ],
+  "preservationMatrix": {
+    "confirmedArchives": "NOT_APPLICABLE_NO_PERSISTED_TABLE",
+    "projectStatusHistory": "NOT_APPLICABLE_NO_PERSISTED_TABLE",
+    "decisionRecords": "NOT_APPLICABLE_NO_PERSISTED_TABLE",
+    "accountEnergyLedger": "PRESERVE_AND_DETACH_PROJECT_REFERENCES",
+    "githubInstallation": "PRESERVE_PHASE2_BOUNDARY"
+  },
+  "invalidationMatrix": {
+    "projectBriefEvidenceReferences": "SOURCE_REMOVED",
+    "accountLedgerProjectReference": "PROJECT_REFERENCE_REMOVED",
+    "lateSyncAndAiWrites": "REJECT_AFTER_REMOVAL_STARTS"
+  },
+  "forbidden": [
+    ".pnpm-store/",
+    "Production",
+    "real user data",
+    "GitHub App revocation",
+    "account deletion",
+    "push",
+    "merge",
+    "deploy",
+    "Phase 2-10"
+  ]
+}

@@ -98,6 +98,74 @@ test("selects an authorized Project Galaxy project and denies both cross-user di
   expect(nonLocalRequests).toEqual([]);
 });
 
+test("binds repository removal confirmation and waits for the completed API result", async ({
+  context,
+  page,
+}) => {
+  const nonLocalRequests = observeNonLocalRequests(page);
+  const submittedBodies: unknown[] = [];
+  await useIdentity(context, identities.alpha);
+  await page.route(
+    `**/api/projects/${identities.alpha.projectId}/repository-removal`,
+    async (route) => {
+      submittedBodies.push(route.request().postDataJSON());
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          operation: {
+            operationId: "33333333-3333-4333-8333-333333333333",
+            projectId: identities.alpha.projectId,
+            mode: "REMOVE_REPOSITORY_DATA",
+            status: "completed",
+            outcome: "executed",
+            counts: {
+              deleted: { github_commits: 2 },
+              preserved: { projects: 1 },
+              invalidated: { evidence_links: 3 },
+            },
+            safelyRetryable: true,
+            completedAt: "2026-08-25T01:00:00.000Z",
+          },
+        }),
+      });
+    },
+  );
+
+  await page.goto(
+    `/project-galaxy?mode=connected&project=${identities.alpha.projectId}`,
+  );
+  await expect(page.getByRole("button", { name: "移除仓库数据" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "删除整个项目" })).toBeVisible();
+
+  await page.getByRole("button", { name: "删除整个项目" }).click();
+  const deleteDialog = page.getByRole("dialog", { name: "确认删除整个项目" });
+  await expect(deleteDialog).toContainText(`DELETE ${identities.alpha.projectId}`);
+  await deleteDialog.getByRole("button", { name: "取消" }).click();
+  expect(submittedBodies).toEqual([]);
+
+  await page.getByRole("button", { name: "移除仓库数据" }).click();
+  const removeDialog = page.getByRole("dialog", { name: "确认移除仓库数据" });
+  const submit = removeDialog.getByRole("button", { name: "确认移除仓库数据" });
+  await expect(submit).toBeDisabled();
+  await removeDialog.getByLabel("确认文本").fill(
+    `REMOVE ${identities.alpha.projectId}`,
+  );
+  await submit.click();
+  await expect(page.getByText("仓库数据已移除")).toBeVisible();
+  await expect(page.getByText(/3 条 Evidence Link/)).toBeVisible();
+  expect(submittedBodies).toHaveLength(1);
+  expect(submittedBodies[0]).toMatchObject({
+    projectId: identities.alpha.projectId,
+    mode: "REMOVE_REPOSITORY_DATA",
+    confirmation: {
+      projectId: identities.alpha.projectId,
+      text: `REMOVE ${identities.alpha.projectId}`,
+    },
+  });
+  expect(nonLocalRequests).toEqual([]);
+});
+
 test("filters the Connected Flight Log by exact type and UTC window", async ({
   context,
   page,
