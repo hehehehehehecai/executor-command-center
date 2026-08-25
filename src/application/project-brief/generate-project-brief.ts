@@ -454,7 +454,8 @@ export class GenerateProjectBriefUseCase {
         evidenceFingerprint: brief.evidenceFingerprint,
         brief,
       };
-    } catch {
+    } catch (error) {
+      if (error instanceof ProjectBriefGenerationError) throw error;
       return generationFailure("persistence", "project_brief_persistence_failed");
     }
   }

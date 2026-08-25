@@ -535,6 +535,31 @@ describe("GenerateProjectBriefUseCase", () => {
     expect(h.provider.generateStructured).not.toHaveBeenCalled();
   });
 
+  it("preserves the authorization contract when a cache hit is revoked before observation", async () => {
+    const h = harness({
+      revokeAtAuthorizationCheck: 2,
+      cache: {
+        id: briefId, userId, projectId, rangeStart, rangeEnd,
+        promptVersion: projectBriefActivePromptVersion,
+        schemaVersion: projectBriefSchemaVersion,
+        evidenceFingerprint: fingerprint,
+        cacheEquivalenceFingerprint,
+        payloadFingerprint: "d".repeat(64),
+        status: "completed",
+        payload: activeBrief(),
+        expiresAt: "2026-08-19T06:00:00.000Z",
+      },
+    });
+
+    await expect(h.useCase.execute(input())).rejects.toMatchObject({
+      stage: "authorization",
+      code: "project_brief_authorization_failed",
+    });
+    expect(h.persistence.recordCacheHit).not.toHaveBeenCalled();
+    expect(h.energyReservations.reserve).not.toHaveBeenCalled();
+    expect(h.provider.generateStructured).not.toHaveBeenCalled();
+  });
+
   it("fails closed on a cache reader error before reserve or provider", async () => {
     const h = harness();
     vi.mocked(h.cache.find).mockRejectedValueOnce(new Error("private cache error"));
