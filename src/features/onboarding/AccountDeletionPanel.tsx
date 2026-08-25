@@ -80,7 +80,7 @@ export function AccountDeletionPanel({
         </div>
       ) : null}
       {status === "deleting" ? <p role="status">账户正在删除，当前已不能撤销。</p> : null}
-      {status === "deletion_failed" ? <p role="alert">删除暂未完成，后台将从安全断点重试；账户仍保持冻结。</p> : null}
+      {status === "deletion_failed" ? <p role="alert">删除暂未完成，账户仍保持冻结；有限执行重试结束后，持久恢复任务会继续安全重派。</p> : null}
       {status === "deleted" ? <p role="status">账户删除已完成。</p> : null}
       {status === "active" ? <button type="button" onClick={() => { setDialog(true); setRequestKey(null); }}>申请删除账户</button> : null}
       {dialog ? (

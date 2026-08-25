@@ -1,7 +1,12 @@
 import "server-only";
 import { Inngest } from "inngest";
 import { createClient } from "@supabase/supabase-js";
-import { ExecuteDueAccountDeletion } from "@/application/account-deletion/account-deletion-use-cases";
+import {
+  ExecuteDueAccountDeletion,
+  MarkAccountDeletionRetryExhausted,
+  RecoverExhaustedAccountDeletions,
+} from "@/application/account-deletion/account-deletion-use-cases";
+import { InngestAccountDeletionDispatcher } from "@/infrastructure/account-deletion/inngest-account-deletion-dispatcher";
 import { SupabaseAccountDeletionRepository } from "@/infrastructure/account-deletion/supabase-account-deletion-repository";
 import { SupabaseAuthIdentityAdmin } from "@/infrastructure/account-deletion/supabase-auth-identity-admin";
 import { ExecuteFirstRepositorySync } from "@/application/synchronization/first-sync-use-cases";
@@ -58,9 +63,20 @@ export function createInngestRouteDependencies(source: Environment) {
     environment.SUPABASE_SERVICE_ROLE_KEY,
     { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } },
   );
-  const accountDeletion = new ExecuteDueAccountDeletion({
+  const accountDeletionExecutor = new ExecuteDueAccountDeletion({
     repository: accountDeletionRepository,
     authAdmin: new SupabaseAuthIdentityAdmin(accountDeletionAdminClient),
   });
+  const accountDeletionDispatcher = new InngestAccountDeletionDispatcher(client);
+  const accountDeletionExhaustion = new MarkAccountDeletionRetryExhausted(accountDeletionRepository);
+  const accountDeletionRecovery = new RecoverExhaustedAccountDeletions({
+    repository: accountDeletionRepository,
+    dispatcher: accountDeletionDispatcher,
+  });
+  const accountDeletion = {
+    execute: accountDeletionExecutor.execute.bind(accountDeletionExecutor),
+    markRetryExhausted: accountDeletionExhaustion.execute.bind(accountDeletionExhaustion),
+    recover: accountDeletionRecovery.execute.bind(accountDeletionRecovery),
+  };
   return { client, functions: createInngestSynchronizationFunctions(client, { firstSync, projectSync, webhooks, daily, accountDeletion }) };
 }

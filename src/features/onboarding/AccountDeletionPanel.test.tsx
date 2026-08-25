@@ -37,4 +37,15 @@ describe("AccountDeletionPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "撤销删除申请" }));
     await waitFor(() => expect(fetcher).toHaveBeenCalledWith("/api/account-deletion", expect.objectContaining({ method: "DELETE" })));
   });
+
+  it("does not promise endless worker retries after finite execution retries are exhausted", async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ account: {
+      operationId, status: "deletion_failed", outcome: "observed",
+      failureCode: "account_deletion_auth_identity_delete_failed",
+      recoveryGeneration: 1, retryExhaustedCount: 1, safelyRetryable: true,
+    } }), { status: 200 }));
+    render(<AccountDeletionPanel userId={userId} fetcher={fetcher} />);
+    await screen.findByText(/持久恢复任务会继续安全重派/);
+    expect(screen.queryByText(/后台将从安全断点重试/)).not.toBeInTheDocument();
+  });
 });

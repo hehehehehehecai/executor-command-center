@@ -11,7 +11,7 @@ export class InngestAccountDeletionDispatcher implements AccountDeletionSchedule
     let receipt: unknown;
     try {
       receipt = await this.client.send({
-        id: `account-deletion:${job.operationId}`,
+        id: `account-deletion:${job.jobId}`,
         name: "executor/account.deletion.due.v1",
         data: job,
       });

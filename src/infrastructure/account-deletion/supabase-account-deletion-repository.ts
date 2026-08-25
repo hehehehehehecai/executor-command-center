@@ -70,4 +70,25 @@ export class SupabaseAccountDeletionRepository implements AccountDeletionReposit
       p_error_code: input.errorCode,
     });
   }
+  markRetryExhausted(input: Parameters<AccountDeletionRepository["markRetryExhausted"]>[0]) {
+    return this.rpc("mark_account_deletion_retry_exhausted", {
+      p_operation_id: input.operationId,
+      p_generation: input.generation,
+    });
+  }
+  claimRecoveries(input: Parameters<AccountDeletionRepository["claimRecoveries"]>[0]) {
+    return this.rpc("claim_account_deletion_recoveries", {
+      p_limit: input.limit,
+      p_lease_duration: "2 minutes",
+    });
+  }
+  completeRecoveryDispatch(input: Parameters<AccountDeletionRepository["completeRecoveryDispatch"]>[0]) {
+    return this.rpc("complete_account_deletion_recovery_dispatch", {
+      p_operation_id: input.operationId,
+      p_generation: input.generation,
+      p_dispatch_token: input.dispatchToken,
+      p_outcome: input.outcome,
+      p_error_code: input.errorCode,
+    });
+  }
 }

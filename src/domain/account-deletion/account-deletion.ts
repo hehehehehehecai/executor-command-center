@@ -19,6 +19,10 @@ export type AccountDeletionOperation = {
   readonly claimedAt?: string;
   readonly completedAt?: string;
   readonly failureCode?: string;
+  readonly recoveryGeneration?: number;
+  readonly recoveryEligibleAt?: string;
+  readonly retryExhaustedCount?: number;
+  readonly recoveryDispatchAttempts?: number;
   readonly safelyRetryable: boolean;
 };
 

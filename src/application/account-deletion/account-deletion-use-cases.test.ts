@@ -4,6 +4,7 @@ import {
   CancelAccountDeletion,
   ExecuteDueAccountDeletion,
   GetAccountDeletionStatus,
+  RecoverExhaustedAccountDeletions,
   RequestAccountDeletion,
 } from "./account-deletion-use-cases";
 
@@ -44,8 +45,9 @@ describe("account deletion application lifecycle", () => {
     expect(dispatch).toHaveBeenCalledWith({
       version: "account-deletion-job.v1",
       jobType: "account.deletion.due.v1",
-      jobId: operationId,
+      jobId: `${operationId}:0`,
       operationId,
+      generation: 0,
       dueAt,
     });
   });
@@ -127,5 +129,43 @@ describe("account deletion application lifecycle", () => {
     });
     await expect(auth.execute({ operationId })).resolves.toMatchObject({ status: "deletion_failed" });
     expect(complete).toHaveBeenLastCalledWith(expect.objectContaining({ outcome: "auth_failed", errorCode: "account_deletion_auth_identity_delete_failed" }));
+  });
+
+  it("leases only durable recovery candidates and records dispatch failure for a later scan", async () => {
+    const claimRecoveries = vi.fn().mockResolvedValue({
+      outcome: "claimed",
+      operations: [{ operationId, generation: 1, dispatchToken: leaseToken, dueAt }],
+    });
+    const completeRecoveryDispatch = vi.fn().mockResolvedValue({ outcome: "retry_scheduled" });
+    const dispatch = vi.fn().mockRejectedValue(new Error("provider unavailable"));
+    const result = await new RecoverExhaustedAccountDeletions({
+      repository: { claimRecoveries, completeRecoveryDispatch },
+      dispatcher: { dispatch },
+    }).execute();
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({
+      jobId: `${operationId}:1`, operationId, generation: 1,
+    }));
+    expect(completeRecoveryDispatch).toHaveBeenCalledWith({
+      operationId, generation: 1, dispatchToken: leaseToken,
+      outcome: "dispatch_failed", errorCode: "account_deletion_recovery_dispatch_failed",
+    });
+    expect(result).toEqual({ eligible: 1, dispatched: 0, failed: 1 });
+  });
+
+  it("marks a successful durable recovery dispatch without executing deletion inline", async () => {
+    const claimRecoveries = vi.fn().mockResolvedValue({
+      outcome: "claimed",
+      operations: [{ operationId, generation: 2, dispatchToken: leaseToken, dueAt }],
+    });
+    const completeRecoveryDispatch = vi.fn().mockResolvedValue({ outcome: "retry_scheduled" });
+    const dispatch = vi.fn().mockResolvedValue({ providerJobId: "recovery-provider-job" });
+    const result = await new RecoverExhaustedAccountDeletions({
+      repository: { claimRecoveries, completeRecoveryDispatch }, dispatcher: { dispatch },
+    }).execute();
+    expect(completeRecoveryDispatch).toHaveBeenCalledWith({
+      operationId, generation: 2, dispatchToken: leaseToken,
+      outcome: "dispatched", errorCode: null,
+    });
+    expect(result).toEqual({ eligible: 1, dispatched: 1, failed: 0 });
   });
 });

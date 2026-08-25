@@ -87,8 +87,17 @@ export type Database = {
           lease_expires_at: string | null
           lease_token: string | null
           operation_id: string | null
+          recovery_dispatch_attempts: number
+          recovery_dispatch_lease_expires_at: string | null
+          recovery_dispatch_token: string | null
+          recovery_dispatched_at: string | null
+          recovery_eligible_at: string | null
+          recovery_generation: number
+          recovery_last_error_code: string | null
           requested_at: string | null
           retry_count: number
+          retry_exhausted_at: string | null
+          retry_exhausted_count: number
           status: string
           updated_at: string
           user_id: string
@@ -107,8 +116,17 @@ export type Database = {
           lease_expires_at?: string | null
           lease_token?: string | null
           operation_id?: string | null
+          recovery_dispatch_attempts?: number
+          recovery_dispatch_lease_expires_at?: string | null
+          recovery_dispatch_token?: string | null
+          recovery_dispatched_at?: string | null
+          recovery_eligible_at?: string | null
+          recovery_generation?: number
+          recovery_last_error_code?: string | null
           requested_at?: string | null
           retry_count?: number
+          retry_exhausted_at?: string | null
+          retry_exhausted_count?: number
           status?: string
           updated_at?: string
           user_id: string
@@ -127,8 +145,17 @@ export type Database = {
           lease_expires_at?: string | null
           lease_token?: string | null
           operation_id?: string | null
+          recovery_dispatch_attempts?: number
+          recovery_dispatch_lease_expires_at?: string | null
+          recovery_dispatch_token?: string | null
+          recovery_dispatched_at?: string | null
+          recovery_eligible_at?: string | null
+          recovery_generation?: number
+          recovery_last_error_code?: string | null
           requested_at?: string | null
           retry_count?: number
+          retry_exhausted_at?: string | null
+          retry_exhausted_count?: number
           status?: string
           updated_at?: string
           user_id?: string
@@ -1485,6 +1512,10 @@ export type Database = {
         Args: { p_lease_duration: string; p_operation_id: string }
         Returns: Json
       }
+      claim_account_deletion_recoveries: {
+        Args: { p_lease_duration: string; p_limit: number }
+        Returns: Json
+      }
       claim_github_webhook_dispatch: {
         Args: {
           p_claimed_at: string
@@ -1522,6 +1553,16 @@ export type Database = {
           p_operation_id: string
           p_outcome: string
           p_receipt_fingerprint: string
+        }
+        Returns: Json
+      }
+      complete_account_deletion_recovery_dispatch: {
+        Args: {
+          p_dispatch_token: string
+          p_error_code: string
+          p_generation: number
+          p_operation_id: string
+          p_outcome: string
         }
         Returns: Json
       }
@@ -1784,6 +1825,10 @@ export type Database = {
       }
       list_reconciliation_projects: {
         Args: { p_snapshot_since: string }
+        Returns: Json
+      }
+      mark_account_deletion_retry_exhausted: {
+        Args: { p_generation: number; p_operation_id: string }
         Returns: Json
       }
       read_current_github_identity: {

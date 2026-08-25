@@ -18,7 +18,8 @@ export const inngestSynchronizationFunctionDefinitions = [
   { id: "executor-project-sync-consumer", trigger: "executor/project.sync.requested.v1", idempotency: "event.data.jobId", concurrency: "event.data.projectId" },
   { id: "executor-github-webhook-consumer", trigger: "executor/github.webhook.received.v1", idempotency: "event.data.eventId", concurrency: "event.data.deliveryId" },
   { id: "executor-daily-reconciliation", trigger: "cron:0 2 * * *", idempotency: "domain:reconciliation:<UTC-day>", concurrency: "daily-reconciliation" },
-  { id: "executor-account-deletion", trigger: "executor/account.deletion.due.v1", idempotency: "event.data.operationId", concurrency: "event.data.operationId" },
+  { id: "executor-account-deletion", trigger: "executor/account.deletion.due.v1", idempotency: "event.data.jobId", concurrency: "event.data.operationId" },
+  { id: "executor-account-deletion-recovery", trigger: "cron:*/15 * * * *", idempotency: "domain:account-deletion-recovery:<run>", concurrency: "account-deletion-recovery" },
 ] as const;
 
 export type InngestSynchronizationRuntimeDependencies = {
@@ -26,7 +27,11 @@ export type InngestSynchronizationRuntimeDependencies = {
   readonly projectSync: { execute(input: { job: unknown; signal?: AbortSignal }): Promise<unknown> };
   readonly webhooks: { request(input: unknown): Promise<unknown>; execute(input: { job: unknown; signal?: AbortSignal }): Promise<unknown> };
   readonly daily: { handle(input: { scheduledAt: string; signal?: AbortSignal }): Promise<unknown> | unknown };
-  readonly accountDeletion: { execute(input: { operationId: string }): Promise<unknown> };
+  readonly accountDeletion: {
+    execute(input: { operationId: string }): Promise<unknown>;
+    markRetryExhausted(input: { operationId: string; generation: number }): Promise<unknown>;
+    recover(): Promise<unknown>;
+  };
 };
 
 export function createInngestSynchronizationHandlers(dependencies: InngestSynchronizationRuntimeDependencies) {
@@ -60,6 +65,14 @@ export function createInngestSynchronizationHandlers(dependencies: InngestSynchr
       }
       return result;
     },
+    accountDeletionFailure: async (data: unknown) => {
+      const job = parseAccountDeletionJob(data);
+      return dependencies.accountDeletion.markRetryExhausted({
+        operationId: job.operationId,
+        generation: job.generation,
+      });
+    },
+    accountDeletionRecovery: () => dependencies.accountDeletion.recover(),
   };
 }
 
@@ -81,12 +94,26 @@ export function createInngestSynchronizationFunctions(client: Inngest, dependenc
     async ({ event, step }) => step.run("run-daily-reconciliation", () => handlers.daily(new Date(event.ts).toISOString())),
   );
   const accountDeletion = client.createFunction(
-    { id: "executor-account-deletion", triggers: { event: "executor/account.deletion.due.v1" }, retries: 8, concurrency: { limit: 1, key: "event.data.operationId" }, idempotency: "event.data.operationId" },
+    {
+      id: "executor-account-deletion",
+      triggers: { event: "executor/account.deletion.due.v1" },
+      retries: 8,
+      concurrency: { limit: 1, key: "event.data.operationId" },
+      idempotency: "event.data.jobId",
+      onFailure: async ({ event, step }) => step.run(
+        "mark-account-deletion-retry-exhausted",
+        () => handlers.accountDeletionFailure(event.data.event.data),
+      ),
+    },
     async ({ event, step }) => {
       const job = parseAccountDeletionJob(event.data);
       await step.sleepUntil("await-account-deletion-due", new Date(job.dueAt));
       return step.run("execute-account-deletion", () => handlers.accountDeletion(job));
     },
   );
-  return [projectSync, webhook, daily, accountDeletion] as const;
+  const accountDeletionRecovery = client.createFunction(
+    { id: "executor-account-deletion-recovery", triggers: cron("*/15 * * * *"), retries: 3, concurrency: 1 },
+    async ({ step }) => step.run("recover-exhausted-account-deletions", () => handlers.accountDeletionRecovery()),
+  );
+  return [projectSync, webhook, daily, accountDeletion, accountDeletionRecovery] as const;
 }
