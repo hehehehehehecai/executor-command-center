@@ -1,0 +1,95 @@
+{
+  "contractVersion": "repository-removal-sequence-freeze.v1",
+  "batchId": "explorer-stage6-phase1.1-aa1863d24d2e6560",
+  "promptInstanceId": "explorer-stage6-phase1.1-996e81659e0dff0b",
+  "reviewTicketId": "review-ticket-996e81659e0dff0b",
+  "blockerFingerprint": "aa1863d24d2e65600413af2164b8e34186fce51a8ce8f4746fc6f03f8981609b",
+  "baseline": {
+    "head": "666e11fd1b6b9384472c2fdba5bddfe4c813d4c2",
+    "branch": "feature/stage4-bridge-five-panels",
+    "statusCommand": "git status --porcelain=v1 -uall | Out-String",
+    "statusSha256Utf8": "846114527e0ba7621b08257be1770b8eb91520646069790763d971d01f3764ab",
+    "statusCharacterCount": 343092,
+    "statusLineCount": 1920,
+    "statusNonPnpmStoreLineCount": 0,
+    "excludedPreExistingNoise": [
+      ".pnpm-store/"
+    ]
+  },
+  "lineage": {
+    "originalPhase1Commit": "666e11fd1b6b9384472c2fdba5bddfe4c813d4c2",
+    "originalMigration": "supabase/migrations/20260824180000_add_repository_removal_lifecycle.sql",
+    "originalMigrationSha256": "b836f7b980a353ce9f7dc6fd48d0f95cfc025fec7df62761cc48544deaadb6b3",
+    "fixMigration": "supabase/migrations/20260825024925_fix_repository_removal_sequence.sql",
+    "fixMigrationPreImplementationSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sequenceTest": "supabase/tests/0032_repository_removal_sequence_upgrade_test.sql",
+    "sequenceTestSha256": "5123a5df2e742f3385dc8ba9f374cfa40b6d331f2681f986f09ae1fb48c0c1ca",
+    "concurrencyTest": "supabase/tests/0033_repository_removal_sequence_concurrency_test.sql",
+    "concurrencyTestSha256": "68a31f4ea280956a58efca95d08b562156388aceceedf3b9cedff568a9b984f0"
+  },
+  "syntheticFixture": {
+    "sequence": {
+      "ownerUserId": "b3000000-0000-4000-8000-000000000001",
+      "otherUserId": "b3000000-0000-4000-8000-000000000002",
+      "installationIds": [
+        "b3100000-0000-4000-8000-000000000001",
+        "b3100000-0000-4000-8000-000000000002"
+      ],
+      "selectionIds": [
+        "b3200000-0000-4000-8000-000000000001",
+        "b3200000-0000-4000-8000-000000000002",
+        "b3200000-0000-4000-8000-000000000003"
+      ],
+      "targetProjectId": "b3300000-0000-4000-8000-000000000001",
+      "ownerControlProjectId": "b3300000-0000-4000-8000-000000000002",
+      "otherControlProjectId": "b3300000-0000-4000-8000-000000000003",
+      "removeOperationId": "b3500000-0000-4000-8000-000000000001",
+      "deleteOperationId": "b3500000-0000-4000-8000-000000000002",
+      "removeIdempotencyKey": "phase6-1-sequence-remove",
+      "deleteIdempotencyKey": "phase6-1-sequence-delete",
+      "expectedStateSequence": [
+        "connected",
+        "removed",
+        "project_deleted"
+      ]
+    },
+    "concurrency": {
+      "ownerUserId": "b3000000-0000-4000-8000-000000000010",
+      "installationId": "b3100000-0000-4000-8000-000000000010",
+      "selectionId": "b3200000-0000-4000-8000-000000000010",
+      "targetProjectId": "b3300000-0000-4000-8000-000000000010",
+      "removeOperationId": "b3500000-0000-4000-8000-000000000010",
+      "deleteOperationId": "b3500000-0000-4000-8000-000000000011",
+      "removeIdempotencyKey": "phase6-1-race-remove",
+      "deleteIdempotencyKey": "phase6-1-race-delete",
+      "expectedCompletedOperations": 1,
+      "expectedConflictResponses": 1
+    }
+  },
+  "denominators": {
+    "sequenceRequests": 2,
+    "targetProjectRowsToDelete": 1,
+    "evidenceInvalidationRowsToClean": 1,
+    "operationTombstonesToPreserve": 2,
+    "accountLedgerRowsToPreserveAfterRelease": 2,
+    "ownerControlProjectRowsNotToChange": 1,
+    "otherUserProjectRowsNotToChange": 1,
+    "ownerControlSourceRowsNotToChange": 1,
+    "otherUserSourceRowsNotToChange": 1,
+    "deleteReplayRequests": 1,
+    "sameKeyDifferentParametersRequests": 1,
+    "concurrentDifferentModeRequests": 2
+  },
+  "expectedMetrics": {
+    "removeExecutions": 1,
+    "deleteExecutions": 1,
+    "targetProjectResidualRows": 0,
+    "targetEvidenceSourceIdentifierResidualRows": 0,
+    "deleteReplayDuplicateSideEffects": 0,
+    "sameKeyDifferentParametersConflicts": 1,
+    "concurrentWinners": 1,
+    "concurrentConflicts": 1,
+    "crossBoundaryChanges": 0,
+    "accountLedgerDelta": 0
+  }
+}
