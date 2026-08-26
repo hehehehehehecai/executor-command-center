@@ -3,6 +3,7 @@ import {
   handleSelectedRepositoryList,
 } from "@/infrastructure/github-repository-selection/github-repository-selection-http";
 import { createRepositorySelectionUseCases } from "./repository-selection-route-dependencies";
+import { writeSafeSecurityWarning } from "@/shared/security/safe-log-redaction";
 
 export const dynamic = "force-dynamic";
 
@@ -31,11 +32,11 @@ function logFailure(
     const sensitiveMarkerFound = Object.keys(record).some((key) =>
       sensitiveKeyPattern.test(key),
     );
-    console.warn(
-      JSON.stringify({
+    writeSafeSecurityWarning(
+      {
         ...record,
         sensitive_marker_found: sensitiveMarkerFound,
-      }),
+      },
     );
   };
 }

@@ -1,6 +1,10 @@
 import "server-only";
 
 import type { GitHubRepositorySelection } from "@/domain/github-installation/github-app-installation";
+import {
+  githubActivityReadPermissions,
+  githubMetadataOnlyPermissions,
+} from "@/shared/security/github-minimum-permissions";
 import { z } from "zod";
 
 export const installationAccessTokenContract =
@@ -44,18 +48,10 @@ const activityTokenResponseSchema = tokenResponseBaseSchema.extend({
       issues: z.literal("read"),
       pull_requests: z.literal("read"),
       actions: z.literal("read"),
+      checks: z.literal("read"),
     })
     .strict(),
 });
-
-const metadataOnlyPermissions = { metadata: "read" } as const;
-const activityReadPermissions = {
-  metadata: "read",
-  contents: "read",
-  issues: "read",
-  pull_requests: "read",
-  actions: "read",
-} as const;
 
 const tokenFailureCodes = new Set([
   "github_app_configuration_missing",
@@ -163,8 +159,8 @@ export class GitHubInstallationTokenClient {
           body: JSON.stringify({
             permissions:
               profile === "activity-read"
-                ? activityReadPermissions
-                : metadataOnlyPermissions,
+                ? githubActivityReadPermissions
+                : githubMetadataOnlyPermissions,
           }),
           signal: controller.signal,
         },

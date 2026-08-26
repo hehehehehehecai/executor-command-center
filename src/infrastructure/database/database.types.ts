@@ -9,6 +9,30 @@ export type Json =
 export type Database = {
   app_private: {
     Tables: {
+      beta_rate_limit_buckets: {
+        Row: {
+          request_count: number
+          scope: string
+          subject_fingerprint: string
+          updated_at: string
+          window_started_at: string
+        }
+        Insert: {
+          request_count: number
+          scope: string
+          subject_fingerprint: string
+          updated_at: string
+          window_started_at: string
+        }
+        Update: {
+          request_count?: number
+          scope?: string
+          subject_fingerprint?: string
+          updated_at?: string
+          window_started_at?: string
+        }
+        Relationships: []
+      }
       database_baseline: {
         Row: {
           contract_version: string
@@ -1602,6 +1626,14 @@ export type Database = {
           p_sync_run_id: string
         }
         Returns: Json
+      }
+      consume_beta_rate_limit: {
+        Args: { p_scope: string }
+        Returns: {
+          allowed: boolean
+          remaining: number
+          retry_after_seconds: number
+        }[]
       }
       consume_energy: { Args: { p_reservation_id: string }; Returns: Json }
       consume_github_installation_state: {

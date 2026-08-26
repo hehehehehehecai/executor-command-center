@@ -1,6 +1,7 @@
 import { handleRepositoryRemoval } from "@/infrastructure/repository-removal/repository-removal-http";
 
 import { createRepositoryRemovalUseCase } from "./repository-removal-route-dependencies";
+import { writeSafeSecurityWarning } from "@/shared/security/safe-log-redaction";
 
 export const dynamic = "force-dynamic";
 
@@ -25,14 +26,14 @@ export async function POST(request: Request, context: RouteContext) {
     responseHeaders,
     execute: async (command) => (await getUseCase()).execute(command),
     onFailure: (code, httpStatus) => {
-      console.warn(JSON.stringify({
+      writeSafeSecurityWarning({
         contract_version: "repository-removal-failure.v1",
         request_id: requestId,
         phase: "repository_removal_http",
         failure_code: code,
         http_status: httpStatus,
         sensitive_content_logged: false,
-      }));
+      });
     },
   });
 }

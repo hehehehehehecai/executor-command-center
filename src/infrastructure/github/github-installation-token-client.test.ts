@@ -16,6 +16,7 @@ const activityReadPermissions = {
   issues: "read",
   pull_requests: "read",
   actions: "read",
+  checks: "read",
 } as const;
 
 function createClient(
@@ -96,7 +97,7 @@ describe("github-installation-access-token.v1", () => {
     );
   });
 
-  it("creates an activity-read token with the exact five read permissions", async () => {
+  it("creates an activity-read token with the exact six read permissions", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(
         JSON.stringify({

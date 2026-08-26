@@ -3,6 +3,7 @@ import {
   handleProjectCalibrationSave,
 } from "@/infrastructure/project-calibration/project-calibration-http";
 import { createProjectCalibrationUseCases } from "./project-calibration-route-dependencies";
+import { writeSafeSecurityWarning } from "@/shared/security/safe-log-redaction";
 
 export const dynamic = "force-dynamic";
 
@@ -23,12 +24,12 @@ function logFailure(operation: "list" | "save", requestId: string) {
       github_called: false,
       sync_started: false,
     };
-    console.warn(JSON.stringify({
+    writeSafeSecurityWarning({
       ...record,
       sensitive_marker_found: Object.keys(record).some((key) =>
         sensitiveKeyPattern.test(key),
       ),
-    }));
+    });
   };
 }
 

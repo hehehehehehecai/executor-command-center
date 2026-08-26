@@ -7,6 +7,7 @@ import { handleGitHubOAuthCallback } from "@/infrastructure/auth/github-auth-htt
 import { SupabaseGitHubSignInGateway } from "@/infrastructure/auth/supabase-github-sign-in-gateway";
 import { createSupabaseServerClient } from "@/infrastructure/auth/supabase-server-client";
 import { parseServerEnvironment } from "@/shared/configuration/server-environment";
+import { writeSafeSecurityWarning } from "@/shared/security/safe-log-redaction";
 
 export async function GET(request: Request) {
   try {
@@ -28,7 +29,7 @@ export async function GET(request: Request) {
       trustedOrigin: environment.APP_ORIGIN,
       execute: (input) => useCase.execute(input),
       onFailure: (failureCode) =>
-        console.warn(
+        writeSafeSecurityWarning(
           createAuthFailureLog({
             failureId: crypto.randomUUID(),
             requestId: crypto.randomUUID(),

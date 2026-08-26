@@ -347,7 +347,11 @@ describe("GenerateProjectBriefUseCase", () => {
         rangeEnd,
         boundaryNote: projectBriefBoundaryNote,
       },
-      canonicalEvidenceSnapshot: { synthetic: "phase7" },
+      untrustedRepositoryData: {
+        contractVersion: "untrusted-repository-prompt-input.v1",
+        encoding: "json",
+        content: { synthetic: "phase7" },
+      },
     });
   });
 

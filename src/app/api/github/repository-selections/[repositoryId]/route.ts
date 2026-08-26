@@ -1,5 +1,6 @@
 import { handleRepositoryDeselection } from "@/infrastructure/github-repository-selection/github-repository-selection-http";
 import { createRepositorySelectionUseCases } from "../repository-selection-route-dependencies";
+import { writeSafeSecurityWarning } from "@/shared/security/safe-log-redaction";
 
 export const dynamic = "force-dynamic";
 
@@ -40,11 +41,11 @@ export async function DELETE(
           key,
         ),
       );
-      console.warn(
-        JSON.stringify({
+      writeSafeSecurityWarning(
+        {
           ...record,
           sensitive_marker_found: sensitiveMarkerFound,
-        }),
+        },
       );
     },
   });

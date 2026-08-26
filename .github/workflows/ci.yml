@@ -45,6 +45,15 @@ jobs:
       - name: Validate environment contract
         run: pnpm env:check
 
+      - name: Scan tracked files for secrets
+        run: pnpm security:secret-scan
+
+      - name: Audit production dependencies
+        run: pnpm security:dependency-audit
+
+      - name: Run security contract tests
+        run: pnpm security:test
+
       - name: Lint
         run: pnpm lint
 

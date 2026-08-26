@@ -11,6 +11,9 @@
     "test": "vitest run --maxWorkers=1",
     "test:watch": "vitest",
     "env:check": "vitest run src/shared/configuration/environment-validation.ci.test.ts",
+    "security:secret-scan": "node scripts/secret-scan.mjs",
+    "security:dependency-audit": "pnpm audit --prod --audit-level high",
+    "security:test": "vitest run src/shared/security scripts/secret-scan.test.mjs src/infrastructure/webhooks/github-webhook-http.test.ts src/application/webhooks/ingest-github-webhook.test.ts src/infrastructure/webhooks/node-github-webhook-cryptography.test.ts src/domain/project-brief/project-brief-prompt.test.ts src/infrastructure/auth/service-role-boundary.test.ts src/infrastructure/auth/update-session.test.ts --maxWorkers=1",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset --local",
@@ -36,7 +39,7 @@
     "@supabase/ssr": "0.12.3",
     "@supabase/supabase-js": "2.110.7",
     "inngest": "4.15.0",
-    "next": "16.2.10",
+    "next": "16.3.0",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "zod": "4.4.3"

@@ -14,6 +14,7 @@ import {
 } from "@/infrastructure/github/github-repository-http";
 import { SupabaseCurrentGitHubInstallationQuery } from "@/infrastructure/github/supabase-current-github-installation-query";
 import { parseServerEnvironment } from "@/shared/configuration/server-environment";
+import { writeSafeSecurityWarning } from "@/shared/security/safe-log-redaction";
 
 export const dynamic = "force-dynamic";
 
@@ -53,8 +54,7 @@ function logFailure(code: string, httpStatus: number) {
   const revocationAttempted =
     definition?.revocationAttempted ?? false;
 
-  console.warn(
-    JSON.stringify(
+  writeSafeSecurityWarning(
       createGitHubRepositoryFailureRecord({
         failureId: crypto.randomUUID(),
         requestId: crypto.randomUUID(),
@@ -82,7 +82,6 @@ function logFailure(code: string, httpStatus: number) {
         repositoriesCollected: 0,
         httpStatus,
       }),
-    ),
   );
 }
 

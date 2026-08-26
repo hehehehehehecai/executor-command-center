@@ -1,5 +1,6 @@
 import { handleFirstSyncRequest } from "@/infrastructure/synchronization/first-sync-http";
 import { createFirstSyncRouteDependencies } from "./first-sync-route-dependencies";
+import { writeSafeSecurityWarning } from "@/shared/security/safe-log-redaction";
 
 export const dynamic = "force-dynamic";
 
@@ -20,12 +21,12 @@ export async function POST(request: Request, context: RouteContext) {
     projectId: (await context.params).projectId,
     responseHeaders,
     execute: async (input) => (await getDependencies()).entry.execute(input),
-    onFailure: (failure) => console.warn(JSON.stringify({
+    onFailure: (failure) => writeSafeSecurityWarning({
       contract_version: failure.contractVersion,
       failure_id: failure.failureId,
       phase: failure.phase,
       failure_code: failure.failureCode,
       status: failure.status,
-    })),
+    }),
   });
 }

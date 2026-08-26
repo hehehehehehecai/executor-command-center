@@ -204,7 +204,7 @@ select result from extensions.dblink(
 select is(extensions.dblink_send_query(
   'phase2_1_b',
   $$select app_private.test_phase2_1_revoke(
-    'a1400000-0000-4000-8000-000000000001','2026-08-25T23:11:00Z'
+    'a1400000-0000-4000-8000-000000000001',pg_catalog.clock_timestamp()
   )$$
 ),1,'S1 revoke is dispatched after queued Sync work');
 select ok(app_private.test_phase2_1_wait_for_lock(
@@ -221,7 +221,7 @@ select extensions.dblink_exec('phase2_1_a','begin');
 select result from extensions.dblink(
   'phase2_1_a',
   $$select app_private.test_phase2_1_revoke(
-    'a1400000-0000-4000-8000-000000000002','2026-08-25T23:12:00Z'
+    'a1400000-0000-4000-8000-000000000002',pg_catalog.clock_timestamp()
   )$$
 ) as r(result jsonb);
 select is(extensions.dblink_send_query(
@@ -261,7 +261,7 @@ select result from extensions.dblink(
 select is(extensions.dblink_send_query(
   'phase2_1_b',
   $$select app_private.test_phase2_1_revoke(
-    'a1400000-0000-4000-8000-000000000003','2026-08-25T23:13:00Z'
+    'a1400000-0000-4000-8000-000000000003',pg_catalog.clock_timestamp()
   )$$
 ),1,'E1 revoke is dispatched after reservation work');
 select ok(app_private.test_phase2_1_wait_for_lock(
@@ -280,7 +280,7 @@ select extensions.dblink_exec('phase2_1_a','begin');
 select result from extensions.dblink(
   'phase2_1_a',
   $$select app_private.test_phase2_1_revoke(
-    'a1400000-0000-4000-8000-000000000004','2026-08-25T23:14:00Z'
+    'a1400000-0000-4000-8000-000000000004',pg_catalog.clock_timestamp()
   )$$
 ) as r(result jsonb);
 select is(extensions.dblink_send_query(
@@ -320,7 +320,7 @@ select result from extensions.dblink(
 select is(extensions.dblink_send_query(
   'phase2_1_b',
   $$select app_private.test_phase2_1_revoke(
-    'a1400000-0000-4000-8000-000000000005','2026-08-25T23:15:00Z'
+    'a1400000-0000-4000-8000-000000000005',pg_catalog.clock_timestamp()
   )$$
 ),1,'A1 revoke is dispatched after completed AI work');
 select ok(app_private.test_phase2_1_wait_for_lock(
@@ -337,7 +337,7 @@ select extensions.dblink_exec('phase2_1_a','begin');
 select result from extensions.dblink(
   'phase2_1_a',
   $$select app_private.test_phase2_1_revoke(
-    'a1400000-0000-4000-8000-000000000006','2026-08-25T23:16:00Z'
+    'a1400000-0000-4000-8000-000000000006',pg_catalog.clock_timestamp()
   )$$
 ) as r(result jsonb);
 select is(extensions.dblink_send_query(
@@ -370,7 +370,7 @@ select result from extensions.dblink(
 select is(extensions.dblink_send_query(
   'phase2_1_b',
   $$select app_private.test_phase2_1_revoke(
-    'a1400000-0000-4000-8000-000000000007','2026-08-25T23:17:00Z'
+    'a1400000-0000-4000-8000-000000000007',pg_catalog.clock_timestamp()
   )$$
 ),1,'G1 revoke is dispatched after snapshot work');
 select ok(app_private.test_phase2_1_wait_for_lock(
@@ -387,7 +387,7 @@ select extensions.dblink_exec('phase2_1_a','begin');
 select result from extensions.dblink(
   'phase2_1_a',
   $$select app_private.test_phase2_1_revoke(
-    'a1400000-0000-4000-8000-000000000008','2026-08-25T23:18:00Z'
+    'a1400000-0000-4000-8000-000000000008',pg_catalog.clock_timestamp()
   )$$
 ) as r(result jsonb);
 select is(extensions.dblink_send_query(
