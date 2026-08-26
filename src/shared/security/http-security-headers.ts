@@ -17,6 +17,7 @@ export function buildHttpSecurityHeaders(input: {
   readonly nonce?: string;
 }): { key: string; value: string }[] {
   const production = input.nodeEnvironment === "production";
+  const development = input.nodeEnvironment === "development";
   const directives = [
     "default-src 'self'",
     "base-uri 'self'",
@@ -24,7 +25,7 @@ export function buildHttpSecurityHeaders(input: {
     "frame-ancestors 'none'",
     "form-action 'self'",
     input.nonce
-      ? `script-src 'self' 'nonce-${input.nonce}' 'strict-dynamic'`
+      ? `script-src 'self' 'nonce-${input.nonce}' 'strict-dynamic'${development ? " 'unsafe-eval'" : ""}`
       : "script-src 'self'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",

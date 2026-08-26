@@ -5,8 +5,14 @@ import { buildContentSecurityPolicy } from "@/shared/security/http-security-head
 
 export async function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID(), "utf8").toString("base64");
+  const contentSecurityPolicy = buildContentSecurityPolicy({
+    nonce,
+    nodeEnvironment: process.env.NODE_ENV,
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  });
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("content-security-policy", contentSecurityPolicy);
   const response = await refreshSupabaseSession({
     request,
     requestHeaders,
@@ -15,11 +21,7 @@ export async function proxy(request: NextRequest) {
       NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     },
   });
-  response.headers.set("content-security-policy", buildContentSecurityPolicy({
-    nonce,
-    nodeEnvironment: process.env.NODE_ENV,
-    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-  }));
+  response.headers.set("content-security-policy", contentSecurityPolicy);
   return response;
 }
 

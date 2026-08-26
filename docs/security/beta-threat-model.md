@@ -96,9 +96,11 @@ Project Brief 当前不把文档正文发送给 provider，只发送已授权文
 
 ## 8. HTTP headers 与 Cookie
 
-`src/proxy.ts` 为每个请求生成 122-bit 以上随机 nonce，并同时写入 forwarded request `x-nonce` 与 response CSP。生产 CSP 使用 nonce + `strict-dynamic`，没有 `unsafe-eval`、wildcard source，且固定 `object-src 'none'`、`frame-ancestors 'none'`；静态 header 还包括 HSTS、DENY、nosniff、strict referrer、Permissions Policy 和 COOP。
+`src/proxy.ts` 为每个请求生成 122-bit 以上随机 nonce，并只构建一次规范化 CSP；同一 CSP 同时写入 forwarded request `Content-Security-Policy` 和最终 response header，`x-nonce` 同步传给上游组件。Next.js renderer 从请求 CSP 提取 nonce，浏览器以响应 CSP 执行，避免两条边界各自生成造成漂移。生产 CSP 使用 nonce + `strict-dynamic`，没有 script `unsafe-inline`、`unsafe-eval` 或 wildcard source，且固定 `object-src 'none'`、`frame-ancestors 'none'`；静态 header 还包括 HSTS、DENY、nosniff、strict referrer、Permissions Policy 和 COOP。只有 `NODE_ENV=development` 时按 React/Next.js 调试运行时要求加入 `unsafe-eval`；production helper 测试与真实 `next start` 对账都证明该 directive 不进入生产响应。
 
-Supabase SSR cookie 保持 `SameSite=Lax`、`Path=/`，HTTPS 时 `Secure=true`。`httpOnly=false` 是已接受风险：当前 `@supabase/ssr` 浏览器会话刷新合同需要客户端可写 token cookie；擅自强制 HttpOnly 会破坏现有 SSR/browser refresh。补偿控制为 CSP、same-origin mutation、Secure/SameSite、no-store 与 `getUser()` server verification。证据：`src/infrastructure/auth/supabase-server-client.test.ts`、`src/infrastructure/auth/update-session.test.ts`、`src/proxy.test.ts`。
+根布局调用 `connection()`，因此 `/`、`/auth/error`、`/_not-found` 与全部其他 HTML route 都按请求动态渲染。production runtime 合同测试实际启动 `next start` 并对账 `/` 11/11、`/auth/error` 10/10、404 9/9、`/mission-control` 10/10 个 script，所有 nonce 均与各自 response CSP 一致且每个请求 nonce 唯一。代价是这些页面失去静态优化、ISR/PPR 和默认 CDN HTML cache，首字节延迟、server render 负载和托管成本会上升；这是严格请求级 nonce 的已接受性能成本，后续若采用 SRI/hash 方案必须另立安全合同，不能在本批回退 CSP。
+
+Supabase SSR cookie 保持 `SameSite=Lax`、`Path=/`，HTTPS 时 `Secure=true`。`httpOnly=false` 是已接受风险：当前 `@supabase/ssr` 浏览器会话刷新合同需要客户端可写 token cookie；擅自强制 HttpOnly 会破坏现有 SSR/browser refresh。补偿控制为 CSP、same-origin mutation、Secure/SameSite、no-store 与 `getUser()` server verification。证据：`src/infrastructure/auth/supabase-server-client.test.ts`、`src/infrastructure/auth/update-session.test.ts`、`src/proxy.test.ts`、`scripts/test-production-csp-nonce.mjs`。
 
 ## 9. STRIDE 威胁登记
 
@@ -122,7 +124,7 @@ Supabase SSR cookie 保持 `SameSite=Lax`、`Path=/`，HTTPS 时 `Secure=true`�
 | T16 | E/I | repository prompt injection 请求工具/Secret | sanitize + isolated envelope/system contract | mitigated | prompt tests |
 | T17 | D | oversized/binary repository text | UTF-8/control/262 KiB gate | mitigated | prompt tests |
 | T18 | T | provider 返回越权字段/伪造 Evidence | strict schema + Evidence allowlist | mitigated | brief schema/evidence tests |
-| T19 | E/I | XSS/frame/content sniffing | nonce CSP + security headers | mitigated | header/proxy tests |
+| T19 | E/I | XSS/frame/content sniffing | request/response 同 nonce CSP + 全 HTML 动态渲染 + security headers | mitigated | header/proxy/production runtime tests |
 | T20 | I | SSR session cookie 可被 client JS 访问 | 保持 SDK 合同，CSP/Secure/SameSite 补偿 | accepted with rationale | cookie regression tests |
 | T21 | S/T | 外部平台生产 header/secret/WAF 与 GitHub event 未实际配置 | Phase 8–9 checklist 实际回读 | external confirmation required | 本文 §10 |
 
@@ -133,5 +135,5 @@ Supabase SSR cookie 保持 `SameSite=Lax`、`Path=/`，HTTPS 时 `Secure=true`�
 1. GitHub App 控制台必须实查只有 `metadata/contents/issues/pull_requests/actions/checks: read`，且订阅 event 与代码 7 项一致；未回读前不能声称平台已配置。
 2. Vercel/前置代理必须提供可信来源的匿名 OAuth rate limit/WAF 证据；不得把任意 `x-forwarded-for` 当权威主体。
 3. Vercel 与 Supabase Cloud 的生产环境变量、Secret scanning、headers、cookie 与 RLS migration 实际状态须在对应发布阶段回读；本批不修改控制台。
-4. CSP 允许 inline style 以保持现有 Next/Tailwind 渲染；script 不允许 inline/eval。未来若改用 CSS nonce/hash，可进一步收紧 style。
+4. CSP 允许 inline style 以保持现有 Next/Tailwind 渲染；production script 不允许 inline/eval，development 仅为 React 调试允许 `unsafe-eval`。请求级 nonce 使所有 HTML 动态渲染并取消默认静态/CDN HTML cache；未来若改用 CSS nonce/hash或 SRI，必须先证明不削弱 script 边界。
 5. Dependency audit 是时间点证据，必须在 CI 与发布前针对当前 lockfile 重跑。

@@ -3,6 +3,22 @@ import { describe, expect, it } from "vitest";
 import { buildHttpSecurityHeaders } from "./http-security-headers";
 
 describe("http-security-headers.v1", () => {
+  it("allows React debugging eval only in development while retaining the nonce boundary", () => {
+    const headers = new Map(buildHttpSecurityHeaders({
+      nodeEnvironment: "development",
+      supabaseUrl: "https://synthetic-project.supabase.co",
+      nonce: "synthetic-development-nonce",
+    }).map(({ key, value }) => [key.toLowerCase(), value]));
+    const scriptDirective = (headers.get("content-security-policy") ?? "")
+      .match(/script-src[^;]*/)?.[0] ?? "";
+
+    expect(scriptDirective).toContain("'nonce-synthetic-development-nonce'");
+    expect(scriptDirective).toContain("'strict-dynamic'");
+    expect(scriptDirective).toContain("'unsafe-eval'");
+    expect(scriptDirective).not.toContain("'unsafe-inline'");
+    expect(scriptDirective).not.toMatch(/(^|\s)\*(\s|$)/);
+  });
+
   it("builds a production header set without wildcard sources or unsafe-eval", () => {
     const headers = new Map(buildHttpSecurityHeaders({
       nodeEnvironment: "production",

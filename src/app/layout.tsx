@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -6,11 +7,13 @@ export const metadata: Metadata = {
   description: "EXECUTOR 项目指挥中心的工程基线首页。",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  await connection();
+
   return (
     <html lang="zh-CN">
       <body>{children}</body>
