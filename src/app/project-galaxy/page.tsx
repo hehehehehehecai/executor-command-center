@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
   ProjectGalaxyPanel,
+  ProjectLifecycleActions,
   RepositoryRemovalPanel,
   createProjectGalaxyConnectedQuery,
   createProjectGalaxyPreviewQuery,
@@ -162,6 +163,7 @@ export default async function ProjectGalaxyPage(input: {
     return (
       <>
         <ProjectGalaxyPanel viewModel={fixtureResult.viewModel} />
+        <ProjectLifecycleActions projectId={fixtureResult.viewModel.project.id} />
         <RepositoryRemovalPanel projectId={fixtureResult.viewModel.project.id} />
       </>
     );
@@ -245,6 +247,7 @@ export default async function ProjectGalaxyPage(input: {
   return (
     <>
       <ProjectGalaxyPanel viewModel={connectedResult.viewModel} />
+      <ProjectLifecycleActions projectId={connectedResult.viewModel.project.id} />
       <RepositoryRemovalPanel projectId={connectedResult.viewModel.project.id} />
     </>
   );

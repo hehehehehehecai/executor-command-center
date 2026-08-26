@@ -1,6 +1,7 @@
 export { ProjectGalaxyPanel } from "./ProjectGalaxyPanel";
 export { RepositoryRemovalPanel } from "./RepositoryRemovalPanel";
 export { SyncStatusBadge } from "./SyncStatusBadge";
+export { ProjectLifecycleActions } from "./ProjectLifecycleActions";
 export {
   createProjectGalaxyConnectedQuery,
   createProjectGalaxyPreviewQuery,

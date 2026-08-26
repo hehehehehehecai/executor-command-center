@@ -48,6 +48,10 @@ export async function createProjectBriefGenerationRouteDependencies(
         { auth: { autoRefreshToken: false, persistSession: false } },
       );
       const fingerprint = new NodeProjectBriefEvidenceFingerprint();
+      const phase5ProviderUrl =
+        process.env.NODE_ENV !== "production" && process.env.PHASE5_E2E === "1"
+          ? process.env.PHASE5_E2E_PROVIDER_URL
+          : undefined;
       const evidenceBuilder = new BuildProjectBriefEvidenceSnapshotUseCase({
         sourceReader: new SupabaseProjectBriefEvidenceReader(
           sessionClient as ConstructorParameters<typeof SupabaseProjectBriefEvidenceReader>[0],
@@ -64,6 +68,18 @@ export async function createProjectBriefGenerationRouteDependencies(
         apiKey: environment.DEEPSEEK_API_KEY,
         model: "deepseek-chat",
         timeoutMs: 60_000,
+        fetcher: phase5ProviderUrl
+          ? (input, init) => {
+              const source =
+                typeof input === "string"
+                  ? input
+                  : input instanceof URL
+                    ? input.href
+                    : input.url;
+              const original = new URL(source);
+              return fetch(new URL(original.pathname, phase5ProviderUrl), init);
+            }
+          : undefined,
       });
       return new GenerateProjectBriefUseCase({
         authorization: new SupabaseProjectBriefAuthorizationGate(
