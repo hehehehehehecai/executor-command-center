@@ -9,7 +9,7 @@ const operationId = "b3800000-0000-4000-8000-000000000001";
 afterEach(cleanup);
 
 describe("AccountDeletionPanel", () => {
-  it("moves focus into confirmation and restores the trigger after Escape", async () => {
+  it("contains focus and background interaction, then restores the trigger after Escape", async () => {
     const fetcher = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ account: { status: "active" } }), {
         status: 200,
@@ -20,11 +20,60 @@ describe("AccountDeletionPanel", () => {
 
     const trigger = screen.getByRole("button", { name: "申请删除账户" });
     fireEvent.click(trigger);
-    expect(screen.getByRole("textbox", { name: "确认文本" })).toHaveFocus();
+    const dialog = screen.getByRole("dialog", { name: "确认申请删除账户" });
+    const confirmation = screen.getByRole("textbox", { name: "确认文本" });
+    const cancel = screen.getByRole("button", { name: "取消" });
+    expect(confirmation).toHaveFocus();
+
+    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+    expect(cancel).toHaveFocus();
+    fireEvent.keyDown(document, { key: "Tab" });
+    expect(confirmation).toHaveFocus();
+
+    expect(trigger.closest("[inert]")).not.toBeNull();
+    trigger.focus();
+    expect(confirmation).toHaveFocus();
 
     fireEvent.keyDown(document, { key: "Escape" });
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(dialog).not.toBeInTheDocument();
     expect(trigger).toHaveFocus();
+    expect(document.querySelector("[inert]")).toBeNull();
+    expect(document.body.style.overflow).toBe("");
+  });
+
+  it("does not close a pending strong confirmation and cleans up after success", async () => {
+    let resolveRequest!: (response: Response) => void;
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ account: { status: "active" } }), { status: 200 }),
+      )
+      .mockImplementationOnce(
+        () => new Promise<Response>((resolve) => { resolveRequest = resolve; }),
+      );
+    render(<AccountDeletionPanel userId={userId} fetcher={fetcher} />);
+    await screen.findByText("账户当前为正常状态。");
+
+    fireEvent.click(screen.getByRole("button", { name: "申请删除账户" }));
+    fireEvent.change(screen.getByLabelText("确认文本"), {
+      target: { value: `DELETE ACCOUNT ${userId}` },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "确认申请删除" }));
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(screen.getByRole("dialog", { name: "确认申请删除账户" })).toBeVisible();
+    resolveRequest(new Response(JSON.stringify({ account: {
+      operationId,
+      status: "deletion_pending",
+      outcome: "executed",
+      requestedAt: "2026-08-25T06:00:00.000Z",
+      dueAt: "2026-09-01T06:00:00.000Z",
+      safelyRetryable: true,
+    } }), { status: 202 }));
+    await screen.findByText(/删除申请已生效/);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(document.querySelector("[inert]")).toBeNull();
+    expect(document.body.style.overflow).toBe("");
   });
 
   it("requires the current account identity and shows the seven-day recovery window", async () => {

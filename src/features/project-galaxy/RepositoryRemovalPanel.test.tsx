@@ -27,16 +27,30 @@ function completed(mode: "REMOVE_REPOSITORY_DATA" | "DELETE_PROJECT_SUBTREE") {
 }
 
 describe("RepositoryRemovalPanel", () => {
-  it("moves focus into confirmation and restores the trigger after Escape", () => {
+  it("contains focus and background interaction, then restores the trigger after Escape", () => {
     render(<RepositoryRemovalPanel projectId={projectId} />);
     const trigger = screen.getByRole("button", { name: "移除仓库数据" });
     fireEvent.click(trigger);
 
-    expect(screen.getByRole("textbox", { name: "确认文本" })).toHaveFocus();
+    const dialog = screen.getByRole("dialog", { name: "确认移除仓库数据" });
+    const confirmation = within(dialog).getByRole("textbox", { name: "确认文本" });
+    const cancel = within(dialog).getByRole("button", { name: "取消" });
+    expect(confirmation).toHaveFocus();
+
+    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+    expect(cancel).toHaveFocus();
+    fireEvent.keyDown(document, { key: "Tab" });
+    expect(confirmation).toHaveFocus();
+
+    expect(trigger.closest("[inert]")).not.toBeNull();
+    trigger.focus();
+    expect(confirmation).toHaveFocus();
     fireEvent.keyDown(document, { key: "Escape" });
 
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(dialog).not.toBeInTheDocument();
     expect(trigger).toHaveFocus();
+    expect(document.querySelector("[inert]")).toBeNull();
+    expect(document.body.style.overflow).toBe("");
   });
 
   it("shows two distinct destructive meanings without promising app/account removal", () => {

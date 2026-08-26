@@ -10,7 +10,7 @@ export function CommandDeckPage() {
   const { project } = commandDeckPreviewFixture;
 
   return (
-    <main id="main-content" className="command-deck-shell" tabIndex={-1}>
+    <div className="command-deck-shell">
       <header className="command-deck-header">
         <div className="brand-intro">
           <p className="brand-kicker">舰桥预览</p>
@@ -27,7 +27,8 @@ export function CommandDeckPage() {
         <GitHubSignInLink />
       </header>
 
-      <div className="workspace-shell">
+      <main id="main-content" tabIndex={-1}>
+        <div className="workspace-shell">
         <CommandDeckNavigation />
 
         <section className="workspace-main" aria-label="Command Deck 工作区">
@@ -129,7 +130,8 @@ export function CommandDeckPage() {
             的深度能力已经完成。
           </p>
         </aside>
-      </div>
-    </main>
+        </div>
+      </main>
+    </div>
   );
 }

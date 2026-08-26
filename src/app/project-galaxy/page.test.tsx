@@ -102,6 +102,14 @@ describe("/project-galaxy Preview / Connected composition", () => {
     expect(screen.getByText(projectId)).toBeVisible();
     expect(screen.getByText("Fresh")).toBeVisible();
     expect(screen.queryByText("Aurora Cartography")).not.toBeInTheDocument();
+    const main = screen.getByRole("main");
+    expect(screen.getAllByRole("main")).toHaveLength(1);
+    expect(main).toContainElement(
+      screen.getByRole("button", { name: "启动首次同步" }),
+    );
+    expect(main).toContainElement(
+      screen.getByRole("button", { name: "移除仓库数据" }),
+    );
   });
 
   it.each([

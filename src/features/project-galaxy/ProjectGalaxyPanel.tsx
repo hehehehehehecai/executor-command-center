@@ -36,10 +36,8 @@ export interface ProjectGalaxyPanelProps {
 
 export function ProjectGalaxyPanel({ viewModel }: ProjectGalaxyPanelProps) {
   return (
-    <main
-      id="main-content"
+    <div
       className={styles.shell}
-      tabIndex={-1}
       aria-labelledby="project-galaxy-title"
     >
       <header className={styles.header}>
@@ -201,6 +199,6 @@ export function ProjectGalaxyPanel({ viewModel }: ProjectGalaxyPanelProps) {
       <footer className={styles.footer}>
         <Link href="/">返回 Command Deck</Link>
       </footer>
-    </main>
+    </div>
   );
 }

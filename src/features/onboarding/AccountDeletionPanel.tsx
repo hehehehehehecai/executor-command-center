@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AccountDeletionOperation } from "@/domain/account-deletion/account-deletion";
+import { useModalFocusBoundary } from "@/shared/accessibility/use-modal-focus-boundary";
 
 type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
@@ -22,6 +23,7 @@ export function AccountDeletionPanel({
   const [error, setError] = useState<string | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const confirmationRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -39,21 +41,16 @@ export function AccountDeletionPanel({
     setDialog(false);
     setConfirmation("");
     setRequestKey(null);
-    triggerRef.current?.focus();
   }, [pending]);
 
-  useEffect(() => {
-    if (!dialog) return;
-    confirmationRef.current?.focus();
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !pending) {
-        event.preventDefault();
-        closeDialog();
-      }
-    };
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [closeDialog, dialog, pending]);
+  useModalFocusBoundary({
+    active: dialog,
+    dialogRef,
+    initialFocusRef: confirmationRef,
+    restoreFocusRef: triggerRef,
+    closeBlocked: pending,
+    onRequestClose: closeDialog,
+  });
 
   const expected = `DELETE ACCOUNT ${userId}`;
   const requestDeletion = async () => {
@@ -107,7 +104,7 @@ export function AccountDeletionPanel({
       {status === "deleted" ? <p role="status">账户删除已完成。</p> : null}
       {status === "active" ? <button ref={triggerRef} type="button" onClick={() => { setDialog(true); setRequestKey(null); }}>申请删除账户</button> : null}
       {dialog ? (
-        <div role="dialog" aria-modal="true" aria-labelledby="account-deletion-dialog-title" aria-describedby="account-deletion-dialog-description">
+        <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="account-deletion-dialog-title" aria-describedby="account-deletion-dialog-description" tabIndex={-1}>
           <h3 id="account-deletion-dialog-title">确认申请删除账户</h3>
           <p id="account-deletion-dialog-description">申请后立即冻结 Sync 与 AI；七天内可撤销，到期后将删除业务数据与登录身份。</p>
           <p>请输入 <code>{expected}</code>。</p>

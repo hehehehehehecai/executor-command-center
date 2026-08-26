@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import type {
   RepositoryRemovalMode,
   RepositoryRemovalResult,
 } from "@/domain/repository-removal/repository-removal";
+import { useModalFocusBoundary } from "@/shared/accessibility/use-modal-focus-boundary";
 
 import styles from "./repository-removal.module.css";
 
@@ -98,6 +99,7 @@ export function RepositoryRemovalPanel({
   const activeTriggerRef = useRef<HTMLButtonElement | null>(null);
   const removeTriggerRef = useRef<HTMLButtonElement>(null);
   const deleteTriggerRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLElement>(null);
 
   const openConfirmation = (nextMode: RepositoryRemovalMode) => {
     activeTriggerRef.current = nextMode === "REMOVE_REPOSITORY_DATA"
@@ -118,22 +120,16 @@ export function RepositoryRemovalPanel({
     setRequestKey(null);
     setFailure(null);
     setPhase(null);
-    activeTriggerRef.current?.focus();
   }, [phase]);
 
-  useEffect(() => {
-    if (!mode || phase === "completed") return;
-    if (phase === "confirming") confirmationRef.current?.focus();
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && phase !== "pending") {
-        event.preventDefault();
-        cancel();
-      }
-    };
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [cancel, mode, phase]);
+  useModalFocusBoundary({
+    active: Boolean(mode && phase !== "completed"),
+    dialogRef,
+    initialFocusRef: confirmationRef,
+    restoreFocusRef: activeTriggerRef,
+    closeBlocked: phase === "pending",
+    onRequestClose: cancel,
+  });
 
   const submit = async () => {
     if (!mode || phase === "pending") return;
@@ -233,11 +229,13 @@ export function RepositoryRemovalPanel({
 
       {mode && presentation && phase !== "completed" ? (
         <section
+          ref={dialogRef}
           className={styles.dialog}
           role="dialog"
           aria-modal="true"
           aria-labelledby="repository-removal-dialog-title"
           aria-describedby="repository-removal-dialog-description"
+          tabIndex={-1}
         >
           <h3 id="repository-removal-dialog-title">{presentation.dialogTitle}</h3>
           <p id="repository-removal-dialog-description">{presentation.warning}</p>

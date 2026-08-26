@@ -87,10 +87,16 @@ describe("CommandDeckPage", () => {
   it("exposes the desktop workspace landmarks and a semantic current item", () => {
     render(<CommandDeckPage />);
 
+    const banner = screen.getByRole("banner");
+    const main = screen.getByRole("main");
     const navigation = screen.getByRole("navigation", {
       name: "桌面主导航",
     });
 
+    expect(screen.getAllByRole("banner")).toHaveLength(1);
+    expect(screen.getAllByRole("main")).toHaveLength(1);
+    expect(banner).not.toContainElement(main);
+    expect(main).not.toContainElement(banner);
     expect(navigation).toBeInTheDocument();
     expect(
       screen.getByRole("region", { name: "Command Deck 工作区" }),

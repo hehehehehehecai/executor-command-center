@@ -82,6 +82,11 @@ h1 {
   font-weight: 650;
 }
 
+[data-modal-background-inert="true"] {
+  pointer-events: none;
+  user-select: none;
+}
+
 .skip-link {
   position: fixed;
   z-index: 100;

@@ -92,6 +92,14 @@ function connectedSource(input: {
   };
 }
 
+function projectGalaxyMain(content: React.ReactNode) {
+  return (
+    <main id="main-content" tabIndex={-1}>
+      {content}
+    </main>
+  );
+}
+
 export default async function ProjectGalaxyPage(input: {
   readonly searchParams: Promise<{
     readonly mode?: string | string[];
@@ -131,7 +139,9 @@ export default async function ProjectGalaxyPage(input: {
       );
     }
 
-    return <ProjectGalaxyPanel viewModel={previewResult.viewModel} />;
+    return projectGalaxyMain(
+      <ProjectGalaxyPanel viewModel={previewResult.viewModel} />,
+    );
   }
 
   const projectId = projectParameter(searchParams.project);
@@ -174,12 +184,12 @@ export default async function ProjectGalaxyPage(input: {
       );
     }
 
-    return (
+    return projectGalaxyMain(
       <>
         <ProjectGalaxyPanel viewModel={fixtureResult.viewModel} />
         <ProjectLifecycleActions projectId={fixtureResult.viewModel.project.id} />
         <RepositoryRemovalPanel projectId={fixtureResult.viewModel.project.id} />
-      </>
+      </>,
     );
   }
 
@@ -258,11 +268,11 @@ export default async function ProjectGalaxyPage(input: {
     );
   }
 
-  return (
+  return projectGalaxyMain(
     <>
       <ProjectGalaxyPanel viewModel={connectedResult.viewModel} />
       <ProjectLifecycleActions projectId={connectedResult.viewModel.project.id} />
       <RepositoryRemovalPanel projectId={connectedResult.viewModel.project.id} />
-    </>
+    </>,
   );
 }

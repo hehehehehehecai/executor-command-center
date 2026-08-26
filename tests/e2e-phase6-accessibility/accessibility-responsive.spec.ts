@@ -1,5 +1,11 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
+import {
+  cleanupPhase5Identity,
+  seedPhase5Identity,
+  type Phase5Identity,
+} from "../e2e-core-journeys/phase5-fixture";
+
 const routes = [
   "/",
   "/onboarding",
@@ -38,6 +44,28 @@ async function useConnectedIdentity(
       sameSite: "Strict",
     },
   ]);
+}
+
+async function signIn(page: Page, identity: Phase5Identity) {
+  const controlToken = process.env.PHASE5_E2E_CONTROL_TOKEN;
+  if (!controlToken) throw new Error("phase6_control_token_missing");
+  await page.goto("/");
+  const status = await page.evaluate(
+    async ({ email, password, token }) => {
+      const response = await fetch("/api/testing/phase5/session", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-phase5-e2e-control-token": token,
+        },
+        body: JSON.stringify({ email, password }),
+      });
+      await response.json();
+      return response.status;
+    },
+    { email: identity.email, password: identity.password, token: controlToken },
+  );
+  expect(status).toBe(200);
 }
 
 async function expectNoHorizontalOverflow(page: Page) {
@@ -155,12 +183,21 @@ test("A11Y-LANDMARK-01 exposes a skip link, one named main and a continuous head
   }
 
   await page.goto("/");
+  await expect(page.getByRole("banner")).toHaveCount(1);
+  await expect(page.getByRole("navigation", { name: "桌面主导航" })).toHaveCount(1);
+  await expect(page.getByRole("banner").locator("xpath=ancestor::main")).toHaveCount(0);
   await page.keyboard.press("Tab");
   const skipLink = page.getByRole("link", { name: "跳到主要内容" });
   await expect(skipLink).toBeFocused();
   await expect(skipLink).toBeVisible();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("main")).toBeFocused();
+
+  await useConnectedIdentity(page.context());
+  await page.goto(`/project-galaxy?mode=connected&project=${alphaIdentity.projectId}`);
+  const connectedMain = page.getByRole("main");
+  await expect(connectedMain.getByRole("button", { name: "启动首次同步" })).toBeVisible();
+  await expect(connectedMain.getByRole("button", { name: "移除仓库数据" })).toBeVisible();
 });
 
 test("A11Y-DRAWER-01 traps focus in mobile navigation and restores the trigger", async ({ page }) => {
@@ -186,7 +223,7 @@ test("A11Y-DRAWER-01 traps focus in mobile navigation and restores the trigger",
   await expect(trigger).toBeFocused();
 });
 
-test("A11Y-CONFIRM-01 moves focus into repository confirmation and Escape restores its trigger", async ({ context, page }) => {
+test("A11Y-CONFIRM-01 contains repository confirmation focus and background interaction", async ({ context, page }) => {
   await useConnectedIdentity(context);
   await page.goto(`/project-galaxy?mode=connected&project=${alphaIdentity.projectId}`);
 
@@ -194,10 +231,64 @@ test("A11Y-CONFIRM-01 moves focus into repository confirmation and Escape restor
   await trigger.click();
   const dialog = page.getByRole("dialog", { name: "确认移除仓库数据" });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole("textbox", { name: "确认文本" })).toBeFocused();
+  const confirmation = dialog.getByRole("textbox", { name: "确认文本" });
+  const cancel = dialog.getByRole("button", { name: "取消" });
+  await expect(confirmation).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(cancel).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(confirmation).toBeFocused();
+  const backgroundTrigger = page.locator("button", { hasText: "移除仓库数据" }).first();
+  expect(await backgroundTrigger.evaluate((element) => element.closest("[inert]") !== null)).toBe(true);
+  await backgroundTrigger.evaluate((element) => element.focus());
+  await expect(confirmation).toBeFocused();
+  const triggerBox = await backgroundTrigger.boundingBox();
+  expect(triggerBox).not.toBeNull();
+  if (triggerBox) {
+    await page.mouse.click(triggerBox.x + triggerBox.width / 2, triggerBox.y + triggerBox.height / 2);
+  }
+  await expect(dialog).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
   await expect(trigger).toBeFocused();
+});
+
+test("A11Y-CONFIRM-02 contains account deletion focus and background interaction", async ({ page }) => {
+  let identity: Phase5Identity | undefined;
+  try {
+    identity = await seedPhase5Identity(61);
+    await signIn(page, identity);
+    await page.goto("/onboarding");
+
+    const trigger = page.getByRole("button", { name: "申请删除账户" });
+    await trigger.click();
+    const dialog = page.getByRole("dialog", { name: "确认申请删除账户" });
+    const confirmation = dialog.getByRole("textbox", { name: "确认文本" });
+    const cancel = dialog.getByRole("button", { name: "取消" });
+    await expect(confirmation).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    await expect(cancel).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(confirmation).toBeFocused();
+
+    const backgroundLink = page.locator('a[href="/"]', { hasText: "返回 Command Deck" });
+    expect(await backgroundLink.evaluate((element) => element.closest("[inert]") !== null)).toBe(true);
+    await backgroundLink.evaluate((element) => element.focus());
+    await expect(confirmation).toBeFocused();
+    const linkBox = await backgroundLink.boundingBox();
+    expect(linkBox).not.toBeNull();
+    if (linkBox) {
+      await page.mouse.click(linkBox.x + linkBox.width / 2, linkBox.y + linkBox.height / 2);
+    }
+    await expect(dialog).toBeVisible();
+    await expect(page).toHaveURL(/\/onboarding$/);
+
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    await expect(trigger).toBeFocused();
+  } finally {
+    await cleanupPhase5Identity(identity);
+  }
 });
 
 test("A11Y-CONTRAST-01 keeps text, controls and focus indicators at AA contrast", async ({ page }) => {
