@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type {
   RepositoryRemovalMode,
@@ -94,8 +94,15 @@ export function RepositoryRemovalPanel({
   const [phase, setPhase] = useState<"confirming" | "pending" | "failed" | "completed" | null>(null);
   const [failure, setFailure] = useState<RequestFailure | null>(null);
   const [result, setResult] = useState<RepositoryRemovalResult | null>(null);
+  const confirmationRef = useRef<HTMLInputElement>(null);
+  const activeTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const removeTriggerRef = useRef<HTMLButtonElement>(null);
+  const deleteTriggerRef = useRef<HTMLButtonElement>(null);
 
   const openConfirmation = (nextMode: RepositoryRemovalMode) => {
+    activeTriggerRef.current = nextMode === "REMOVE_REPOSITORY_DATA"
+      ? removeTriggerRef.current
+      : deleteTriggerRef.current;
     setMode(nextMode);
     setConfirmation("");
     setRequestKey(null);
@@ -104,14 +111,29 @@ export function RepositoryRemovalPanel({
     setPhase("confirming");
   };
 
-  const cancel = () => {
+  const cancel = useCallback(() => {
     if (phase === "pending") return;
     setMode(null);
     setConfirmation("");
     setRequestKey(null);
     setFailure(null);
     setPhase(null);
-  };
+    activeTriggerRef.current?.focus();
+  }, [phase]);
+
+  useEffect(() => {
+    if (!mode || phase === "completed") return;
+    if (phase === "confirming") confirmationRef.current?.focus();
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && phase !== "pending") {
+        event.preventDefault();
+        cancel();
+      }
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [cancel, mode, phase]);
 
   const submit = async () => {
     if (!mode || phase === "pending") return;
@@ -185,6 +207,7 @@ export function RepositoryRemovalPanel({
           <h3>仅移除仓库派生数据</h3>
           <p>停止同步并清除仓库、文档与 AI 派生内容，保留项目校准和最小审计。</p>
           <button
+            ref={removeTriggerRef}
             type="button"
             className={styles.secondaryDanger}
             onClick={() => openConfirmation("REMOVE_REPOSITORY_DATA")}
@@ -197,6 +220,7 @@ export function RepositoryRemovalPanel({
           <h3>删除项目子树</h3>
           <p>删除项目及项目专属记录；不会删除其他项目、账户额度或共享配置。</p>
           <button
+            ref={deleteTriggerRef}
             type="button"
             className={styles.primaryDanger}
             onClick={() => openConfirmation("DELETE_PROJECT_SUBTREE")}
@@ -213,14 +237,16 @@ export function RepositoryRemovalPanel({
           role="dialog"
           aria-modal="true"
           aria-labelledby="repository-removal-dialog-title"
+          aria-describedby="repository-removal-dialog-description"
         >
           <h3 id="repository-removal-dialog-title">{presentation.dialogTitle}</h3>
-          <p>{presentation.warning}</p>
+          <p id="repository-removal-dialog-description">{presentation.warning}</p>
           <p>
             请输入 <code>{expectedConfirmation}</code> 继续。
           </p>
           <label htmlFor="repository-removal-confirmation">确认文本</label>
           <input
+            ref={confirmationRef}
             id="repository-removal-confirmation"
             value={confirmation}
             onChange={(event) => setConfirmation(event.target.value)}

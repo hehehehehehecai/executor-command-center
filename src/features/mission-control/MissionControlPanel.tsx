@@ -106,7 +106,12 @@ export function MissionControlPanel({
   viewModel,
 }: MissionControlPanelProps) {
   return (
-    <main className={styles.shell} aria-labelledby="mission-control-title">
+    <main
+      id="main-content"
+      className={styles.shell}
+      tabIndex={-1}
+      aria-labelledby="mission-control-title"
+    >
       <header className={styles.header}>
         <div>
           <p className="section-kicker">Mission Control · 任务中枢</p>
@@ -153,9 +158,13 @@ export function MissionControlPanel({
             <ul className={styles.taskList}>
               {viewModel.recordedTasks.map((task) => (
                 <li key={task.id}>
-                  <article className={styles.taskCard} data-task-state={task.state}>
+                  <article
+                    className={styles.taskCard}
+                    data-task-state={task.state}
+                    data-content-kind="recorded-fact"
+                  >
                     <div className={styles.cardMeta}>
-                      <span>{taskTypeLabels[task.taskType]}</span>
+                      <span>事实 · {taskTypeLabels[task.taskType]}</span>
                       <span>{taskStateLabels[task.state]}</span>
                     </div>
                     <h3>{task.title}</h3>
@@ -193,6 +202,7 @@ export function MissionControlPanel({
                   key={suggestion.id}
                   className={styles.suggestionCard}
                   data-suggestion-card-status={suggestion.status}
+                  data-content-kind="suggestion"
                 >
                   <div className={styles.cardMeta}>
                     <span
@@ -201,7 +211,7 @@ export function MissionControlPanel({
                     >
                       {suggestion.status}
                     </span>
-                    <span>{suggestionStatusLabels[suggestion.status]}</span>
+                    <span>建议 · {suggestionStatusLabels[suggestion.status]}</span>
                   </div>
                   <h3>{suggestion.title}</h3>
                   <dl className={styles.details}>

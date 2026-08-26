@@ -54,7 +54,21 @@ function requestedMode(
 }
 
 function statusShell(content: React.ReactNode) {
-  return <main className="auth-status-shell">{content}</main>;
+  return (
+    <main
+      id="main-content"
+      className="auth-status-shell"
+      tabIndex={-1}
+      data-ui-state="failed"
+    >
+      {content}
+      <div className="ui-state-message" role="alert" aria-live="assertive">
+        <p><strong>原因：</strong>当前项目页无法安全展示请求的内容。</p>
+        <p><strong>下一步：</strong>返回 Command Deck 核对项目、模式与授权状态。</p>
+      </div>
+      <Link href="/">返回 Command Deck</Link>
+    </main>
+  );
 }
 
 function connectedSource(input: {

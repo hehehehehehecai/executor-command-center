@@ -36,7 +36,12 @@ export interface ProjectGalaxyPanelProps {
 
 export function ProjectGalaxyPanel({ viewModel }: ProjectGalaxyPanelProps) {
   return (
-    <main className={styles.shell} aria-labelledby="project-galaxy-title">
+    <main
+      id="main-content"
+      className={styles.shell}
+      tabIndex={-1}
+      aria-labelledby="project-galaxy-title"
+    >
       <header className={styles.header}>
         <div>
           <p className="section-kicker">Project Galaxy · 项目星图</p>

@@ -6,7 +6,7 @@
   --surface: #ffffff;
   --surface-muted: #e9ede9;
   --muted: #5f6763;
-  --border: #cfd5d1;
+  --border: #747f79;
   --accent: #245b49;
   --focus: #1f6b52;
 }
@@ -21,6 +21,7 @@ html {
 
 body {
   min-height: 100vh;
+  min-width: 0;
   margin: 0;
   background: var(--background);
   color: var(--foreground);
@@ -81,6 +82,24 @@ h1 {
   font-weight: 650;
 }
 
+.skip-link {
+  position: fixed;
+  z-index: 100;
+  top: 0.75rem;
+  left: 0.75rem;
+  transform: translateY(calc(-100% - 1rem));
+  border: 2px solid var(--focus);
+  background: var(--surface);
+  padding: 0.7rem 0.9rem;
+  color: var(--foreground);
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
 .workspace-shell {
   display: grid;
   min-width: 0;
@@ -113,9 +132,20 @@ h1 {
   justify-self: start;
 }
 
-.mobile-navigation-drawer {
+.mobile-navigation-layer {
   position: fixed;
   z-index: 10;
+  inset: 0;
+}
+
+.mobile-navigation-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(21 25 24 / 52%);
+}
+
+.mobile-navigation-drawer {
+  position: absolute;
   inset: 0 auto 0 0;
   width: min(22rem, 90vw);
   overflow-y: auto;
@@ -123,6 +153,24 @@ h1 {
   background: var(--surface);
   padding: 1.25rem;
   box-shadow: 1.5rem 0 3rem rgb(21 25 24 / 18%);
+}
+
+.ui-state-message {
+  display: grid;
+  gap: 0.5rem;
+  margin: 1.5rem 0;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  background: var(--surface);
+  padding: 1rem;
+}
+
+.ui-state-message > * {
+  margin: 0;
+}
+
+.ui-state-message span {
+  font-weight: 750;
 }
 
 .mobile-navigation-heading {
@@ -682,6 +730,16 @@ h1 {
 }
 
 @media (max-width: 30rem) {
+  .auth-state-list div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .auth-state-list dt,
+  .auth-state-list dd {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
   .project-metadata {
     grid-template-columns: 1fr;
   }
@@ -694,5 +752,16 @@ h1 {
   .freshness-heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

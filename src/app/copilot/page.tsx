@@ -13,6 +13,7 @@ import {
 } from "@/features/copilot";
 import type { FeatureId } from "@/shared/features/feature-definition";
 import { parsePanelMode, type PanelMode } from "@/shared/panel-query";
+import { AccessibleStatusShell } from "@/shared/status-shell/AccessibleStatusShell";
 import { readConnectedPanelFixtureAccess } from "@/testing/connected-panels/connected-panel-fixture-session";
 
 export const dynamic = "force-dynamic";
@@ -64,11 +65,13 @@ function requestedMode(
 
 function statusShell(message: string) {
   return (
-    <main className="auth-status-shell">
-      <p className="section-kicker">Copilot Workspace</p>
-      <h1>Copilot Workspace</h1>
-      <p>{message}</p>
-    </main>
+    <AccessibleStatusShell
+      kicker="Copilot · AI 副驾驶"
+      title="Copilot Workspace"
+      state="failed"
+      reason={message}
+      nextStep="返回 Command Deck 核对当前项目与授权状态后重试。"
+    />
   );
 }
 

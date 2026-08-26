@@ -1,12 +1,13 @@
-import Link from "next/link";
+import { AccessibleStatusShell } from "@/shared/status-shell/AccessibleStatusShell";
 
 export default function AuthErrorPage() {
   return (
-    <main className="auth-status-shell">
-      <p className="section-kicker">GitHub identity</p>
-      <h1>登录未完成</h1>
-      <p>身份登录未能安全完成。请返回后重试。</p>
-      <Link href="/">返回 EXECUTOR</Link>
-    </main>
+    <AccessibleStatusShell
+      kicker="GitHub identity"
+      title="登录未完成"
+      state="failed"
+      reason="身份登录未能安全完成。"
+      nextStep="返回 Command Deck 后重新发起 GitHub 登录。"
+    />
   );
 }

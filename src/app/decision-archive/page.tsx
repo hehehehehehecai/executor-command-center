@@ -14,6 +14,7 @@ import {
   type DecisionArchiveViewModel,
 } from "@/features/decision-archive";
 import { parsePanelMode, type PanelMode } from "@/shared/panel-query";
+import { AccessibleStatusShell } from "@/shared/status-shell/AccessibleStatusShell";
 import { readConnectedPanelFixtureAccess } from "@/testing/connected-panels/connected-panel-fixture-session";
 
 export const dynamic = "force-dynamic";
@@ -45,11 +46,13 @@ function requestedMode(value: string | string[] | undefined): PanelMode | "inval
 
 function statusShell(message: string) {
   return (
-    <main className="auth-status-shell">
-      <p className="section-kicker">Decision Archive</p>
-      <h1>Decision Archive</h1>
-      <p>{message}</p>
-    </main>
+    <AccessibleStatusShell
+      kicker="Decision Archive · 决策档案"
+      title="Decision Archive"
+      state="failed"
+      reason={message}
+      nextStep="返回 Command Deck 检查入口，不要把未确认 Candidate 当作正式记录。"
+    />
   );
 }
 

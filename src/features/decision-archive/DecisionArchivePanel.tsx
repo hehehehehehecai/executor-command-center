@@ -92,7 +92,12 @@ export function DecisionArchivePanel({
   feedback,
 }: DecisionArchivePanelProps) {
   return (
-    <main className={styles.shell} aria-labelledby="decision-archive-title">
+    <main
+      id="main-content"
+      className={styles.shell}
+      tabIndex={-1}
+      aria-labelledby="decision-archive-title"
+    >
       <header className={styles.header}>
         <div>
           <p className="section-kicker">Decision Archive · 决策档案</p>
@@ -176,6 +181,7 @@ export function DecisionArchivePanel({
                   key={candidate.id}
                   className={styles.candidateCard}
                   data-candidate-status={candidate.status}
+                  data-content-kind="candidate"
                 >
                   <div className={styles.cardMeta}>
                     <span>Candidate 状态：{candidate.status}</span>
@@ -230,9 +236,13 @@ export function DecisionArchivePanel({
           ) : (
             <div className={styles.cardList}>
               {viewModel.records.map((record) => (
-                <article key={record.id} className={styles.recordCard}>
+                <article
+                  key={record.id}
+                  className={styles.recordCard}
+                  data-content-kind="confirmed-record"
+                >
                   <div className={styles.cardMeta}>
-                    <span>当前状态：{record.status}</span>
+                    <span>用户确认记录 · 当前状态：{record.status}</span>
                     <time dateTime={record.confirmedAt}>
                       {formatUtc(record.confirmedAt)}
                     </time>

@@ -11,6 +11,7 @@ import {
   type FlightLogTimeRange,
 } from "@/features/flight-log";
 import { parsePanelMode, type PanelMode } from "@/shared/panel-query";
+import { AccessibleStatusShell } from "@/shared/status-shell/AccessibleStatusShell";
 import { readConnectedPanelFixtureAccess } from "@/testing/connected-panels/connected-panel-fixture-session";
 
 export const dynamic = "force-dynamic";
@@ -75,11 +76,13 @@ function requestedFilters(
 
 function statusShell(message: string) {
   return (
-    <main className="auth-status-shell">
-      <p className="section-kicker">Flight Log</p>
-      <h1>Flight Log</h1>
-      <p>{message}</p>
-    </main>
+    <AccessibleStatusShell
+      kicker="Flight Log · 航行日志"
+      title="Flight Log"
+      state="failed"
+      reason={message}
+      nextStep="返回 Command Deck 检查筛选条件，或稍后重新读取。"
+    />
   );
 }
 

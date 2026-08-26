@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { featureRegistry } from "@/shared/features/feature-registry";
 
@@ -42,28 +42,56 @@ function NavigationLinks({ onNavigate }: { onNavigate?: () => void }) {
 export function CommandDeckNavigation() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
-  const closeDrawer = (restoreFocus = true) => {
+  const closeDrawer = useCallback((restoreFocus = true) => {
     setIsDrawerOpen(false);
     if (restoreFocus) {
       triggerRef.current?.focus();
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (!isDrawerOpen) {
       return;
     }
 
-    const handleEscape = (event: KeyboardEvent) => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeButtonRef.current?.focus();
+
+    const handleKeyboard = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        event.preventDefault();
         closeDrawer();
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+      const focusable = Array.from(
+        drawerRef.current?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     };
 
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [isDrawerOpen]);
+    document.addEventListener("keydown", handleKeyboard);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyboard);
+    };
+  }, [closeDrawer, isDrawerOpen]);
 
   return (
     <>
@@ -84,25 +112,37 @@ export function CommandDeckNavigation() {
       </nav>
 
       {isDrawerOpen ? (
-        <aside
-          id="mobile-command-navigation"
-          className="mobile-navigation-drawer"
-          aria-label="移动导航抽屉"
-        >
-          <div className="mobile-navigation-heading">
-            <strong>EXECUTOR 导航</strong>
-            <button
-              type="button"
-              aria-label="关闭主导航"
-              onClick={() => closeDrawer()}
-            >
-              关闭
-            </button>
-          </div>
-          <nav aria-label="移动主导航">
-            <NavigationLinks onNavigate={() => closeDrawer(false)} />
-          </nav>
-        </aside>
+        <div className="mobile-navigation-layer">
+          <div
+            className="mobile-navigation-backdrop"
+            data-navigation-backdrop
+            aria-hidden="true"
+            onMouseDown={() => closeDrawer()}
+          />
+          <aside
+            ref={drawerRef}
+            id="mobile-command-navigation"
+            className="mobile-navigation-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="mobile-command-navigation-title"
+          >
+            <div className="mobile-navigation-heading">
+              <strong id="mobile-command-navigation-title">EXECUTOR 导航</strong>
+              <button
+                ref={closeButtonRef}
+                type="button"
+                aria-label="关闭主导航"
+                onClick={() => closeDrawer()}
+              >
+                关闭
+              </button>
+            </div>
+            <nav aria-label="移动主导航">
+              <NavigationLinks onNavigate={() => closeDrawer(false)} />
+            </nav>
+          </aside>
+        </div>
       ) : null}
     </>
   );

@@ -193,7 +193,12 @@ export function CopilotWorkspacePanel({
   const { context } = viewModel;
 
   return (
-    <main className={styles.shell} aria-labelledby="copilot-workspace-title">
+    <main
+      id="main-content"
+      className={styles.shell}
+      tabIndex={-1}
+      aria-labelledby="copilot-workspace-title"
+    >
       <header className={styles.header}>
         <div>
           <p className="section-kicker">Copilot · AI 副驾驶</p>

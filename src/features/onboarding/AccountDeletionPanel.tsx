@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { AccountDeletionOperation } from "@/domain/account-deletion/account-deletion";
 
 type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
@@ -20,6 +20,8 @@ export function AccountDeletionPanel({
   const [requestKey, setRequestKey] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const confirmationRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -31,6 +33,27 @@ export function AccountDeletionPanel({
       .catch(() => { if (active) setError("账户状态暂时不可用。"); });
     return () => { active = false; };
   }, [fetcher]);
+
+  const closeDialog = useCallback(() => {
+    if (pending) return;
+    setDialog(false);
+    setConfirmation("");
+    setRequestKey(null);
+    triggerRef.current?.focus();
+  }, [pending]);
+
+  useEffect(() => {
+    if (!dialog) return;
+    confirmationRef.current?.focus();
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !pending) {
+        event.preventDefault();
+        closeDialog();
+      }
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [closeDialog, dialog, pending]);
 
   const expected = `DELETE ACCOUNT ${userId}`;
   const requestDeletion = async () => {
@@ -82,15 +105,15 @@ export function AccountDeletionPanel({
       {status === "deleting" ? <p role="status">账户正在删除，当前已不能撤销。</p> : null}
       {status === "deletion_failed" ? <p role="alert">删除暂未完成，账户仍保持冻结；有限执行重试结束后，持久恢复任务会继续安全重派。</p> : null}
       {status === "deleted" ? <p role="status">账户删除已完成。</p> : null}
-      {status === "active" ? <button type="button" onClick={() => { setDialog(true); setRequestKey(null); }}>申请删除账户</button> : null}
+      {status === "active" ? <button ref={triggerRef} type="button" onClick={() => { setDialog(true); setRequestKey(null); }}>申请删除账户</button> : null}
       {dialog ? (
-        <div role="dialog" aria-modal="true" aria-labelledby="account-deletion-dialog-title">
+        <div role="dialog" aria-modal="true" aria-labelledby="account-deletion-dialog-title" aria-describedby="account-deletion-dialog-description">
           <h3 id="account-deletion-dialog-title">确认申请删除账户</h3>
-          <p>申请后立即冻结 Sync 与 AI；七天内可撤销，到期后将删除业务数据与登录身份。</p>
+          <p id="account-deletion-dialog-description">申请后立即冻结 Sync 与 AI；七天内可撤销，到期后将删除业务数据与登录身份。</p>
           <p>请输入 <code>{expected}</code>。</p>
           <label htmlFor="account-deletion-confirmation">确认文本</label>
-          <input id="account-deletion-confirmation" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} disabled={pending} />
-          <button type="button" onClick={() => { setDialog(false); setConfirmation(""); setRequestKey(null); }} disabled={pending}>取消</button>
+          <input ref={confirmationRef} id="account-deletion-confirmation" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} disabled={pending} />
+          <button type="button" onClick={closeDialog} disabled={pending}>取消</button>
           <button type="button" onClick={requestDeletion} disabled={pending || confirmation !== expected}>确认申请删除</button>
         </div>
       ) : null}

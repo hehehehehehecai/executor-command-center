@@ -43,7 +43,12 @@ export function FlightLogPanel({ viewModel }: FlightLogPanelProps) {
   const selectedTypes = new Set(viewModel.filters.eventTypes);
 
   return (
-    <main className={styles.shell} aria-labelledby="flight-log-title">
+    <main
+      id="main-content"
+      className={styles.shell}
+      tabIndex={-1}
+      aria-labelledby="flight-log-title"
+    >
       <header className={styles.header}>
         <div>
           <p className="section-kicker">Flight Log · 航行日志</p>

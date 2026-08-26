@@ -10,7 +10,7 @@ export function CommandDeckPage() {
   const { project } = commandDeckPreviewFixture;
 
   return (
-    <main className="command-deck-shell">
+    <main id="main-content" className="command-deck-shell" tabIndex={-1}>
       <header className="command-deck-header">
         <div className="brand-intro">
           <p className="brand-kicker">舰桥预览</p>

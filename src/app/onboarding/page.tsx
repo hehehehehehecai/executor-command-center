@@ -61,7 +61,7 @@ export default async function OnboardingPage(input: {
   }
 
   return (
-    <main className="auth-status-shell">
+    <main id="main-content" className="auth-status-shell" tabIndex={-1}>
       <p className="section-kicker">GitHub identity</p>
       <h1>{authenticated ? "GitHub 身份登录成功" : "尚未登录"}</h1>
       <GitHubInstallationStatus

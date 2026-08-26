@@ -11,6 +11,7 @@ import {
   type MissionSuggestionStatus,
 } from "@/features/mission-control";
 import { parsePanelMode, type PanelMode } from "@/shared/panel-query";
+import { AccessibleStatusShell } from "@/shared/status-shell/AccessibleStatusShell";
 import { readConnectedPanelFixtureAccess } from "@/testing/connected-panels/connected-panel-fixture-session";
 
 export const dynamic = "force-dynamic";
@@ -39,11 +40,13 @@ function requestedMode(value: string | string[] | undefined): PanelMode | "inval
 
 function statusShell(message: string) {
   return (
-    <main className="auth-status-shell">
-      <p className="section-kicker">Mission Control</p>
-      <h1>Mission Control</h1>
-      <p>{message}</p>
-    </main>
+    <AccessibleStatusShell
+      kicker="Mission Control · 任务中枢"
+      title="Mission Control"
+      state="failed"
+      reason={message}
+      nextStep="返回 Command Deck 检查面板入口，或稍后安全重试。"
+    />
   );
 }
 

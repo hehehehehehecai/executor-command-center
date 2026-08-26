@@ -27,6 +27,18 @@ function completed(mode: "REMOVE_REPOSITORY_DATA" | "DELETE_PROJECT_SUBTREE") {
 }
 
 describe("RepositoryRemovalPanel", () => {
+  it("moves focus into confirmation and restores the trigger after Escape", () => {
+    render(<RepositoryRemovalPanel projectId={projectId} />);
+    const trigger = screen.getByRole("button", { name: "移除仓库数据" });
+    fireEvent.click(trigger);
+
+    expect(screen.getByRole("textbox", { name: "确认文本" })).toHaveFocus();
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
   it("shows two distinct destructive meanings without promising app/account removal", () => {
     render(<RepositoryRemovalPanel projectId={projectId} />);
     expect(

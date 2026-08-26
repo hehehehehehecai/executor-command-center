@@ -9,6 +9,24 @@ const operationId = "b3800000-0000-4000-8000-000000000001";
 afterEach(cleanup);
 
 describe("AccountDeletionPanel", () => {
+  it("moves focus into confirmation and restores the trigger after Escape", async () => {
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ account: { status: "active" } }), {
+        status: 200,
+      }),
+    );
+    render(<AccountDeletionPanel userId={userId} fetcher={fetcher} />);
+    await screen.findByText("账户当前为正常状态。");
+
+    const trigger = screen.getByRole("button", { name: "申请删除账户" });
+    fireEvent.click(trigger);
+    expect(screen.getByRole("textbox", { name: "确认文本" })).toHaveFocus();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
   it("requires the current account identity and shows the seven-day recovery window", async () => {
     const fetcher = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ account: { status: "active" } }), { status: 200 }))
