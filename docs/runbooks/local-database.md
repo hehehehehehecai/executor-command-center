@@ -133,7 +133,7 @@ pnpm test:integration
 ## 从全新 Clone 恢复
 
 ```powershell
-git clone https://github.com/hehehehehehecai/executor-command-center.git
+git -c core.autocrlf=false clone https://github.com/hehehehehehecai/executor-command-center.git
 Set-Location 'executor-command-center'
 pnpm install --frozen-lockfile
 docker info
@@ -146,6 +146,8 @@ pnpm exec supabase db diff --local --schema public,app_private
 ```
 
 恢复成功的判据是 Migration 和 Seed 应用成功、Seed 行数为 `1`、pgTAP 与 Node Integration 全部通过、类型和 Schema 均无漂移。
+
+Windows 必须保留 Git blob 的 LF 字节；仓库中的治理冻结 fixture 有精确 SHA-256 测试，默认 `core.autocrlf=true` 会产生确定性 hash 漂移。不得通过修改 fixture 或放宽测试规避。
 
 ## 常见端口冲突
 
