@@ -32,7 +32,7 @@ test("completes synthetic GitHub sign-in, restores the session, and grants no re
   await expect(page).toHaveURL("http://127.0.0.1:3000/onboarding");
 
   const fixtureStateResponse = await request.get(
-    "http://127.0.0.1:54322/__fixture/state",
+    "http://127.0.0.1:54331/__fixture/state",
   );
   expect(fixtureStateResponse.ok()).toBe(true);
   expect(await fixtureStateResponse.json()).toEqual({
