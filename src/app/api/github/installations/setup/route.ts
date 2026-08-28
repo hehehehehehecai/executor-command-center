@@ -6,6 +6,7 @@ import { SupabaseVerifiedSessionReader } from "@/infrastructure/auth/supabase-ve
 import { GitHubAppInstallationReaderAdapter } from "@/infrastructure/github/github-app-installation-reader";
 import { GitHubAppJwtSigner } from "@/infrastructure/github/github-app-jwt";
 import {
+  clearGitHubInstallationCallbackCookie,
   createGitHubInstallationFailureRecord,
   handleGitHubInstallationSetup,
 } from "@/infrastructure/github/github-installation-http";
@@ -135,7 +136,7 @@ export async function GET(request: Request) {
         },
       });
       copyHeaders(responseHeaders, response.headers);
-      return response;
+      return clearGitHubInstallationCallbackCookie(response);
     }
 
     let environment;
@@ -206,8 +207,10 @@ export async function GET(request: Request) {
       sessionValid,
       stateValid: null,
     });
-    return new Response("GitHub App installation is not configured.", {
-      status: 503,
-    });
+    return clearGitHubInstallationCallbackCookie(
+      new Response("GitHub App installation is not configured.", {
+        status: 503,
+      }),
+    );
   }
 }

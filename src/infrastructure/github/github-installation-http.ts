@@ -2,7 +2,7 @@ import { safeReturnTo } from "@/application/auth/safe-return-to";
 
 type StartExecutor = (input: {
   returnTo: string | null;
-}) => Promise<{ installationUrl: string }>;
+}) => Promise<{ installationUrl: string; callbackState: string }>;
 
 type SetupExecutor = (input: {
   rawState: string | null;
@@ -39,6 +39,60 @@ const stableFailureCodes = new Set([
   "github_installation_already_bound",
   "installation_persistence_failed",
 ]);
+
+const callbackStateCookie = {
+  name: "__Secure-executor-installation-state",
+  maxAgeSeconds: 10 * 60,
+  path: "/api/github/installations/setup",
+} as const;
+
+function callbackStateCookieHeader(value: string, maxAge: number) {
+  return [
+    `${callbackStateCookie.name}=${value}`,
+    `Max-Age=${maxAge}`,
+    `Path=${callbackStateCookie.path}`,
+    "HttpOnly",
+    "Secure",
+    "SameSite=Lax",
+  ].join("; ");
+}
+
+function readCallbackStateCookie(request: Request) {
+  const cookieHeader = request.headers.get("cookie");
+
+  if (!cookieHeader) return null;
+
+  for (const candidate of cookieHeader.split(";")) {
+    const trimmed = candidate.trim();
+    const separator = trimmed.indexOf("=");
+
+    if (separator < 0) continue;
+
+    const name = trimmed.slice(0, separator);
+
+    if (name === callbackStateCookie.name) {
+      return trimmed.slice(separator + 1) || null;
+    }
+  }
+
+  return null;
+}
+
+function appendCallbackStateCookie(
+  response: Response,
+  value: string,
+  maxAge: number,
+) {
+  response.headers.append(
+    "set-cookie",
+    callbackStateCookieHeader(value, maxAge),
+  );
+  return response;
+}
+
+export function clearGitHubInstallationCallbackCookie(response: Response) {
+  return appendCallbackStateCookie(response, "", 0);
+}
 
 function failureCode(error: unknown) {
   if (
@@ -109,7 +163,11 @@ export async function handleGitHubInstallationStart(input: {
       returnTo: requestUrl.searchParams.get("returnTo"),
     });
 
-    return redirect(result.installationUrl);
+    return appendCallbackStateCookie(
+      redirect(result.installationUrl),
+      result.callbackState,
+      callbackStateCookie.maxAgeSeconds,
+    );
   } catch (error) {
     input.onFailure?.(failureCode(error));
     return redirect(new URL("/auth/error", input.trustedOrigin));
@@ -124,20 +182,35 @@ export async function handleGitHubInstallationSetup(input: {
 }) {
   try {
     const requestUrl = new URL(input.request.url);
+    const queryState = requestUrl.searchParams.get("state");
+    const callbackCookieState = readCallbackStateCookie(input.request);
+
+    if (
+      queryState &&
+      callbackCookieState &&
+      queryState !== callbackCookieState
+    ) {
+      throw new Error("installation_state_invalid");
+    }
+
     const result = await input.execute({
-      rawState: requestUrl.searchParams.get("state"),
+      rawState: queryState ?? callbackCookieState,
       installationId: requestUrl.searchParams.get("installation_id"),
     });
 
-    return redirect(
-      new URL(safeReturnTo(result.redirectTo), input.trustedOrigin),
+    return clearGitHubInstallationCallbackCookie(
+      redirect(
+        new URL(safeReturnTo(result.redirectTo), input.trustedOrigin),
+      ),
     );
   } catch (error) {
     input.onFailure?.(failureCode(error));
-    return redirect(
-      new URL(
-        "/onboarding?installation=configuration_failed",
-        input.trustedOrigin,
+    return clearGitHubInstallationCallbackCookie(
+      redirect(
+        new URL(
+          "/onboarding?installation=configuration_failed",
+          input.trustedOrigin,
+        ),
       ),
     );
   }
