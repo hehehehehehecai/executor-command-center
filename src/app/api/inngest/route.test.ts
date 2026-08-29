@@ -39,7 +39,9 @@ describe("/api/inngest", () => {
 
   it("creates and invokes all production handlers only when a request arrives", async () => {
     const route = await import("./route");
-    const request = new NextRequest("https://synthetic.example.test/api/inngest");
+    const request = new NextRequest("https://synthetic.example.test/api/inngest", {
+      headers: { "x-inngest-signature": "t=1&s=synthetic-signature" },
+    });
     const context = {};
 
     expect(route.runtime).toBe("nodejs");
@@ -63,12 +65,36 @@ describe("/api/inngest", () => {
     });
 
     const route = await import("./route");
-    const request = new NextRequest("https://synthetic.example.test/api/inngest");
+    const request = new NextRequest("https://synthetic.example.test/api/inngest", {
+      method: "POST",
+      headers: { "x-inngest-signature": "t=1&s=synthetic-signature" },
+    });
 
     expect(mocks.createInngestRouteDependencies).not.toHaveBeenCalled();
     await expect(route.POST(request, {})).rejects.toThrow(
       "inngest_runtime_configuration_missing",
     );
     expect(mocks.serve).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unsigned POST before creating or invoking the Inngest handler", async () => {
+    const route = await import("./route");
+    const request = new NextRequest(
+      "https://synthetic.example.test/api/inngest",
+      { method: "POST" },
+    );
+
+    const response = await route.POST(request, {});
+
+    expect(response.status).toBe(401);
+    expect(response.headers.get("cache-control")).toBe(
+      "private, no-store, max-age=0",
+    );
+    expect(await response.json()).toEqual({
+      error: { code: "inngest_signature_required" },
+    });
+    expect(mocks.createInngestRouteDependencies).not.toHaveBeenCalled();
+    expect(mocks.serve).not.toHaveBeenCalled();
+    expect(mocks.POST).not.toHaveBeenCalled();
   });
 });
