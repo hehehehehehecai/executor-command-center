@@ -20,7 +20,21 @@ test("completes synthetic GitHub sign-in, restores the session, and grants no re
     page.getByRole("heading", { name: "GitHub 身份登录成功" }),
   ).toBeVisible();
   await expect(page.getByText("not_registered", { exact: true })).toBeVisible();
-  await expect(page.getByText("none", { exact: true })).toHaveCount(2);
+  await expect(
+    page
+      .getByText("selected_repository_count", { exact: true })
+      .locator("..")
+      .locator("dd"),
+  ).toHaveText("unknown");
+  await expect(
+    page.getByText("calibration_status", { exact: true }).locator("..").locator("dd"),
+  ).toHaveText("unknown");
+  await expect(
+    page.getByText("projects", { exact: true }).locator("..").locator("dd"),
+  ).toHaveText("unknown");
+  await expect(
+    page.getByText("repository_content", { exact: true }).locator("..").locator("dd"),
+  ).toHaveText("none");
 
   await page.reload();
   await expect(
