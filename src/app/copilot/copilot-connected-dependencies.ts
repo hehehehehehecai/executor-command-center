@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 
 import { BuildProjectBriefEvidenceSnapshotUseCase } from "@/application/project-brief-evidence/build-project-brief-evidence-snapshot";
 import { ValidateProjectBriefEvidenceUseCase } from "@/application/project-brief-evidence/validate-project-brief-evidence";
+import { ValidateStoredProjectBriefEvidenceUseCase } from "@/application/project-brief-evidence/validate-stored-project-brief-evidence";
 import {
   LoadValidatedProjectBriefUseCase,
   ProjectBriefDisplayError,
@@ -18,6 +19,7 @@ import { ExistingProjectFreshnessEvidenceReader } from "@/infrastructure/project
 import { NodeProjectBriefEvidenceFingerprint } from "@/infrastructure/project-brief-evidence/node-project-brief-evidence-fingerprint";
 import { SupabaseProjectBriefEvidenceReader } from "@/infrastructure/project-brief-evidence/supabase-project-brief-evidence-reader";
 import { SupabaseProjectBriefReader } from "@/infrastructure/project-brief/supabase-project-brief-reader";
+import { SupabaseProjectBriefHistoricalReceiptReader } from "@/infrastructure/project-brief/supabase-project-brief-historical-receipt-reader";
 import { SupabaseProjectFreshnessReader } from "@/infrastructure/synchronization/supabase-project-freshness-reader";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -37,14 +39,18 @@ export async function createCopilotConnectedPort(
   });
   const session = new SupabaseVerifiedSessionReader(sessionClient);
   const fingerprint = new NodeProjectBriefEvidenceFingerprint();
+  const sourceReader = new SupabaseProjectBriefEvidenceReader(
+    sessionClient as ConstructorParameters<typeof SupabaseProjectBriefEvidenceReader>[0],
+  );
+  const historicalReceiptReader = new SupabaseProjectBriefHistoricalReceiptReader(
+    sessionClient as ConstructorParameters<typeof SupabaseProjectBriefHistoricalReceiptReader>[0],
+  );
   const loader = new LoadValidatedProjectBriefUseCase({
     reader: new SupabaseProjectBriefReader(
       sessionClient as ConstructorParameters<typeof SupabaseProjectBriefReader>[0],
     ),
     evidenceBuilder: new BuildProjectBriefEvidenceSnapshotUseCase({
-      sourceReader: new SupabaseProjectBriefEvidenceReader(
-        sessionClient as ConstructorParameters<typeof SupabaseProjectBriefEvidenceReader>[0],
-      ),
+      sourceReader,
       freshnessReader: new ExistingProjectFreshnessEvidenceReader(
         new SupabaseProjectFreshnessReader(
           sessionClient as ConstructorParameters<typeof SupabaseProjectFreshnessReader>[0],
@@ -53,6 +59,11 @@ export async function createCopilotConnectedPort(
       fingerprint,
     }),
     evidenceValidator: new ValidateProjectBriefEvidenceUseCase({ fingerprint }),
+    storedEvidenceValidator: new ValidateStoredProjectBriefEvidenceUseCase({
+      receiptReader: historicalReceiptReader,
+      sourceReader,
+      freshnessReceiptReader: historicalReceiptReader,
+    }),
   });
 
   return {

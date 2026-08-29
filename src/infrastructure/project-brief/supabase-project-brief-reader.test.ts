@@ -167,6 +167,12 @@ describe("SupabaseProjectBriefReader", () => {
       reader,
       evidenceBuilder: { execute: build },
       evidenceValidator: { execute: vi.fn(async () => ({ status: "valid" })) },
+      storedEvidenceValidator: { execute: vi.fn(async () => ({
+        contractVersion: "project-brief-evidence-validation.v1" as const,
+        status: "valid" as const,
+        validatedReferenceCount: 0,
+        evidenceFingerprint: syntheticBriefFingerprint,
+      })) },
     });
 
     await expect(useCase.execute({

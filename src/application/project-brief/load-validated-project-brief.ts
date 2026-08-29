@@ -1,6 +1,10 @@
 import type {
   ProjectBriefEvidenceArtifact,
 } from "@/application/project-brief-evidence/build-project-brief-evidence-snapshot";
+import {
+  isRecoverableHistoricalEvidenceError,
+  type ValidateStoredProjectBriefEvidenceUseCase,
+} from "@/application/project-brief-evidence/validate-stored-project-brief-evidence";
 import type { ProjectBriefRecord } from "@/domain/project-brief/project-brief";
 import type { ProjectBrief } from "@/domain/project-brief/project-brief-contract";
 import { projectBriefSchemaVersion } from "@/domain/project-brief/project-brief-contract";
@@ -41,7 +45,8 @@ export interface LoadedValidatedProjectBrief {
   readonly contractVersion: typeof projectBriefDisplayContractVersion;
   readonly briefId: string;
   readonly brief: ProjectBrief;
-  readonly artifact: ProjectBriefEvidenceArtifact;
+  readonly evidenceValidationSource: "live_snapshot" | "generation_receipt";
+  readonly artifact: ProjectBriefEvidenceArtifact | null;
 }
 
 type Reader = {
@@ -95,6 +100,7 @@ export class LoadValidatedProjectBriefUseCase {
         readonly artifact: ProjectBriefEvidenceArtifact;
       }): Promise<unknown>;
     };
+    readonly storedEvidenceValidator: Pick<ValidateStoredProjectBriefEvidenceUseCase, "execute">;
   }) {}
 
   async execute(
@@ -109,6 +115,8 @@ export class LoadValidatedProjectBriefUseCase {
     }
 
     let rows: readonly ProjectBriefRecord[];
+    let evidenceValidationSource: LoadedValidatedProjectBrief["evidenceValidationSource"] =
+      "live_snapshot";
     try {
       rows = await this.dependencies.reader.listForProject(input.projectId);
     } catch {
@@ -133,28 +141,49 @@ export class LoadValidatedProjectBriefUseCase {
       return fail("brief_invalid");
     }
 
+    let artifact: ProjectBriefEvidenceArtifact;
     try {
-      const artifact = await this.dependencies.evidenceBuilder.execute({
+      artifact = await this.dependencies.evidenceBuilder.execute({
         userId: input.actorUserId,
         projectId: input.projectId,
         rangeStart: brief.rangeStart,
         rangeEnd: brief.rangeEnd,
         now: brief.freshness.evaluatedAt,
       });
+    } catch {
+      return fail("brief_evidence_validation_failed");
+    }
+
+    try {
       await this.dependencies.evidenceValidator.execute({
         actorUserId: input.actorUserId,
         projectId: input.projectId,
         brief,
         artifact,
       });
-      return {
-        contractVersion: projectBriefDisplayContractVersion,
-        briefId: current.id,
-        brief,
-        artifact,
-      };
-    } catch {
-      return fail("brief_evidence_validation_failed");
+    } catch (error) {
+      if (!isRecoverableHistoricalEvidenceError(error)) {
+        return fail("brief_evidence_validation_failed");
+      }
+      try {
+        await this.dependencies.storedEvidenceValidator.execute({
+          actorUserId: input.actorUserId,
+          projectId: input.projectId,
+          briefId: current.id,
+          brief,
+        });
+        evidenceValidationSource = "generation_receipt";
+      } catch {
+        return fail("brief_evidence_validation_failed");
+      }
     }
+
+    return {
+      contractVersion: projectBriefDisplayContractVersion,
+      briefId: current.id,
+      brief,
+      evidenceValidationSource,
+      artifact: evidenceValidationSource === "live_snapshot" ? artifact : null,
+    };
   }
 }
