@@ -7,7 +7,15 @@ import type {
   FlightLogSource,
 } from "@/features/flight-log";
 
-const mocks = vi.hoisted(() => ({ previewLoad: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  previewLoad: vi.fn(),
+  productionCreate: vi.fn(),
+  productionLoad: vi.fn(),
+}));
+
+vi.mock("@/app/connected-panel-dependencies", () => ({
+  createFlightLogProductionConnectedPort: mocks.productionCreate,
+}));
 
 vi.mock("@/content/demo-data/flight-log-preview-fixture", () => ({
   flightLogPreviewFixture: { now: "2026-08-17T12:00:00.000Z" },
@@ -53,6 +61,7 @@ function parameters(
   values: {
     readonly apply?: string | string[];
     readonly mode?: string | string[];
+    readonly project?: string | string[];
     readonly range?: string | string[];
     readonly type?: string | string[];
   } = {},
@@ -62,6 +71,8 @@ function parameters(
 
 beforeEach(() => {
   mocks.previewLoad.mockResolvedValue(source());
+  mocks.productionLoad.mockRejectedValue(new Error("connected_panel_read_failed"));
+  mocks.productionCreate.mockResolvedValue({ load: mocks.productionLoad });
 });
 
 afterEach(() => {
@@ -117,6 +128,25 @@ describe("/flight-log Preview / Connected composition", () => {
     expect(screen.getByText("Connected stub")).toBeVisible();
     expect(connectedPort.load).toHaveBeenCalledTimes(1);
     expect(mocks.previewLoad).not.toHaveBeenCalled();
+  });
+
+  it("uses the production adapter and preserves a real empty state", async () => {
+    mocks.productionLoad.mockResolvedValueOnce({
+      provenanceLabel: "Connected 数据 · 当前项目",
+      lastSuccessfulAt: null,
+      events: [],
+    });
+    render(
+      await FlightLogPage({
+        searchParams: parameters({ mode: "connected", project: "22222222-2222-4222-8222-222222222222" }),
+        now: () => now,
+      }),
+    );
+
+    expect(mocks.productionCreate).toHaveBeenCalledWith("22222222-2222-4222-8222-222222222222");
+    expect(mocks.productionLoad).toHaveBeenCalledOnce();
+    expect(screen.getByText("尚无航行记录")).toBeVisible();
+    expect(screen.queryByText("Connected 数据暂时不可用。")).not.toBeInTheDocument();
   });
 
   it("fails an unavailable Connected mode closed without Demo fallback", async () => {

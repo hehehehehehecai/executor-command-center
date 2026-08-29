@@ -1,4 +1,5 @@
 import { loadMissionControlPreviewFixture } from "@/content/demo-data/mission-control-preview-fixture";
+import { createMissionControlProductionConnectedPort } from "@/app/connected-panel-dependencies";
 import {
   MissionControlPanel,
   createMissionControlConnectedQuery,
@@ -20,6 +21,7 @@ type MissionControlSearchParams = {
   readonly action?: string | string[];
   readonly mode?: string | string[];
   readonly nextStatus?: string | string[];
+  readonly project?: string | string[];
   readonly suggestionId?: string | string[];
 };
 
@@ -49,12 +51,6 @@ function statusShell(message: string) {
     />
   );
 }
-
-const unavailableConnectedPort: MissionControlConnectedPort = {
-  load: async () => {
-    throw new Error("mission_control_connected_unavailable");
-  },
-};
 
 function applyLocalAction(
   viewModel: MissionControlViewModel,
@@ -117,17 +113,18 @@ export default async function MissionControlPage(input: {
   const fixtureSession =
     fixtureAccess.kind === "authorized" ? fixtureAccess.session : null;
 
-  const query =
-    mode === "preview"
+  const result = await Promise.resolve()
+    .then(async () => mode === "preview"
       ? createMissionControlPreviewQuery(loadMissionControlPreviewFixture)
       : createMissionControlConnectedQuery(
           input.connectedPort ??
             (fixtureSession
               ? { load: async () => fixtureSession.missionControl }
-              : unavailableConnectedPort),
-        );
-  const result = await query
-    .load()
+              : await createMissionControlProductionConnectedPort(
+                  single(searchParams.project) ?? null,
+                )),
+        ))
+    .then((query) => query.load())
     .then((viewModel) => ({ kind: "success", viewModel }) as const)
     .catch(() => ({ kind: "failure" }) as const);
 

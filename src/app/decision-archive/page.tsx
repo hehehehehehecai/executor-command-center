@@ -2,6 +2,7 @@ import {
   decisionArchivePreviewFixture,
   loadDecisionArchivePreviewFixture,
 } from "@/content/demo-data/decision-archive-preview-fixture";
+import { createDecisionArchiveProductionConnectedPort } from "@/app/connected-panel-dependencies";
 import {
   DecisionArchivePanel,
   confirmDecisionCandidate,
@@ -25,6 +26,7 @@ type DecisionArchiveSearchParams = {
   readonly candidateId?: string | string[];
   readonly decision?: string | string[];
   readonly mode?: string | string[];
+  readonly project?: string | string[];
   readonly reason?: string | string[];
   readonly revisitCondition?: string | string[];
 };
@@ -55,12 +57,6 @@ function statusShell(message: string) {
     />
   );
 }
-
-const unavailableConnectedPort: DecisionArchiveConnectedPort = {
-  load: async () => {
-    throw new Error("decision_archive_connected_unavailable");
-  },
-};
 
 function feedbackFor(error: unknown): DecisionArchiveFeedback {
   const code = error instanceof Error ? error.message : "unknown";
@@ -156,17 +152,18 @@ export default async function DecisionArchivePage(input: {
   const fixtureSession =
     fixtureAccess.kind === "authorized" ? fixtureAccess.session : null;
 
-  const query =
-    mode === "preview"
+  const result = await Promise.resolve()
+    .then(async () => mode === "preview"
       ? createDecisionArchivePreviewQuery(loadDecisionArchivePreviewFixture)
       : createDecisionArchiveConnectedQuery(
           input.connectedPort ??
             (fixtureSession
               ? { load: async () => fixtureSession.decisionArchive }
-              : unavailableConnectedPort),
-        );
-  const result = await query
-    .load()
+              : await createDecisionArchiveProductionConnectedPort(
+                  single(searchParams.project) ?? null,
+                )),
+        ))
+    .then((query) => query.load())
     .then((viewModel) => ({ kind: "success", viewModel }) as const)
     .catch(() => ({ kind: "failure" }) as const);
 

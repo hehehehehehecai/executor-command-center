@@ -1,22 +1,13 @@
-import { cookies } from "next/headers";
 import Link from "next/link";
-import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { createProjectGalaxyProductionConnectedPort } from "@/app/connected-panel-dependencies";
 import {
   ProjectGalaxyPanel,
   ProjectLifecycleActions,
   RepositoryRemovalPanel,
   createProjectGalaxyConnectedQuery,
   createProjectGalaxyPreviewQuery,
-  type ProjectGalaxySource,
 } from "@/features/project-galaxy";
-import { createSupabaseServerClient } from "@/infrastructure/auth/supabase-server-client";
-import type { Database } from "@/infrastructure/database/database.types";
-import {
-  SupabaseProjectFreshnessReader,
-  type ProjectFreshnessSessionClient,
-} from "@/infrastructure/synchronization/supabase-project-freshness-reader";
-import { parseServerEnvironment } from "@/shared/configuration/server-environment";
 import { parsePanelMode, type PanelMode } from "@/shared/panel-query";
 import { readConnectedPanelFixtureAccess } from "@/testing/connected-panels/connected-panel-fixture-session";
 
@@ -69,27 +60,6 @@ function statusShell(content: React.ReactNode) {
       <Link href="/">返回 Command Deck</Link>
     </main>
   );
-}
-
-function connectedSource(input: {
-  readonly projectId: string;
-  readonly freshness: ProjectGalaxySource["freshness"];
-}): ProjectGalaxySource {
-  return {
-    project: {
-      id: input.projectId,
-      name: null,
-      repositoryLabel: null,
-    },
-    officialStatus: null,
-    suggestedStatus: null,
-    activity: [],
-    freshness: input.freshness,
-    coreGoal: null,
-    currentStageGoal: null,
-    currentBlockers: [],
-    provenanceLabel: "真实项目数据",
-  };
 }
 
 function projectGalaxyMain(content: React.ReactNode) {
@@ -193,14 +163,25 @@ export default async function ProjectGalaxyPage(input: {
     );
   }
 
-  let client: SupabaseClient<Database>;
+  let connectedPort;
   try {
-    client = createSupabaseServerClient<SupabaseClient<Database>>({
-      environment: parseServerEnvironment(process.env),
-      cookieStore: await cookies(),
-      responseHeaders: new Headers(),
-    });
-  } catch {
+    connectedPort = await createProjectGalaxyProductionConnectedPort(
+      projectId,
+      input.now,
+    );
+  } catch (failure) {
+    if (failure instanceof Error && failure.message === "connected_panel_unauthenticated") {
+      return statusShell(
+        <>
+          <p className="section-kicker">Project Galaxy</p>
+          <h1>需要登录</h1>
+          <p>登录后可查看你的真实项目数据。</p>
+          <Link href="/api/auth/github?returnTo=%2Fproject-galaxy%3Fmode%3Dconnected">
+            使用 GitHub 登录
+          </Link>
+        </>,
+      );
+    }
     return statusShell(
       <>
         <h1>Project Galaxy</h1>
@@ -209,40 +190,7 @@ export default async function ProjectGalaxyPage(input: {
     );
   }
 
-  const { data, error } = await client.auth.getUser();
-  if (error || !data.user) {
-    return statusShell(
-      <>
-        <p className="section-kicker">Project Galaxy</p>
-        <h1>需要登录</h1>
-        <p>登录后可查看你的真实项目 Freshness。</p>
-        <Link href="/api/auth/github?returnTo=%2Fproject-galaxy%3Fmode%3Dconnected">
-          使用 GitHub 登录
-        </Link>
-      </>,
-    );
-  }
-
-  const query = createProjectGalaxyConnectedQuery({
-    load: async () => {
-      const result = await new SupabaseProjectFreshnessReader(
-        client as unknown as ProjectFreshnessSessionClient,
-      ).read({
-        userId: data.user.id,
-        projectId,
-        now: input.now?.() ?? new Date().toISOString(),
-      });
-
-      if (result === null) {
-        throw new ProjectGalaxyNotFoundError();
-      }
-
-      return connectedSource({
-        projectId: result.projectId,
-        freshness: { kind: "known", input: result.input },
-      });
-    },
-  });
+  const query = createProjectGalaxyConnectedQuery(connectedPort);
 
   const connectedResult = await query
     .load()
@@ -250,7 +198,11 @@ export default async function ProjectGalaxyPage(input: {
     .catch((failure: unknown) => ({ kind: "failure", failure }) as const);
 
   if (connectedResult.kind === "failure") {
-    if (connectedResult.failure instanceof ProjectGalaxyNotFoundError) {
+    if (
+      connectedResult.failure instanceof ProjectGalaxyNotFoundError ||
+      (connectedResult.failure instanceof Error &&
+        connectedResult.failure.message === "connected_panel_not_found")
+    ) {
       return statusShell(
         <>
           <p className="section-kicker">Project Galaxy</p>
@@ -260,6 +212,21 @@ export default async function ProjectGalaxyPage(input: {
       );
     }
 
+    if (
+      connectedResult.failure instanceof Error &&
+      connectedResult.failure.message === "connected_panel_unauthenticated"
+    ) {
+      return statusShell(
+        <>
+          <p className="section-kicker">Project Galaxy</p>
+          <h1>需要登录</h1>
+          <p>登录后可查看你的真实项目数据。</p>
+          <Link href="/api/auth/github?returnTo=%2Fproject-galaxy%3Fmode%3Dconnected">
+            使用 GitHub 登录
+          </Link>
+        </>,
+      );
+    }
     return statusShell(
       <>
         <h1>Project Galaxy</h1>

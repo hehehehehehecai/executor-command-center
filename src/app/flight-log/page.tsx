@@ -1,4 +1,5 @@
 import { flightLogPreviewFixture, loadFlightLogPreviewFixture } from "@/content/demo-data/flight-log-preview-fixture";
+import { createFlightLogProductionConnectedPort } from "@/app/connected-panel-dependencies";
 import {
   FlightLogPanel,
   createFlightLogConnectedQuery,
@@ -19,6 +20,7 @@ export const dynamic = "force-dynamic";
 type FlightLogSearchParams = {
   readonly apply?: string | string[];
   readonly mode?: string | string[];
+  readonly project?: string | string[];
   readonly range?: string | string[];
   readonly type?: string | string[];
 };
@@ -86,12 +88,6 @@ function statusShell(message: string) {
   );
 }
 
-const unavailableConnectedPort: FlightLogConnectedPort = {
-  load: async () => {
-    throw new Error("flight_log_connected_unavailable");
-  },
-};
-
 export default async function FlightLogPage(input: {
   readonly searchParams: Promise<FlightLogSearchParams>;
   readonly connectedPort?: FlightLogConnectedPort;
@@ -122,18 +118,19 @@ export default async function FlightLogPage(input: {
     return statusShell("筛选条件无效。");
   }
 
-  const query =
-    mode === "preview"
+  const result = await Promise.resolve()
+    .then(async () => mode === "preview"
       ? createFlightLogPreviewQuery(loadFlightLogPreviewFixture, filters)
       : createFlightLogConnectedQuery(
           input.connectedPort ??
             (fixtureSession
               ? { load: async () => fixtureSession.flightLog }
-              : unavailableConnectedPort),
+              : await createFlightLogProductionConnectedPort(
+                  values(searchParams.project)[0] ?? null,
+                )),
           filters,
-        );
-  const result = await query
-    .load()
+        ))
+    .then((query) => query.load())
     .then((viewModel) => ({ kind: "success", viewModel }) as const)
     .catch(() => ({ kind: "failure" }) as const);
 

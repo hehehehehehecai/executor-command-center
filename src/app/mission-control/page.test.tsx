@@ -3,6 +3,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { MissionControlConnectedPort } from "@/features/mission-control";
 
+const production = vi.hoisted(() => ({ create: vi.fn(), load: vi.fn() }));
+
+vi.mock("@/app/connected-panel-dependencies", () => ({
+  createMissionControlProductionConnectedPort: production.create,
+}));
+
 vi.mock("@/content/demo-data/mission-control-preview-fixture", () => ({
   loadMissionControlPreviewFixture: vi.fn(async () => ({
     provenanceLabel: "演示数据 · 完全虚构",
@@ -12,6 +18,8 @@ vi.mock("@/content/demo-data/mission-control-preview-fixture", () => ({
 }));
 
 import MissionControlPage from "./page";
+
+production.create.mockImplementation(async () => ({ load: production.load }));
 
 afterEach(() => {
   cleanup();
@@ -46,6 +54,24 @@ describe("/mission-control Preview / Connected composition", () => {
     expect(screen.getByText("Connected Mode")).toBeVisible();
     expect(screen.getByText("Connected read stub")).toBeVisible();
     expect(connectedPort.load).toHaveBeenCalledOnce();
+  });
+
+  it("uses the production Connected adapter when no test port is injected", async () => {
+    production.load.mockResolvedValueOnce({
+      provenanceLabel: "Connected 数据 · 当前项目",
+      recordedTasks: [],
+      suggestions: [],
+    });
+    render(
+      await MissionControlPage({
+        searchParams: Promise.resolve({ mode: "connected", project: "22222222-2222-4222-8222-222222222222" }),
+      }),
+    );
+
+    expect(production.create).toHaveBeenCalledWith("22222222-2222-4222-8222-222222222222");
+    expect(production.load).toHaveBeenCalledOnce();
+    expect(screen.getByText("Connected 数据 · 当前项目")).toBeVisible();
+    expect(screen.getByText("暂无 GitHub 已记录任务")).toBeVisible();
   });
 
   it("applies an allowed local suggestion transition without changing recorded facts", async () => {

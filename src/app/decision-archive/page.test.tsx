@@ -3,6 +3,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { DecisionArchiveConnectedPort } from "@/features/decision-archive";
 
+const production = vi.hoisted(() => ({ create: vi.fn(), load: vi.fn() }));
+
+vi.mock("@/app/connected-panel-dependencies", () => ({
+  createDecisionArchiveProductionConnectedPort: production.create,
+}));
+
 vi.mock("@/content/demo-data/decision-archive-preview-fixture", () => ({
   decisionArchivePreviewFixture: {
     localActionContext: {
@@ -33,6 +39,8 @@ vi.mock("@/content/demo-data/decision-archive-preview-fixture", () => ({
 }));
 
 import DecisionArchivePage from "./page";
+
+production.create.mockImplementation(async () => ({ load: production.load }));
 
 afterEach(() => {
   cleanup();
@@ -132,6 +140,24 @@ describe("/decision-archive Preview / Connected composition", () => {
 
     expect(screen.getByText("Connected 数据暂时不可用。")).toBeVisible();
     expect(screen.queryByText("演示数据 · 完全虚构")).not.toBeInTheDocument();
+  });
+
+  it("uses the production adapter and renders a real empty archive", async () => {
+    production.load.mockResolvedValueOnce({
+      provenanceLabel: "Connected 数据 · 当前项目",
+      candidates: [],
+      records: [],
+    });
+    render(
+      await DecisionArchivePage({
+        searchParams: Promise.resolve({ mode: "connected", project: "22222222-2222-4222-8222-222222222222" }),
+      }),
+    );
+
+    expect(production.create).toHaveBeenCalledWith("22222222-2222-4222-8222-222222222222");
+    expect(production.load).toHaveBeenCalledOnce();
+    expect(screen.getByText("暂无待审阅的决策候选")).toBeVisible();
+    expect(screen.getByText("暂无正式决策记录")).toBeVisible();
   });
 
   it("rejects unknown modes rather than defaulting", async () => {

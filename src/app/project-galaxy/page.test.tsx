@@ -1,56 +1,51 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ getUser: vi.fn(), read: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  createProductionPort: vi.fn(),
+  productionLoad: vi.fn(),
+}));
 
-vi.mock("next/headers", () => ({
-  cookies: vi.fn(async () => ({ getAll: () => [], set: vi.fn() })),
+vi.mock("@/app/connected-panel-dependencies", () => ({
+  createProjectGalaxyProductionConnectedPort: mocks.createProductionPort,
 }));
-vi.mock("@/shared/configuration/server-environment", () => ({
-  parseServerEnvironment: vi.fn(() => ({
-    NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: "public-key",
-    APP_ORIGIN: "https://executor.example.test",
-  })),
-}));
-vi.mock("@/infrastructure/auth/supabase-server-client", () => ({
-  createSupabaseServerClient: vi.fn(() => ({
-    auth: { getUser: mocks.getUser },
-    from: vi.fn(),
-  })),
-}));
-vi.mock(
-  "@/infrastructure/synchronization/supabase-project-freshness-reader",
-  () => ({
-    SupabaseProjectFreshnessReader: class {
-      read = mocks.read;
-    },
-  }),
-);
 
 import ProjectGalaxyPage from "./page";
 
-const userId = "11111111-1111-4111-8111-111111111111";
 const projectId = "22222222-2222-4222-8222-222222222222";
 const now = "2026-08-17T13:00:00.000Z";
 
-function connectedView(overrides: Record<string, unknown> = {}) {
+function connectedSource(overrides: Record<string, unknown> = {}) {
   return {
-    projectId,
-    input: {
-      provenance: "real" as const,
-      authorizationRevoked: false,
-      latestRun: {
-        id: "44444444-4444-4444-8444-444444444444",
-        status: "completed" as const,
-        finishedAt: "2026-08-17T12:00:00.000Z",
-        errorCode: null,
-      },
-      lastSuccessfulAt: "2026-08-17T12:00:00.000Z",
-      coverageComplete: true,
-      now,
-      ...overrides,
+    project: {
+      id: projectId,
+      name: "executor-stage6-staging-fixture",
+      repositoryLabel: "hecaitest1/executor-stage6-staging-fixture",
     },
+    officialStatus: "polishing" as const,
+    suggestedStatus: null,
+    activity: [{ id: "github_issue:1", summary: "Fixture issue", occurredAt: now }],
+    freshness: {
+      kind: "known" as const,
+      input: {
+        provenance: "real" as const,
+        authorizationRevoked: false,
+        latestRun: {
+          id: "44444444-4444-4444-8444-444444444444",
+          status: "completed" as const,
+          finishedAt: "2026-08-17T12:00:00.000Z",
+          errorCode: null,
+        },
+        lastSuccessfulAt: "2026-08-17T12:00:00.000Z",
+        coverageComplete: true,
+        now,
+        ...overrides,
+      },
+    },
+    coreGoal: "Ship the safe beta",
+    currentStageGoal: "Verify connected panels",
+    currentBlockers: [],
+    provenanceLabel: "Connected 数据 · 当前项目",
   };
 }
 
@@ -62,11 +57,8 @@ function parameters(
 
 describe("/project-galaxy Preview / Connected composition", () => {
   beforeEach(() => {
-    mocks.getUser.mockResolvedValue({
-      data: { user: { id: userId } },
-      error: null,
-    });
-    mocks.read.mockResolvedValue(connectedView());
+    mocks.productionLoad.mockResolvedValue(connectedSource());
+    mocks.createProductionPort.mockResolvedValue({ load: mocks.productionLoad });
   });
 
   afterEach(() => {
@@ -85,8 +77,8 @@ describe("/project-galaxy Preview / Connected composition", () => {
     expect(screen.getAllByText("演示数据 · 完全虚构")).toHaveLength(2);
     expect(screen.getByText("Aurora Cartography")).toBeVisible();
     expect(screen.getByText("Preview Mode")).toBeVisible();
-    expect(mocks.getUser).not.toHaveBeenCalled();
-    expect(mocks.read).not.toHaveBeenCalled();
+    expect(mocks.createProductionPort).not.toHaveBeenCalled();
+    expect(mocks.productionLoad).not.toHaveBeenCalled();
   });
 
   it("uses the same panel for explicit Connected Freshness without Demo fallback", async () => {
@@ -98,8 +90,12 @@ describe("/project-galaxy Preview / Connected composition", () => {
     );
 
     expect(screen.getByText("Connected Mode")).toBeVisible();
-    expect(screen.getAllByText("真实项目数据").length).toBeGreaterThan(0);
-    expect(screen.getByText(projectId)).toBeVisible();
+    expect(screen.getAllByText("Connected 数据 · 当前项目").length).toBeGreaterThan(0);
+    expect(screen.getByText("executor-stage6-staging-fixture")).toBeVisible();
+    expect(screen.getByText("hecaitest1/executor-stage6-staging-fixture")).toBeVisible();
+    expect(screen.getByText("Ship the safe beta")).toBeVisible();
+    expect(screen.getByText("Verify connected panels")).toBeVisible();
+    expect(screen.getByText("Fixture issue")).toBeVisible();
     expect(screen.getByText("Fresh")).toBeVisible();
     expect(screen.queryByText("Aurora Cartography")).not.toBeInTheDocument();
     const main = screen.getByRole("main");
@@ -145,7 +141,7 @@ describe("/project-galaxy Preview / Connected composition", () => {
     ],
     ["authorization revoked", { authorizationRevoked: true }, "Authorization revoked"],
   ])("preserves the existing %s Connected presentation", async (_case, overrides, label) => {
-    mocks.read.mockResolvedValue(connectedView(overrides));
+    mocks.productionLoad.mockResolvedValue(connectedSource(overrides));
     render(
       await ProjectGalaxyPage({
         searchParams: parameters({ mode: "connected" }),
@@ -156,8 +152,8 @@ describe("/project-galaxy Preview / Connected composition", () => {
   });
 
   it("keeps the safe Connected project selector and Freshness details", async () => {
-    mocks.read.mockResolvedValue(
-      connectedView({
+    mocks.productionLoad.mockResolvedValue(
+      connectedSource({
         latestRun: {
           id: "66666666-6666-4666-8666-666666666666",
           status: "failed",
@@ -175,11 +171,12 @@ describe("/project-galaxy Preview / Connected composition", () => {
 
     expect(screen.getByText("2026-08-17 12:00:00 UTC")).toBeVisible();
     expect(screen.getByText("github_activity_timeout")).toBeVisible();
-    expect(mocks.read).toHaveBeenCalledWith({ userId, projectId, now });
+    expect(mocks.createProductionPort).toHaveBeenCalledWith(projectId, expect.any(Function));
+    expect(mocks.productionLoad).toHaveBeenCalledOnce();
   });
 
   it("does not query Connected for an unauthenticated request", async () => {
-    mocks.getUser.mockResolvedValue({ data: { user: null }, error: null });
+    mocks.productionLoad.mockRejectedValue(new Error("connected_panel_unauthenticated"));
     render(
       await ProjectGalaxyPage({
         searchParams: parameters({ mode: "connected" }),
@@ -191,11 +188,11 @@ describe("/project-galaxy Preview / Connected composition", () => {
       "href",
       "/api/auth/github?returnTo=%2Fproject-galaxy%3Fmode%3Dconnected",
     );
-    expect(mocks.read).not.toHaveBeenCalled();
+    expect(mocks.productionLoad).toHaveBeenCalledOnce();
   });
 
   it("renders a safe empty state for no visible Connected project", async () => {
-    mocks.read.mockResolvedValue(null);
+    mocks.productionLoad.mockRejectedValue(new Error("connected_panel_not_found"));
     render(
       await ProjectGalaxyPage({
         searchParams: parameters({
@@ -211,7 +208,7 @@ describe("/project-galaxy Preview / Connected composition", () => {
   });
 
   it("fails Connected closed without rendering Preview data", async () => {
-    mocks.read.mockRejectedValue(new Error("connected read failed"));
+    mocks.productionLoad.mockRejectedValue(new Error("connected_panel_read_failed"));
     render(
       await ProjectGalaxyPage({
         searchParams: parameters({ mode: "connected" }),
@@ -233,8 +230,8 @@ describe("/project-galaxy Preview / Connected composition", () => {
     );
 
     expect(screen.getByText("面板模式无效。")).toBeVisible();
-    expect(mocks.getUser).not.toHaveBeenCalled();
-    expect(mocks.read).not.toHaveBeenCalled();
+    expect(mocks.createProductionPort).not.toHaveBeenCalled();
+    expect(mocks.productionLoad).not.toHaveBeenCalled();
     expect(screen.queryByText("Aurora Cartography")).not.toBeInTheDocument();
   });
 });
