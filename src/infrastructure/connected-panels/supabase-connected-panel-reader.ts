@@ -257,7 +257,7 @@ export class SupabaseConnectedPanelReader {
     const repository = project.selected_repositories;
     const installation = repository.github_installations;
     if (project.user_id !== input.userId || repository.user_id !== input.userId ||
-        installation.user_id !== input.userId || installation.status !== "active") {
+        installation.user_id !== input.userId) {
       throw safeFailure();
     }
 

@@ -72,7 +72,10 @@ function clientFixture(input: {
   };
 }
 
-function ownedProject(owner = userId) {
+function ownedProject(
+  owner = userId,
+  installationStatus: "active" | "suspended" | "revoked" = "active",
+) {
   return {
     id: projectId,
     user_id: userId,
@@ -93,7 +96,7 @@ function ownedProject(owner = userId) {
         id: installationRowId,
         user_id: owner,
         installation_id: 157171025,
-        status: "active",
+        status: installationStatus,
       },
     },
   };
@@ -179,6 +182,16 @@ describe("SupabaseConnectedPanelReader", () => {
 
     await expect(reader.read({ userId, projectId })).resolves.toBeNull();
     expect(fixture.calls.map(({ table }) => table)).toEqual(["projects"]);
+  });
+
+  it("keeps an owned revoked installation readable for authorization-revoked UI guidance", async () => {
+    const fixture = clientFixture({ projectRows: [ownedProject(userId, "revoked")] });
+    const reader = new SupabaseConnectedPanelReader(fixture.client as never);
+
+    await expect(reader.read({ userId, projectId })).resolves.toMatchObject({
+      project: { id: projectId },
+    });
+    expect(fixture.calls.map(({ table }) => table)).toContain("sync_runs");
   });
 
   it("fails closed when nested ownership does not match the verified user", async () => {
