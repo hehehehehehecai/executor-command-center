@@ -43,6 +43,25 @@ const selectedRepository = {
   calibrationStatus: "pending",
 };
 
+const projectRepository = {
+  id: "11111111-1111-4111-8111-111111111111",
+  repositoryId: selectedRepository.repositoryId,
+  fullName: selectedRepository.fullName,
+  visibility: selectedRepository.visibility,
+  defaultBranch: selectedRepository.defaultBranch,
+};
+
+const savedCalibration = {
+  id: "33333333-3333-4333-8333-333333333333",
+  selectedRepositoryId: projectRepository.id,
+  coreGoal: "Ship a trustworthy MVP",
+  currentStageGoal: "Calibrate the first project",
+  status: "polishing",
+  currentBlocker: null,
+  createdAt: "2026-08-29T01:00:00.000Z",
+  updatedAt: "2026-08-29T01:00:01.000Z",
+};
+
 function selectedResponse(repositories: unknown[]) {
   return new Response(JSON.stringify({ selectedRepositories: repositories }), {
     status: 200,
@@ -72,11 +91,89 @@ function postResponse(repository: unknown = selectedRepository) {
   );
 }
 
+function projectsResponse(calibration: unknown) {
+  return Response.json({
+    projects: [{ repository: projectRepository, calibration }],
+  });
+}
+
+function summaryValue(
+  label:
+    | "selected_repository_count"
+    | "calibration_status"
+    | "projects",
+) {
+  const term = screen.getByText(label, { exact: true, selector: "dt" });
+  return term.parentElement?.querySelector("dd");
+}
+
 describe("Phase 4 authorization and Phase 5 selection UI", () => {
+  it.each([
+    [null, "pending", "0"],
+    [savedCalibration, "saved", "1"],
+  ])(
+    "derives calibration summary from the authoritative project view",
+    async (calibration, expectedStatus, expectedCount) => {
+      const fetcher = vi.fn<typeof fetch>(async (input) => {
+        if (input === "/api/github/repository-selections") {
+          return selectedResponse([selectedRepository]);
+        }
+        if (input === "/api/projects") {
+          return projectsResponse(calibration);
+        }
+        throw new Error(`unexpected request ${String(input)}`);
+      });
+      vi.stubGlobal("fetch", fetcher);
+
+      render(<AuthorizedRepositoryList installationStatus="active" />);
+
+      expect(await screen.findByText(selectedRepository.fullName)).toBeVisible();
+      await waitFor(() =>
+        expect(summaryValue("calibration_status")).toHaveTextContent(
+          expectedStatus,
+        ),
+      );
+      expect(summaryValue("projects")).toHaveTextContent(expectedCount);
+    },
+  );
+
+  it("refreshes the authoritative summary after calibration is saved", async () => {
+    let projectLoadCount = 0;
+    const fetcher = vi.fn<typeof fetch>(async (input) => {
+      if (input === "/api/github/repository-selections") {
+        return selectedResponse([selectedRepository]);
+      }
+      if (input === "/api/projects") {
+        projectLoadCount += 1;
+        return projectsResponse(
+          projectLoadCount === 1 ? null : savedCalibration,
+        );
+      }
+      throw new Error(`unexpected request ${String(input)}`);
+    });
+    vi.stubGlobal("fetch", fetcher);
+
+    render(<AuthorizedRepositoryList installationStatus="active" />);
+
+    await waitFor(() => expect(projectLoadCount).toBe(1));
+    expect(summaryValue("calibration_status")).toHaveTextContent("pending");
+    expect(summaryValue("projects")).toHaveTextContent("0");
+
+    window.dispatchEvent(new Event("project-calibration-saved"));
+
+    await waitFor(() => expect(projectLoadCount).toBe(2));
+    expect(summaryValue("calibration_status")).toHaveTextContent("saved");
+    expect(summaryValue("projects")).toHaveTextContent("1");
+  });
+
   it("automatically restores only selections and never auto-loads GitHub authorization", async () => {
-    const fetcher = vi
-      .fn<typeof fetch>()
-      .mockResolvedValue(selectedResponse([selectedRepository]));
+    const fetcher = vi.fn<typeof fetch>(async (input) => {
+      if (input === "/api/github/repository-selections") {
+        return selectedResponse([selectedRepository]);
+      }
+      if (input === "/api/projects") return projectsResponse(null);
+      throw new Error(`unexpected request ${String(input)}`);
+    });
     vi.stubGlobal("fetch", fetcher);
 
     render(<AuthorizedRepositoryList installationStatus="active" />);
@@ -84,7 +181,7 @@ describe("Phase 4 authorization and Phase 5 selection UI", () => {
     expect(await screen.findByText(selectedRepository.fullName)).toBeInTheDocument();
     expect(screen.getByText("not_loaded", { exact: true })).toBeInTheDocument();
     expect(screen.getByText("1", { exact: true })).toBeInTheDocument();
-    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher).toHaveBeenCalledTimes(2);
     expect(fetcher).toHaveBeenCalledWith(
       "/api/github/repository-selections",
       expect.objectContaining({
@@ -95,6 +192,13 @@ describe("Phase 4 authorization and Phase 5 selection UI", () => {
     expect(fetcher).not.toHaveBeenCalledWith(
       "/api/github/repositories",
       expect.anything(),
+    );
+    expect(fetcher).toHaveBeenCalledWith(
+      "/api/projects",
+      expect.objectContaining({
+        cache: "no-store",
+        credentials: "same-origin",
+      }),
     );
     expect(
       screen.queryByRole("button", {
@@ -231,7 +335,9 @@ describe("Phase 4 authorization and Phase 5 selection UI", () => {
       expect(await screen.findByRole("alert")).toHaveTextContent(
         "已选择仓库读取失败。",
       );
-      expect(screen.getByText("unknown", { exact: true })).toBeInTheDocument();
+      expect(summaryValue("selected_repository_count")).toHaveTextContent(
+        "unknown",
+      );
     }
   });
 
@@ -427,11 +533,22 @@ describe("Phase 4 authorization and Phase 5 selection UI", () => {
     const oldResponse = new Promise<Response>((resolve) => {
       resolveOld = resolve;
     });
-    const fetcher = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(selectedResponse([]))
-      .mockReturnValueOnce(oldResponse)
-      .mockResolvedValueOnce(authorizedResponse([]));
+    let authorizedLoadCount = 0;
+    const fetcher = vi.fn<typeof fetch>(async (input) => {
+      if (input === "/api/github/repository-selections") {
+        return selectedResponse([]);
+      }
+      if (input === "/api/projects") {
+        return Response.json({ projects: [] });
+      }
+      if (input === "/api/github/repositories") {
+        authorizedLoadCount += 1;
+        return authorizedLoadCount === 1
+          ? oldResponse
+          : authorizedResponse([]);
+      }
+      throw new Error(`unexpected request ${String(input)}`);
+    });
     vi.stubGlobal("fetch", fetcher);
     render(<AuthorizedRepositoryList installationStatus="active" />);
 
@@ -451,5 +568,45 @@ describe("Phase 4 authorization and Phase 5 selection UI", () => {
         screen.queryByText(authorizedRepository.fullName),
       ).not.toBeInTheDocument(),
     );
+  });
+
+  it("ignores stale project summaries and removes refresh listeners on unmount", async () => {
+    let resolveOld!: (value: Response) => void;
+    const oldResponse = new Promise<Response>((resolve) => {
+      resolveOld = resolve;
+    });
+    let projectLoadCount = 0;
+    const fetcher = vi.fn<typeof fetch>(async (input) => {
+      if (input === "/api/github/repository-selections") {
+        return selectedResponse([selectedRepository]);
+      }
+      if (input === "/api/projects") {
+        projectLoadCount += 1;
+        return projectLoadCount === 1
+          ? oldResponse
+          : projectsResponse(savedCalibration);
+      }
+      throw new Error(`unexpected request ${String(input)}`);
+    });
+    vi.stubGlobal("fetch", fetcher);
+    const view = render(
+      <AuthorizedRepositoryList installationStatus="active" />,
+    );
+
+    await waitFor(() => expect(projectLoadCount).toBe(1));
+    window.dispatchEvent(new Event("project-calibration-saved"));
+    await waitFor(() =>
+      expect(summaryValue("calibration_status")).toHaveTextContent("saved"),
+    );
+
+    resolveOld(projectsResponse(null));
+    await waitFor(() =>
+      expect(summaryValue("calibration_status")).toHaveTextContent("saved"),
+    );
+
+    view.unmount();
+    window.dispatchEvent(new Event("project-calibration-saved"));
+    await Promise.resolve();
+    expect(projectLoadCount).toBe(2);
   });
 });

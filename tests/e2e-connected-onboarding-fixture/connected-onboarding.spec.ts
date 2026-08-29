@@ -139,6 +139,13 @@ test("completes one isolated connected onboarding journey and rejects cross-boun
   });
   const selectedRepositoryId = state.selected_repositories[0].id as string;
 
+  await expect(
+    page.getByText("calibration_status", { exact: true }).locator("..").locator("dd"),
+  ).toHaveText("pending");
+  await expect(
+    page.getByText("projects", { exact: true }).locator("..").locator("dd"),
+  ).toHaveText("0");
+
   await page.getByLabel("核心目标").fill("Ship the connected fixture MVP");
   await page
     .getByLabel("当前阶段目标")
@@ -150,6 +157,12 @@ test("completes one isolated connected onboarding journey and rejects cross-boun
   await expect(page.getByTestId("project-stable-id")).toHaveText(
     "Project ID: 17777777-7777-4777-8777-777777777777",
   );
+  await expect(
+    page.getByText("calibration_status", { exact: true }).locator("..").locator("dd"),
+  ).toHaveText("saved");
+  await expect(
+    page.getByText("projects", { exact: true }).locator("..").locator("dd"),
+  ).toHaveText("1");
 
   await page.reload();
   await expect(page.getByLabel("核心目标")).toHaveValue(
@@ -162,6 +175,12 @@ test("completes one isolated connected onboarding journey and rejects cross-boun
   await expect(page.getByTestId("project-stable-id")).toHaveText(
     "Project ID: 17777777-7777-4777-8777-777777777777",
   );
+  await expect(
+    page.getByText("calibration_status", { exact: true }).locator("..").locator("dd"),
+  ).toHaveText("saved");
+  await expect(
+    page.getByText("projects", { exact: true }).locator("..").locator("dd"),
+  ).toHaveText("1");
 
   state = await (await request.get(`${fixtureBaseUrl}/__fixture/state`)).json();
   expect(state.projects).toEqual([

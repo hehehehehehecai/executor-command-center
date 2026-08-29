@@ -9,6 +9,10 @@ import {
   type ProjectCalibrationView,
   type ProjectStatus,
 } from "@/domain/project-calibration/project-calibration";
+import {
+  projectCalibrationSavedEvent,
+  selectedRepositoriesChangedEvent,
+} from "./onboarding-events";
 
 const repositorySchema = z.object({
   id: z.string().uuid(),
@@ -51,6 +55,7 @@ const statusLabels: Record<ProjectStatus, string> = {
 
 export function ProjectCalibrationPanel() {
   const mounted = useRef(false);
+  const loadGeneration = useRef(0);
   const [loadState, setLoadState] = useState<LoadState>({ kind: "loading" });
   const [selectedId, setSelectedId] = useState("");
   const [coreGoal, setCoreGoal] = useState("");
@@ -60,6 +65,8 @@ export function ProjectCalibrationPanel() {
   const [saveState, setSaveState] = useState<SaveState>("idle");
 
   const loadProjects = useCallback(async () => {
+    const generation = ++loadGeneration.current;
+    setLoadState({ kind: "loading" });
     try {
       const response = await fetch("/api/projects", {
         cache: "no-store",
@@ -68,7 +75,7 @@ export function ProjectCalibrationPanel() {
       if (!response.ok) throw new Error("load_failed");
       const parsed = listSchema.safeParse(await response.json());
       if (!parsed.success) throw parsed.error;
-      if (!mounted.current) return;
+      if (!mounted.current || loadGeneration.current !== generation) return;
       setLoadState({ kind: "loaded", projects: parsed.data.projects });
       const first = parsed.data.projects[0];
       setSelectedId(first?.repository.id ?? "");
@@ -78,7 +85,9 @@ export function ProjectCalibrationPanel() {
       setCurrentBlocker(first?.calibration?.currentBlocker ?? "");
       setSaveState("idle");
     } catch {
-      if (mounted.current) setLoadState({ kind: "failed" });
+      if (mounted.current && loadGeneration.current === generation) {
+        setLoadState({ kind: "failed" });
+      }
     }
   }, []);
 
@@ -86,10 +95,11 @@ export function ProjectCalibrationPanel() {
     mounted.current = true;
     queueMicrotask(() => void loadProjects());
     const refresh = () => void loadProjects();
-    window.addEventListener("selected-repositories-changed", refresh);
+    window.addEventListener(selectedRepositoriesChangedEvent, refresh);
     return () => {
       mounted.current = false;
-      window.removeEventListener("selected-repositories-changed", refresh);
+      loadGeneration.current += 1;
+      window.removeEventListener(selectedRepositoriesChangedEvent, refresh);
     };
   }, [loadProjects]);
 
@@ -165,6 +175,7 @@ export function ProjectCalibrationPanel() {
       setStatus(parsed.data.project.calibration?.status ?? "in_planning");
       setCurrentBlocker(parsed.data.project.calibration?.currentBlocker ?? "");
       setSaveState("success");
+      window.dispatchEvent(new Event(projectCalibrationSavedEvent));
     } catch {
       if (mounted.current) setSaveState("failed");
     }

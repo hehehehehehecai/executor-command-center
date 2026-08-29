@@ -482,6 +482,9 @@ function createFixtureServer() {
       counters.projectWrite += 1;
       writeJson(response, 200, {
         ...project,
+        repository_data_state: "connected",
+        repository_data_version: 1,
+        repository_removed_at: null,
         selected_repositories: { ...projectSelectionProjection(selected, body.p_user_id), projects: [] },
       });
       return;

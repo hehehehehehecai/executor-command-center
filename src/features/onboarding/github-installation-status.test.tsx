@@ -3,6 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GitHubInstallationStatus } from "./github-installation-status";
 
+function statusValue(label: string) {
+  const term = screen.getByText(label, { exact: true, selector: "dt" });
+  return term.parentElement?.querySelector("dd");
+}
+
 afterEach(cleanup);
 
 describe("GitHub App installation status UI", () => {
@@ -31,9 +36,12 @@ describe("GitHub App installation status UI", () => {
     expect(
       screen.getByRole("button", { name: "加载已授权仓库" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("unknown", { exact: true })).toBeInTheDocument();
-    expect(screen.getByText("pending", { exact: true })).toBeInTheDocument();
-    expect(screen.getAllByText("none", { exact: true })).toHaveLength(2);
+    expect(statusValue("selected_repository_count")).toHaveTextContent(
+      "unknown",
+    );
+    expect(statusValue("calibration_status")).toHaveTextContent("unknown");
+    expect(statusValue("projects")).toHaveTextContent("unknown");
+    expect(statusValue("repository_content")).toHaveTextContent("none");
     expect(
       screen.getByText("GitHub App Installation 已连接"),
     ).toBeInTheDocument();

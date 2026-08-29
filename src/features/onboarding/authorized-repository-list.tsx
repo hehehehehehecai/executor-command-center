@@ -7,7 +7,12 @@ import type {
   AuthorizedGitHubRepository,
   AuthorizedRepositoryList,
 } from "@/domain/github-repository/authorized-github-repository";
+import { projectStatuses } from "@/domain/project-calibration/project-calibration";
 import type { SelectedGitHubRepository } from "@/domain/selected-repository/selected-github-repository";
+import {
+  projectCalibrationSavedEvent,
+  selectedRepositoriesChangedEvent,
+} from "./onboarding-events";
 
 type InstallationStatus =
   | "active"
@@ -36,6 +41,10 @@ type SelectedLoadState =
 
 type SelectionMutationState = "saving" | "failed";
 type DeselectionMutationState = "removing" | "failed";
+type ProjectSummaryState =
+  | { readonly kind: "loading" }
+  | { readonly kind: "failed" }
+  | { readonly kind: "loaded"; readonly projectCount: number };
 
 const authorizedRepositorySchema = z
   .object({
@@ -116,6 +125,39 @@ const selectionResponseSchema = z
   })
   .strict();
 
+const projectSummaryListSchema = z
+  .object({
+    projects: z.array(
+      z
+        .object({
+          repository: z
+            .object({
+              id: z.string().uuid(),
+              repositoryId: z.number().int().positive(),
+              fullName: z.string().min(1),
+              visibility: z.enum(["public", "private", "internal"]),
+              defaultBranch: z.string().min(1),
+            })
+            .strict(),
+          calibration: z
+            .object({
+              id: z.string().uuid(),
+              selectedRepositoryId: z.string().uuid(),
+              coreGoal: z.string(),
+              currentStageGoal: z.string(),
+              status: z.enum(projectStatuses),
+              currentBlocker: z.string().nullable(),
+              createdAt: z.iso.datetime({ offset: true }),
+              updatedAt: z.iso.datetime({ offset: true }),
+            })
+            .strict()
+            .nullable(),
+        })
+        .strict(),
+    ),
+  })
+  .strict();
+
 function visibilityLabel(
   visibility:
     | AuthorizedGitHubRepository["visibility"]
@@ -160,10 +202,13 @@ export function AuthorizedRepositoryList(input: {
   const mounted = useRef(false);
   const selectedGeneration = useRef(0);
   const authorizedGeneration = useRef(0);
+  const projectSummaryGeneration = useRef(0);
   const [selectedLoadState, setSelectedLoadState] =
     useState<SelectedLoadState>({ kind: "loading" });
   const [authorizedLoadState, setAuthorizedLoadState] =
     useState<AuthorizedLoadState>({ kind: "idle" });
+  const [projectSummaryState, setProjectSummaryState] =
+    useState<ProjectSummaryState>({ kind: "loading" });
   const [
     selectionMutationStateByRepositoryId,
     setSelectionMutationStateByRepositoryId,
@@ -201,33 +246,69 @@ export function AuthorizedRepositoryList(input: {
     }
   }, []);
 
+  const loadProjectSummary = useCallback(async () => {
+    const generation = ++projectSummaryGeneration.current;
+    setProjectSummaryState({ kind: "loading" });
+
+    try {
+      const response = await fetch("/api/projects", {
+        cache: "no-store",
+        credentials: "same-origin",
+      });
+      if (!response.ok) throw new Error("project_summary_load_failed");
+      const parsed = projectSummaryListSchema.safeParse(await response.json());
+      if (!parsed.success) throw parsed.error;
+      if (
+        mounted.current &&
+        projectSummaryGeneration.current === generation
+      ) {
+        setProjectSummaryState({
+          kind: "loaded",
+          projectCount: parsed.data.projects.filter(
+            (project) => project.calibration !== null,
+          ).length,
+        });
+      }
+    } catch {
+      if (
+        mounted.current &&
+        projectSummaryGeneration.current === generation
+      ) {
+        setProjectSummaryState({ kind: "failed" });
+      }
+    }
+  }, []);
+
   useEffect(() => {
     mounted.current = true;
-    const generation = ++selectedGeneration.current;
-    void fetchSelectedRepositories().then(
-      (repositories) => {
-        if (
-          mounted.current &&
-          selectedGeneration.current === generation
-        ) {
-          setSelectedLoadState({ kind: "loaded", repositories });
-        }
-      },
-      () => {
-        if (
-          mounted.current &&
-          selectedGeneration.current === generation
-        ) {
-          setSelectedLoadState({ kind: "failed" });
-        }
-      },
+    queueMicrotask(() => {
+      void loadSelectedRepositories();
+      void loadProjectSummary();
+    });
+    const refreshProjectSummary = () => void loadProjectSummary();
+    window.addEventListener(
+      selectedRepositoriesChangedEvent,
+      refreshProjectSummary,
+    );
+    window.addEventListener(
+      projectCalibrationSavedEvent,
+      refreshProjectSummary,
     );
     return () => {
       mounted.current = false;
       selectedGeneration.current += 1;
       authorizedGeneration.current += 1;
+      projectSummaryGeneration.current += 1;
+      window.removeEventListener(
+        selectedRepositoriesChangedEvent,
+        refreshProjectSummary,
+      );
+      window.removeEventListener(
+        projectCalibrationSavedEvent,
+        refreshProjectSummary,
+      );
     };
-  }, []);
+  }, [loadProjectSummary, loadSelectedRepositories]);
 
   const loadAuthorizedRepositories = async () => {
     if (input.installationStatus !== "active") return;
@@ -310,7 +391,7 @@ export function AuthorizedRepositoryList(input: {
         next.delete(repositoryId);
         return next;
       });
-      window.dispatchEvent(new Event("selected-repositories-changed"));
+      window.dispatchEvent(new Event(selectedRepositoriesChangedEvent));
     } catch {
       if (!mounted.current) return;
       setSelectionMutationStateByRepositoryId((current) => {
@@ -363,7 +444,7 @@ export function AuthorizedRepositoryList(input: {
         next.delete(repositoryId);
         return next;
       });
-      window.dispatchEvent(new Event("selected-repositories-changed"));
+      window.dispatchEvent(new Event(selectedRepositoriesChangedEvent));
     } catch (error) {
       if (!mounted.current) return;
       setDeselectionMutationStateByRepositoryId((current) => {
@@ -409,6 +490,16 @@ export function AuthorizedRepositoryList(input: {
       : authorizedLoadState.kind === "idle"
         ? "not_loaded"
         : authorizedLoadState.kind;
+  const calibrationStatus =
+    projectSummaryState.kind === "loaded"
+      ? projectSummaryState.projectCount > 0
+        ? "saved"
+        : "pending"
+      : "unknown";
+  const projectCount =
+    projectSummaryState.kind === "loaded"
+      ? String(projectSummaryState.projectCount)
+      : "unknown";
 
   return (
     <div className="repository-list">
@@ -427,11 +518,11 @@ export function AuthorizedRepositoryList(input: {
         </div>
         <div>
           <dt>calibration_status</dt>
-          <dd>pending</dd>
+          <dd>{calibrationStatus}</dd>
         </div>
         <div>
           <dt>projects</dt>
-          <dd>none</dd>
+          <dd>{projectCount}</dd>
         </div>
         <div>
           <dt>repository_content</dt>

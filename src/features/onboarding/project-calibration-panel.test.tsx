@@ -18,6 +18,8 @@ const repository = {
 
 describe("ProjectCalibrationPanel", () => {
   it("separates repository facts from statements and saves one strict calibration", async () => {
+    const calibrationSaved = vi.fn();
+    window.addEventListener("project-calibration-saved", calibrationSaved);
     let resolveSave!: (response: Response) => void;
     const fetcher = vi.fn()
       .mockResolvedValueOnce(
@@ -62,12 +64,14 @@ describe("ProjectCalibrationPanel", () => {
     }), { status: 200, headers: { "content-type": "application/json" } }));
 
     expect(await screen.findByRole("status")).toHaveTextContent("项目校准已保存");
+    expect(calibrationSaved).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId("project-stable-id")).toHaveTextContent(
       "Project ID: 33333333-3333-4333-8333-333333333333",
     );
     await waitFor(() => expect(screen.getByLabelText("核心目标")).toHaveValue(
       "Ship a trustworthy MVP",
     ));
+    window.removeEventListener("project-calibration-saved", calibrationSaved);
   });
 
   it("shows the empty state before any repository is selected", async () => {
