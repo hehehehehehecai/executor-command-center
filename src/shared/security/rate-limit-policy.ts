@@ -23,10 +23,19 @@ export function rateLimitPolicyForRequest(method: string, pathname: string): Rat
   if (verb === "POST" && new RegExp(`^/api/projects/${project}/briefs/generate$`, "i").test(pathname)) {
     return { scope: "project_brief_generate", limit: 5, windowSeconds: 60 };
   }
+  if (verb === "POST" && pathname === "/api/staging-verification/provider-failure-retry") {
+    return { scope: "project_brief_generate", limit: 5, windowSeconds: 60 };
+  }
   if (verb === "POST" && new RegExp(`^/api/projects/${project}/briefs/${brief}/follow-up$`, "i").test(pathname)) {
     return { scope: "project_brief_follow_up", limit: 20, windowSeconds: 60 };
   }
   if (verb === "POST" && new RegExp(`^/api/projects/${project}/(?:first-sync|resync)$`, "i").test(pathname)) {
+    return { scope: "project_sync_mutation", limit: 10, windowSeconds: 60 };
+  }
+  if (
+    verb === "POST"
+    && /^\/api\/staging-verification\/(?:webhook-replay|reconciliation)$/.test(pathname)
+  ) {
     return { scope: "project_sync_mutation", limit: 10, windowSeconds: 60 };
   }
   if (

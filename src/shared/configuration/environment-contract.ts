@@ -21,6 +21,10 @@ export const approvedEnvironmentVariableNames = [
   "INNGEST_EVENT_KEY",
   "INNGEST_SIGNING_KEY",
   "DEEPSEEK_API_KEY",
+  "STAGING_VERIFICATION_ENABLED",
+  "STAGING_VERIFICATION_PROJECT_ID",
+  "STAGING_VERIFICATION_INSTALLATION_ID",
+  "STAGING_VERIFICATION_REPOSITORY",
 ] as const;
 
 export const serverEnvironmentVariableNames = [
@@ -34,6 +38,10 @@ export const serverEnvironmentVariableNames = [
   "INNGEST_EVENT_KEY",
   "INNGEST_SIGNING_KEY",
   "DEEPSEEK_API_KEY",
+  "STAGING_VERIFICATION_ENABLED",
+  "STAGING_VERIFICATION_PROJECT_ID",
+  "STAGING_VERIFICATION_INSTALLATION_ID",
+  "STAGING_VERIFICATION_REPOSITORY",
 ] as const;
 
 type ApprovedEnvironmentVariable =
@@ -85,6 +93,14 @@ const environmentShape = {
   INNGEST_EVENT_KEY: optionalEnvironmentString(z.string()),
   INNGEST_SIGNING_KEY: optionalEnvironmentString(z.string()),
   DEEPSEEK_API_KEY: optionalEnvironmentString(z.string()),
+  STAGING_VERIFICATION_ENABLED: optionalEnvironmentString(z.string().regex(/^1$/)),
+  STAGING_VERIFICATION_PROJECT_ID: optionalEnvironmentString(z.string().uuid()),
+  STAGING_VERIFICATION_INSTALLATION_ID: optionalEnvironmentString(
+    z.string().regex(/^[1-9]\d*$/),
+  ),
+  STAGING_VERIFICATION_REPOSITORY: optionalEnvironmentString(
+    z.string().regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/),
+  ),
 };
 
 function addMissingGroupIssues(
@@ -150,6 +166,17 @@ export const environmentSchema = z
       context,
       ["INNGEST_EVENT_KEY", "INNGEST_SIGNING_KEY"],
       "incomplete_inngest_group",
+    );
+    addMissingGroupIssues(
+      environment,
+      context,
+      [
+        "STAGING_VERIFICATION_ENABLED",
+        "STAGING_VERIFICATION_PROJECT_ID",
+        "STAGING_VERIFICATION_INSTALLATION_ID",
+        "STAGING_VERIFICATION_REPOSITORY",
+      ],
+      "incomplete_staging_verification_group",
     );
   });
 

@@ -18,9 +18,11 @@ import { SupabaseProjectBriefGenerationPersistence } from "@/infrastructure/proj
 import { SupabaseProjectBriefAuthorizationGate } from "@/infrastructure/project-brief/supabase-project-brief-authorization-gate";
 import { SupabaseProjectFreshnessReader } from "@/infrastructure/synchronization/supabase-project-freshness-reader";
 import { parseServerEnvironment } from "@/shared/configuration/server-environment";
+import type { AIProvider } from "@/shared/ai/ai-provider";
 
 export async function createProjectBriefGenerationRouteDependencies(
   responseHeaders: Headers,
+  options: { readonly providerOverride?: AIProvider } = {},
 ) {
   const sessionClient = createSupabaseServerClient({
     environment: {
@@ -64,23 +66,24 @@ export async function createProjectBriefGenerationRouteDependencies(
         fingerprint,
       });
       const evidenceValidator = new ValidateProjectBriefEvidenceUseCase({ fingerprint });
-      const provider = new DeepSeekStructuredGenerationAdapter({
-        apiKey: environment.DEEPSEEK_API_KEY,
-        model: "deepseek-chat",
-        timeoutMs: 60_000,
-        fetcher: phase5ProviderUrl
-          ? (input, init) => {
-              const source =
-                typeof input === "string"
-                  ? input
-                  : input instanceof URL
-                    ? input.href
-                    : input.url;
-              const original = new URL(source);
-              return fetch(new URL(original.pathname, phase5ProviderUrl), init);
-            }
-          : undefined,
-      });
+      const provider = options.providerOverride ??
+        new DeepSeekStructuredGenerationAdapter({
+          apiKey: environment.DEEPSEEK_API_KEY,
+          model: "deepseek-chat",
+          timeoutMs: 60_000,
+          fetcher: phase5ProviderUrl
+            ? (input, init) => {
+                const source =
+                  typeof input === "string"
+                    ? input
+                    : input instanceof URL
+                      ? input.href
+                      : input.url;
+                const original = new URL(source);
+                return fetch(new URL(original.pathname, phase5ProviderUrl), init);
+              }
+            : undefined,
+        });
       return new GenerateProjectBriefUseCase({
         authorization: new SupabaseProjectBriefAuthorizationGate(
           sessionClient as ConstructorParameters<typeof SupabaseProjectBriefAuthorizationGate>[0],
