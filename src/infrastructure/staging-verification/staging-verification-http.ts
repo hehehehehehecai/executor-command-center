@@ -18,6 +18,7 @@ type BaseDependencies = {
   readonly request: Request;
   readonly appOrigin: string | undefined;
   readonly operation: StagingVerificationOperation;
+  readonly expectedProjectId: string;
   readonly getVerifiedUserId: () => Promise<string | null>;
   readonly authorize: (input: {
     readonly userId: string;
@@ -150,6 +151,9 @@ async function authenticate(
   input: BaseDependencies,
   body: z.infer<typeof bodySchema>,
 ) {
+  if (body.projectId !== input.expectedProjectId) {
+    throw new Error("staging_verification_forbidden");
+  }
   const userId = await input.getVerifiedUserId();
   if (!userId) throw new Error("staging_verification_unauthenticated");
   try {

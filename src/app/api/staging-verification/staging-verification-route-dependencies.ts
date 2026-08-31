@@ -10,6 +10,7 @@ import {
   assertStagingVerificationEnvironment,
   ConsumeStagingVerificationTicket,
   CreateStagingVerificationTicket,
+  type StagingVerificationTarget,
 } from "@/application/staging-verification/staging-verification";
 import {
   ProjectSyncRequestCoordinator,
@@ -99,12 +100,8 @@ export async function createStagingVerificationBoundary(responseHeaders: Headers
 export async function createStagingVerificationRuntime(input: {
   readonly userId: string;
   readonly responseHeaders: Headers;
-  readonly target: {
-    readonly projectId: string;
-    readonly installationId: number;
-    readonly repositoryId: number;
-    readonly repositoryFullName: string;
-  };
+  readonly target: StagingVerificationTarget;
+  readonly repositoryId: number;
 }) {
   const { environment } = configuredEnvironment();
   const clock = { now: () => new Date() };
@@ -165,7 +162,7 @@ export async function createStagingVerificationRuntime(input: {
   );
   const webhook = createGitHubWebhookIngestion();
   return new RunStagingVerification({
-    target: input.target,
+    target: { ...input.target, repositoryId: input.repositoryId },
     webhook,
     signWebhook: (body) =>
       `sha256=${createHmac("sha256", environment.GITHUB_WEBHOOK_SECRET!)

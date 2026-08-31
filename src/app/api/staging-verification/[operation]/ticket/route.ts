@@ -28,11 +28,12 @@ export async function POST(
       responseHeaders,
       appOrigin: dependencies.environment.APP_ORIGIN,
       operation,
+      expectedProjectId: dependencies.target.projectId,
       getVerifiedUserId: () => dependencies.session.getVerifiedUserId(),
-      authorize: async ({ userId, projectId }) => {
+      authorize: async ({ userId }) => {
         await dependencies.authorizer.assertTarget({
           userId,
-          expected: { ...dependencies.target, projectId },
+          expected: dependencies.target,
         });
       },
       issue: (input) => dependencies.issue.execute(input),

@@ -26,26 +26,31 @@ export async function POST(
   const responseHeaders = new Headers();
   try {
     const dependencies = await createStagingVerificationBoundary(responseHeaders);
-    let authorizedTarget: Awaited<ReturnType<typeof dependencies.authorizer.assertTarget>> | null = null;
+    let authorizedRepositoryId: number | null = null;
     return handleStagingVerificationExecution({
       request,
       responseHeaders,
       appOrigin: dependencies.environment.APP_ORIGIN,
       operation,
+      expectedProjectId: dependencies.target.projectId,
       getVerifiedUserId: () => dependencies.session.getVerifiedUserId(),
-      authorize: async ({ userId, projectId }) => {
-        authorizedTarget = await dependencies.authorizer.assertTarget({
+      authorize: async ({ userId }) => {
+        const authorizedTarget = await dependencies.authorizer.assertTarget({
           userId,
-          expected: { ...dependencies.target, projectId },
+          expected: dependencies.target,
         });
+        authorizedRepositoryId = authorizedTarget.repositoryId;
       },
       consume: (input) => dependencies.consume.execute(input),
       execute: async (input) => {
-        if (!authorizedTarget) throw new Error("staging_verification_forbidden");
+        if (authorizedRepositoryId === null) {
+          throw new Error("staging_verification_forbidden");
+        }
         const runtime = await createStagingVerificationRuntime({
           userId: input.userId,
           responseHeaders,
-          target: authorizedTarget,
+          target: dependencies.target,
+          repositoryId: authorizedRepositoryId,
         });
         return runtime.execute(input);
       },

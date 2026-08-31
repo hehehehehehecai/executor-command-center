@@ -1,4 +1,22 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const routeMocks = vi.hoisted(() => ({
+  createBoundary: vi.fn(),
+  createRuntime: vi.fn(),
+  getVerifiedUserId: vi.fn(),
+  assertTarget: vi.fn(),
+  issue: vi.fn(),
+  consume: vi.fn(),
+  execute: vi.fn(),
+}));
+
+vi.mock("@/app/api/staging-verification/staging-verification-route-dependencies", () => ({
+  createStagingVerificationBoundary: routeMocks.createBoundary,
+  createStagingVerificationRuntime: routeMocks.createRuntime,
+}));
+
+import { POST as executeRoute } from "@/app/api/staging-verification/[operation]/route";
+import { POST as issueRoute } from "@/app/api/staging-verification/[operation]/ticket/route";
 
 import {
   handleStagingVerificationExecution,
@@ -8,7 +26,8 @@ import {
 
 const origin = "https://staging.example.test";
 const userId = "11111111-1111-4111-8111-111111111111";
-const projectId = "22222222-2222-4222-8222-222222222222";
+const projectId = "e56ce489-4ad2-4490-975b-08e875ae81d3";
+const archivedProjectId = "22222222-2222-4222-8222-222222222222";
 const body = { projectId, caseId: "phase8-13-case-001" };
 
 function request(path: string, value: unknown = body, cookie?: string) {
@@ -47,6 +66,7 @@ describe("staging verification HTTP boundary", () => {
       request: request("/api/staging-verification/webhook-replay/ticket"),
       appOrigin: origin,
       operation: "webhook-replay",
+      expectedProjectId: projectId,
       getVerifiedUserId: async () => userId,
       authorize: vi.fn().mockResolvedValue(undefined),
       issue,
@@ -84,6 +104,7 @@ describe("staging verification HTTP boundary", () => {
       ]),
       appOrigin: origin,
       operation: "webhook-replay",
+      expectedProjectId: projectId,
       getVerifiedUserId: async () => userId,
       authorize: vi.fn().mockResolvedValue(undefined),
       issue,
@@ -109,6 +130,7 @@ describe("staging verification HTTP boundary", () => {
       ]),
       appOrigin: origin,
       operation: "webhook-replay",
+      expectedProjectId: projectId,
       getVerifiedUserId,
       authorize: vi.fn(),
       issue,
@@ -132,6 +154,7 @@ describe("staging verification HTTP boundary", () => {
       ),
       appOrigin: origin,
       operation: "reconciliation",
+      expectedProjectId: projectId,
       getVerifiedUserId: async () => userId,
       authorize: vi.fn().mockResolvedValue(undefined),
       consume,
@@ -160,6 +183,7 @@ describe("staging verification HTTP boundary", () => {
       request: form,
       appOrigin: origin,
       operation: "reconciliation",
+      expectedProjectId: projectId,
       getVerifiedUserId: async () => userId,
       authorize: vi.fn().mockResolvedValue(undefined),
       consume,
@@ -190,6 +214,7 @@ describe("staging verification HTTP boundary", () => {
       }),
       appOrigin: origin,
       operation: "webhook-replay",
+      expectedProjectId: projectId,
       getVerifiedUserId: async () => actor,
       authorize: vi.fn(),
       consume: vi.fn(),
@@ -209,6 +234,7 @@ describe("staging verification HTTP boundary", () => {
       ),
       appOrigin: origin,
       operation: "provider-failure-retry",
+      expectedProjectId: projectId,
       getVerifiedUserId: async () => userId,
       authorize: vi.fn().mockResolvedValue(undefined),
       consume: vi.fn().mockRejectedValue(new Error("private token details")),
@@ -230,6 +256,7 @@ describe("staging verification HTTP boundary", () => {
       ),
       appOrigin: origin,
       operation: "reconciliation",
+      expectedProjectId: projectId,
       getVerifiedUserId: async () => userId,
       authorize: vi.fn().mockResolvedValue(undefined),
       consume: vi.fn().mockResolvedValue(undefined),
@@ -240,5 +267,126 @@ describe("staging verification HTTP boundary", () => {
     expect(JSON.stringify(await response.json())).toBe(
       '{"error":{"code":"staging_verification_failed"}}',
     );
+  });
+});
+
+describe("staging verification route fixed-project binding", () => {
+  const configuredTarget = {
+    projectId,
+    installationId: 157171025,
+    repositoryFullName: "hecaitest1/executor-stage6-staging-fixture",
+  } as const;
+  const authorizedTarget = { ...configuredTarget, repositoryId: 1348250652 } as const;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    routeMocks.getVerifiedUserId.mockResolvedValue(userId);
+    routeMocks.assertTarget.mockResolvedValue(authorizedTarget);
+    routeMocks.issue.mockResolvedValue({
+      contractVersion: "staging-verification.v1",
+      rawToken: "a".repeat(43),
+      caseId: body.caseId,
+      projectId,
+      operation: "webhook-replay",
+    });
+    routeMocks.consume.mockResolvedValue(undefined);
+    routeMocks.execute.mockResolvedValue({ result: "completed", runId: "fixed-project-run" });
+    routeMocks.createRuntime.mockResolvedValue({ execute: routeMocks.execute });
+    routeMocks.createBoundary.mockResolvedValue({
+      environment: { APP_ORIGIN: origin },
+      target: configuredTarget,
+      session: { getVerifiedUserId: routeMocks.getVerifiedUserId },
+      authorizer: { assertTarget: routeMocks.assertTarget },
+      issue: { execute: routeMocks.issue },
+      consume: { execute: routeMocks.consume },
+    });
+  });
+
+  it("rejects an archived same-owner JSON ticket target before session, authorization, or issue", async () => {
+    const response = await issueRoute(
+      request(
+        "/api/staging-verification/webhook-replay/ticket",
+        { projectId: archivedProjectId, caseId: body.caseId },
+      ),
+      { params: Promise.resolve({ operation: "webhook-replay" }) },
+    );
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: { code: "staging_verification_forbidden" },
+    });
+    expect(routeMocks.getVerifiedUserId).not.toHaveBeenCalled();
+    expect(routeMocks.assertTarget).not.toHaveBeenCalled();
+    expect(routeMocks.issue).not.toHaveBeenCalled();
+  });
+
+  it("rejects an archived same-owner form execution before session, authorization, consume, or execute", async () => {
+    const input = formRequest("/api/staging-verification/reconciliation", [
+      ["projectId", archivedProjectId],
+      ["caseId", body.caseId],
+    ]);
+    input.headers.set("cookie", `${stagingVerificationCookieName}=${"b".repeat(43)}`);
+    const response = await executeRoute(input, {
+      params: Promise.resolve({ operation: "reconciliation" }),
+    });
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: { code: "staging_verification_forbidden" },
+    });
+    expect(routeMocks.getVerifiedUserId).not.toHaveBeenCalled();
+    expect(routeMocks.assertTarget).not.toHaveBeenCalled();
+    expect(routeMocks.consume).not.toHaveBeenCalled();
+    expect(routeMocks.createRuntime).not.toHaveBeenCalled();
+    expect(routeMocks.execute).not.toHaveBeenCalled();
+  });
+
+  it("issues a browser-form ticket only for the platform-fixed project target", async () => {
+    const response = await issueRoute(
+      formRequest("/api/staging-verification/webhook-replay/ticket", [
+        ["projectId", projectId],
+        ["caseId", body.caseId],
+      ]),
+      { params: Promise.resolve({ operation: "webhook-replay" }) },
+    );
+    expect(response.status).toBe(201);
+    expect(routeMocks.assertTarget).toHaveBeenCalledWith({
+      userId,
+      expected: configuredTarget,
+    });
+    expect(routeMocks.issue).toHaveBeenCalledWith({
+      userId,
+      projectId,
+      caseId: body.caseId,
+      operation: "webhook-replay",
+    });
+  });
+
+  it("consumes and executes JSON only with the platform-fixed runtime target", async () => {
+    const input = request(
+      "/api/staging-verification/reconciliation",
+      body,
+      `${stagingVerificationCookieName}=${"b".repeat(43)}`,
+    );
+    const response = await executeRoute(input, {
+      params: Promise.resolve({ operation: "reconciliation" }),
+    });
+    expect(response.status).toBe(200);
+    expect(routeMocks.assertTarget).toHaveBeenCalledWith({
+      userId,
+      expected: configuredTarget,
+    });
+    expect(routeMocks.consume).toHaveBeenCalledWith({
+      userId,
+      projectId,
+      caseId: body.caseId,
+      operation: "reconciliation",
+      rawToken: "b".repeat(43),
+    });
+    expect(routeMocks.createRuntime).toHaveBeenCalledWith({
+      userId,
+      responseHeaders: expect.any(Headers),
+      target: configuredTarget,
+      repositoryId: 1348250652,
+    });
+    expect(routeMocks.execute).toHaveBeenCalledOnce();
   });
 });
