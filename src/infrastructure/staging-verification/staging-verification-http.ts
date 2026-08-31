@@ -102,9 +102,7 @@ function assertOrigin(request: Request, appOrigin: string | undefined) {
 }
 
 async function parseBody(request: Request) {
-  if (request.headers.get("content-type")?.split(";")[0]?.trim() !== "application/json") {
-    throw new Error("staging_verification_request_invalid");
-  }
+  const contentType = request.headers.get("content-type")?.split(";")[0]?.trim();
   const declared = Number(request.headers.get("content-length") ?? "0");
   if (Number.isFinite(declared) && declared > maximumBodyBytes) {
     throw new Error("staging_verification_request_invalid");
@@ -114,7 +112,26 @@ async function parseBody(request: Request) {
     throw new Error("staging_verification_request_invalid");
   }
   try {
-    return bodySchema.parse(JSON.parse(text) as unknown);
+    if (contentType === "application/json") {
+      return bodySchema.parse(JSON.parse(text) as unknown);
+    }
+    if (contentType === "application/x-www-form-urlencoded") {
+      const form = new URLSearchParams(text);
+      const keys = [...form.keys()];
+      if (
+        keys.length !== 2
+        || form.getAll("projectId").length !== 1
+        || form.getAll("caseId").length !== 1
+        || keys.some((key) => key !== "projectId" && key !== "caseId")
+      ) {
+        throw new Error("staging_verification_request_invalid");
+      }
+      return bodySchema.parse({
+        projectId: form.get("projectId"),
+        caseId: form.get("caseId"),
+      });
+    }
+    throw new Error("staging_verification_request_invalid");
   } catch {
     throw new Error("staging_verification_request_invalid");
   }

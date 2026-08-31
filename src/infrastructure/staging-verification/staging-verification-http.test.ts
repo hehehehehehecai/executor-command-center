@@ -23,6 +23,17 @@ function request(path: string, value: unknown = body, cookie?: string) {
   });
 }
 
+function formRequest(path: string, entries: readonly (readonly [string, string])[]) {
+  return new Request(`${origin}${path}`, {
+    method: "POST",
+    headers: {
+      origin,
+      "content-type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams(entries.map(([key, value]) => [key, value])),
+  });
+}
+
 describe("staging verification HTTP boundary", () => {
   it("issues an HttpOnly Secure SameSite=Lax short-lived narrow-path cookie", async () => {
     const issue = vi.fn().mockResolvedValue({
@@ -58,6 +69,58 @@ describe("staging verification HTTP boundary", () => {
     expect(JSON.stringify(payload)).not.toContain("a".repeat(43));
   });
 
+  it("accepts a same-origin browser form without weakening ticket issuance", async () => {
+    const issue = vi.fn().mockResolvedValue({
+      contractVersion: "staging-verification.v1",
+      rawToken: "f".repeat(43),
+      caseId: body.caseId,
+      projectId,
+      operation: "webhook-replay",
+    });
+    const response = await handleStagingVerificationTicketIssue({
+      request: formRequest("/api/staging-verification/webhook-replay/ticket", [
+        ["projectId", projectId],
+        ["caseId", body.caseId],
+      ]),
+      appOrigin: origin,
+      operation: "webhook-replay",
+      getVerifiedUserId: async () => userId,
+      authorize: vi.fn().mockResolvedValue(undefined),
+      issue,
+    });
+    expect(response.status).toBe(201);
+    expect(response.headers.get("set-cookie")).toContain("HttpOnly");
+    expect(issue).toHaveBeenCalledWith({
+      userId,
+      projectId,
+      caseId: body.caseId,
+      operation: "webhook-replay",
+    });
+  });
+
+  it("rejects duplicate browser form fields before authentication or persistence", async () => {
+    const getVerifiedUserId = vi.fn();
+    const issue = vi.fn();
+    const response = await handleStagingVerificationTicketIssue({
+      request: formRequest("/api/staging-verification/webhook-replay/ticket", [
+        ["projectId", projectId],
+        ["projectId", "33333333-3333-4333-8333-333333333333"],
+        ["caseId", body.caseId],
+      ]),
+      appOrigin: origin,
+      operation: "webhook-replay",
+      getVerifiedUserId,
+      authorize: vi.fn(),
+      issue,
+    });
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: { code: "staging_verification_request_invalid" },
+    });
+    expect(getVerifiedUserId).not.toHaveBeenCalled();
+    expect(issue).not.toHaveBeenCalled();
+  });
+
   it("consumes the cookie, clears it on success, and exposes only low-sensitive evidence", async () => {
     const consume = vi.fn().mockResolvedValue({ caseId: body.caseId, projectId, operation: "reconciliation" });
     const execute = vi.fn().mockResolvedValue({ result: "completed", runId: "low-sensitive-run-id" });
@@ -81,6 +144,35 @@ describe("staging verification HTTP boundary", () => {
       caseId: body.caseId,
       operation: "reconciliation",
       evidence: { result: "completed", runId: "low-sensitive-run-id" },
+    });
+    expect(execute).toHaveBeenCalledOnce();
+  });
+
+  it("executes from a same-origin browser form while preserving one-time cookie consumption", async () => {
+    const consume = vi.fn().mockResolvedValue(undefined);
+    const execute = vi.fn().mockResolvedValue({ result: "completed", runId: "form-run-id" });
+    const form = formRequest("/api/staging-verification/reconciliation", [
+      ["projectId", projectId],
+      ["caseId", body.caseId],
+    ]);
+    form.headers.set("cookie", `${stagingVerificationCookieName}=${"e".repeat(43)}`);
+    const response = await handleStagingVerificationExecution({
+      request: form,
+      appOrigin: origin,
+      operation: "reconciliation",
+      getVerifiedUserId: async () => userId,
+      authorize: vi.fn().mockResolvedValue(undefined),
+      consume,
+      execute,
+    });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("set-cookie")).toContain("Max-Age=0");
+    expect(consume).toHaveBeenCalledWith({
+      userId,
+      projectId,
+      caseId: body.caseId,
+      operation: "reconciliation",
+      rawToken: "e".repeat(43),
     });
     expect(execute).toHaveBeenCalledOnce();
   });
