@@ -32,11 +32,14 @@ import { SupabaseStagingVerificationTargetAuthorizer } from "@/infrastructure/st
 import { createGitHubWebhookIngestion } from "@/app/api/github/webhook/webhook-route-dependencies";
 import { createProjectBriefGenerationRouteDependencies } from "@/app/api/projects/[projectId]/briefs/generate/project-brief-generation-route-dependencies";
 import type { AIProvider } from "@/shared/ai/ai-provider";
-import { providerStructuredGenerationFailure } from "@/shared/ai/structured-generation-result";
+import {
+  providerStructuredGenerationFailure,
+  type StructuredGenerationResult,
+} from "@/shared/ai/structured-generation-result";
 import { parseServerEnvironment } from "@/shared/configuration/server-environment";
 
 const controlledFailureProvider: AIProvider = {
-  async generateStructured<T>() {
+  async generateStructured<T>(): Promise<StructuredGenerationResult<T>> {
     return providerStructuredGenerationFailure({
       reasonCode: "unavailable",
       metadata: {
