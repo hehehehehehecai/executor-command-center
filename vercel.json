@@ -1,9 +1,0 @@
-{
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "env": {
-    "STAGING_VERIFICATION_ENABLED": "1",
-    "STAGING_VERIFICATION_PROJECT_ID": "e56ce489-4ad2-4490-975b-08e875ae81d3",
-    "STAGING_VERIFICATION_INSTALLATION_ID": "157171025",
-    "STAGING_VERIFICATION_REPOSITORY": "hecaitest1/executor-stage6-staging-fixture"
-  }
-}
