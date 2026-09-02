@@ -84,6 +84,7 @@ type RuntimeObservation = {
   pageErrors: string[];
   requestFailures: string[];
   nonLocalRequests: string[];
+  expectedNavigationAbortPaths: Set<string>;
 };
 
 const runtimeObservations = new WeakMap<Page, RuntimeObservation>();
@@ -94,6 +95,7 @@ test.beforeEach(async ({ page }) => {
     pageErrors: [],
     requestFailures: [],
     nonLocalRequests: [],
+    expectedNavigationAbortPaths: new Set<string>(),
   };
   runtimeObservations.set(page, observation);
   page.on("console", (message) => {
@@ -104,7 +106,9 @@ test.beforeEach(async ({ page }) => {
     const url = new URL(request.url());
     const errorText = request.failure()?.errorText ?? "unknown";
     const isExpectedNavigationAbort =
-      errorText === "net::ERR_ABORTED" && url.pathname.startsWith("/__nextjs_font/");
+      errorText === "net::ERR_ABORTED" &&
+      (url.pathname.startsWith("/__nextjs_font/") ||
+        observation.expectedNavigationAbortPaths.has(url.pathname));
     if (!isExpectedNavigationAbort) {
       observation.requestFailures.push(`${request.url()}:${errorText}`);
     }
@@ -287,6 +291,7 @@ test("A11Y-CONFIRM-02 contains account deletion focus and background interaction
     await expect(dialog).toBeHidden();
     await expect(trigger).toBeFocused();
     // Unmount the account-status reader before fixture cleanup revokes this synthetic session.
+    runtimeObservations.get(page)?.expectedNavigationAbortPaths.add("/api/account-deletion");
     await page.goto("/");
   } finally {
     await cleanupPhase5Identity(identity);

@@ -93,4 +93,6 @@ CI run `33610046192` 在 `Run authenticated fixture end-to-end tests` 失败，�
 
 日志证明失败发生在夹具 cleanup：浏览器中仍挂载 `AccountDeletionPanel`，而 cleanup 已移除该合成身份，面板的账户状态读取收到 `401`，被全局 console-error 门禁正确捕获。该 401 不是正常用户界面可忽略项，也不应以放宽断言隐藏。最小修复为测试在 cleanup 前导航回首页，从而卸载账户状态 reader；没有改变账户删除 API、身份状态机或任何生产授权。typecheck 与 lint 均重新通过；本机 Docker Desktop 后端当时不可用，因此不把本地 accessibility 重跑记为通过，最终证据以新的 exact-head CI 为准。Staging、Vercel alias、Production 与 Phase 8.13 三组业务 harness 均仍未移动或重放。
 
+随后 CI run `33614586829` 再次证明 401 已消失，但保留了导航卸载产生的 `net::ERR_ABORTED`。该错误只发生在 `A11Y-CONFIRM-02` 的已知 teardown 路径，且原有全局记录器仅排除了字体导航中断。补充的最小测试基础设施将预期中断严格限定为该单个用例登记的 `/api/account-deletion`；任何其他路径、任何 console error、page error 或非本地请求仍为失败。该变更未减少用例数量、未改生产代码与权限边界；typecheck、lint 再次通过，新的 CI 是唯一的完整 GREEN 证据。
+
 <!-- EXECUTION_REPORT_COMPLETE -->
