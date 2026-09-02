@@ -42,7 +42,9 @@ test("completes synthetic GitHub sign-in, restores the session, and grants no re
   ).toBeVisible();
 
   await page.goto("/");
-  await page.getByRole("link", { name: "使用 GitHub 登录" }).click();
+  await expect(page.getByText("GitHub 身份已登录", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "使用 GitHub 登录" })).toHaveCount(0);
+  await page.getByRole("link", { name: "查看 GitHub App 状态" }).click();
   await expect(page).toHaveURL("http://127.0.0.1:3000/onboarding");
 
   const fixtureStateResponse = await request.get(
@@ -61,7 +63,7 @@ test("completes synthetic GitHub sign-in, restores the session, and grants no re
     installation_created: false,
     repository_access: "none",
     internal_user_count: 1,
-    identity_ensure_calls: 2,
+    identity_ensure_calls: 1,
   });
   expect(externalRequests).toEqual([]);
 });

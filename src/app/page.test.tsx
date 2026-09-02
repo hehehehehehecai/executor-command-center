@@ -3,10 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   getUser: vi.fn(),
+  getAll: vi.fn(),
 }));
 
 vi.mock("next/headers", () => ({
-  cookies: vi.fn(async () => ({ getAll: () => [], set: vi.fn() })),
+  cookies: vi.fn(async () => ({ getAll: mocks.getAll, set: vi.fn() })),
 }));
 
 vi.mock("@/infrastructure/auth/supabase-server-client", () => ({
@@ -27,6 +28,7 @@ import Home from "./page";
 describe("Home", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.getAll.mockReturnValue([]);
   });
 
   afterEach(cleanup);
@@ -42,6 +44,9 @@ describe("Home", () => {
   });
 
   it("renders an authenticated identity state instead of the login primary action", async () => {
+    mocks.getAll.mockReturnValue([
+      { name: "sb-fixture-auth-token", value: "fixture-only" },
+    ]);
     mocks.getUser.mockResolvedValue({
       data: { user: { id: "11111111-1111-4111-8111-111111111111" } },
       error: null,
@@ -52,5 +57,17 @@ describe("Home", () => {
     expect(screen.getByText("GitHub 身份已登录")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "使用 GitHub 登录" }))
       .not.toBeInTheDocument();
+  });
+
+  it("keeps the login action when no Supabase session cookie exists", async () => {
+    mocks.getUser.mockResolvedValue({
+      data: { user: { id: "11111111-1111-4111-8111-111111111111" } },
+      error: null,
+    });
+
+    render(await Home());
+
+    expect(screen.getByRole("link", { name: "使用 GitHub 登录" })).toBeInTheDocument();
+    expect(mocks.getUser).not.toHaveBeenCalled();
   });
 });

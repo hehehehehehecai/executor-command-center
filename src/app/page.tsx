@@ -6,12 +6,22 @@ import { parseServerEnvironment } from "@/shared/configuration/server-environmen
 
 export const dynamic = "force-dynamic";
 
+function hasSupabaseSessionCookie(
+  cookieStore: Awaited<ReturnType<typeof cookies>>,
+): boolean {
+  return cookieStore
+    .getAll()
+    .some(({ name }) => /^sb-.+-auth-token(?:\.\d+)?$/.test(name));
+}
+
 async function hasVerifiedSession(): Promise<boolean> {
   try {
     const environment = parseServerEnvironment(process.env);
+    const cookieStore = await cookies();
+    if (!hasSupabaseSessionCookie(cookieStore)) return false;
     const client = createSupabaseServerClient({
       environment,
-      cookieStore: await cookies(),
+      cookieStore,
       responseHeaders: new Headers(),
     });
     const { data, error } = await client.auth.getUser();
