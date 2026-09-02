@@ -170,4 +170,23 @@ describe("POST /api/projects/{projectId}/briefs/generate", () => {
     expect(serialized).toContain(code);
     expect(serialized).not.toContain("private details");
   });
+
+  it("fails closed for a revoked installation without returning a Brief or invocation", async () => {
+    mocks.execute.mockRejectedValueOnce(
+      Object.assign(new Error("private authorization detail"), {
+        code: "project_brief_authorization_failed",
+      }),
+    );
+
+    const response = await POST(request(body), {
+      params: Promise.resolve({ projectId: syntheticBriefProjectId }),
+    });
+
+    expect(response.status).toBe(403);
+    const payload = await response.json();
+    expect(payload).toMatchObject({
+      error: { code: "project_brief_authorization_failed" },
+    });
+    expect(JSON.stringify(payload)).not.toContain("private authorization detail");
+  });
 });

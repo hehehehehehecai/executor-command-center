@@ -69,4 +69,18 @@ describe("POST /api/projects/{projectId}/first-sync", () => {
     expect(response.headers.get("vary")).toContain("Cookie");
     expect(response.headers.get("vary")).toContain("Origin");
   });
+
+  it("serializes a revoked installation before exposing a run or job receipt", async () => {
+    mocks.execute.mockRejectedValueOnce(new Error("first_sync_authorization_revoked"));
+
+    const response = await POST(request(), { params: Promise.resolve({ projectId }) });
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      result: "failed",
+      code: "first_sync_authorization_revoked",
+      syncRunId: null,
+      jobId: null,
+    });
+  });
 });

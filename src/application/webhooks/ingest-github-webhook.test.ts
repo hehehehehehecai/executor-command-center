@@ -92,4 +92,17 @@ describe("github-webhook-ingestion.v1", () => {
     await expect(f.useCase.execute({ ...request(body), eventName: "installation" })).resolves.toMatchObject({ result: "accepted" });
     expect(f.repository.completeInstallation).toHaveBeenCalledWith({ deliveryId, expectedVersion: 1, installationState: "revoked", completedAt: now }); expect(f.dispatcher.dispatch).not.toHaveBeenCalled();
   });
+
+  it("treats a completed installation.deleted redelivery as a no-op", async () => {
+    const f = fixture({
+      registration: { outcome: "duplicate", status: "completed", version: 2, projectId: null },
+    });
+    const body = encoder.encode(JSON.stringify({ action: "deleted", installation: { id: 81_001 } }));
+
+    await expect(f.useCase.execute({ ...request(body), eventName: "installation" }))
+      .resolves.toEqual({ result: "duplicate", code: "github_webhook_duplicate", httpStatus: 200 });
+
+    expect(f.repository.completeInstallation).not.toHaveBeenCalled();
+    expect(f.dispatcher.dispatch).not.toHaveBeenCalled();
+  });
 });

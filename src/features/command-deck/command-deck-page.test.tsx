@@ -62,6 +62,16 @@ describe("CommandDeckPage", () => {
       .toBeInTheDocument();
   });
 
+  it("keeps an authenticated identity distinct from GitHub App authorization", () => {
+    render(<CommandDeckPage authenticated />);
+
+    expect(screen.getByText("GitHub 身份已登录")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "查看 GitHub App 状态" }))
+      .toHaveAttribute("href", "/onboarding");
+    expect(screen.queryByRole("link", { name: "使用 GitHub 登录" }))
+      .not.toBeInTheDocument();
+  });
+
   it("discloses the fictional preview and fixture version", () => {
     render(<CommandDeckPage />);
 

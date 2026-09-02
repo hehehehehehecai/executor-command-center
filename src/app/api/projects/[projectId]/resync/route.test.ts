@@ -127,4 +127,29 @@ describe("POST /api/projects/{projectId}/resync", () => {
     expect(response.headers.get("vary")).toContain("Cookie");
     expect(response.headers.get("vary")).toContain("Origin");
   });
+
+  it("returns the revoked authorization result without a SyncRun identifier", async () => {
+    mocks.execute.mockResolvedValueOnce({
+      result: "authorization_revoked",
+      code: "manual_resync_authorization_revoked",
+      syncRunId: null,
+      providerJobId: null,
+    });
+
+    const response = await POST(
+      new Request("https://executor.example.test/api/projects/x/resync", {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: "https://executor.example.test" },
+        body: JSON.stringify({ requestId: "manual-request-revoked" }),
+      }),
+      { params: Promise.resolve({ projectId: "11111111-1111-4111-8111-111111111111" }) },
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      result: "authorization_revoked",
+      code: "manual_resync_authorization_revoked",
+      syncRunId: null,
+    });
+  });
 });

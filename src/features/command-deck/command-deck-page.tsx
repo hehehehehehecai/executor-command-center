@@ -6,7 +6,7 @@ import { featureRegistry } from "@/shared/features/feature-registry";
 
 import { CommandDeckNavigation } from "./command-deck-navigation";
 
-export function CommandDeckPage() {
+export function CommandDeckPage(input: { readonly authenticated?: boolean } = {}) {
   const { project } = commandDeckPreviewFixture;
 
   return (
@@ -24,7 +24,16 @@ export function CommandDeckPage() {
             演示数据版本 {commandDeckPreviewFixture.fixtureVersion}
           </span>
         </div>
-        <GitHubSignInLink />
+        {input.authenticated ? (
+          <aside className="auth-entry" aria-label="GitHub 身份登录">
+            <strong>GitHub 身份已登录</strong>
+            <Link className="auth-entry-link" href="/onboarding">
+              查看 GitHub App 状态
+            </Link>
+          </aside>
+        ) : (
+          <GitHubSignInLink />
+        )}
       </header>
 
       <main id="main-content" tabIndex={-1}>
