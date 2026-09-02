@@ -87,4 +87,10 @@ CI run `33610046192` 在 `Run authenticated fixture end-to-end tests` 失败，�
 
 该最小修复尚待创建第二个正确作者本地提交并重跑 PR CI；在该 CI 成功前，staging ref、原生 Preview deployment 与 stable alias 均保持不变。Production、main merge、Tag、Release 和 Phase 9 均为 `0`。
 
+## CI 复跑中的可访问性夹具清理修复
+
+第二个修复提交 `1c3f402b47d6cabad98e7116e86aca1f7cf8535a` 已以正确作者推送至既有 feature，GitHub API author/committer login 均为 `hehehehehehecai`。CI run `33613185915` 通过环境、Secret/audit、安全合同、lint、typecheck、全量 unit、数据库、integration、local/core/authenticated/connected E2E；其后仅在 Phase 6 accessibility 的 `A11Y-CONFIRM-02` 失败，`8/9`。
+
+日志证明失败发生在夹具 cleanup：浏览器中仍挂载 `AccountDeletionPanel`，而 cleanup 已移除该合成身份，面板的账户状态读取收到 `401`，被全局 console-error 门禁正确捕获。该 401 不是正常用户界面可忽略项，也不应以放宽断言隐藏。最小修复为测试在 cleanup 前导航回首页，从而卸载账户状态 reader；没有改变账户删除 API、身份状态机或任何生产授权。typecheck 与 lint 均重新通过；本机 Docker Desktop 后端当时不可用，因此不把本地 accessibility 重跑记为通过，最终证据以新的 exact-head CI 为准。Staging、Vercel alias、Production 与 Phase 8.13 三组业务 harness 均仍未移动或重放。
+
 <!-- EXECUTION_REPORT_COMPLETE -->

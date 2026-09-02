@@ -286,6 +286,8 @@ test("A11Y-CONFIRM-02 contains account deletion focus and background interaction
     await page.keyboard.press("Escape");
     await expect(dialog).toBeHidden();
     await expect(trigger).toBeFocused();
+    // Unmount the account-status reader before fixture cleanup revokes this synthetic session.
+    await page.goto("/");
   } finally {
     await cleanupPhase5Identity(identity);
   }
