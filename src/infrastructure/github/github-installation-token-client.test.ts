@@ -10,6 +10,14 @@ import {
 import { GitHubAuthorizedRepositoryGatewayAdapter } from "./github-authorized-repository-gateway";
 
 const now = new Date("2026-07-27T05:30:00.000Z");
+const activityReadPermissions = {
+  metadata: "read",
+  contents: "read",
+  issues: "read",
+  pull_requests: "read",
+  actions: "read",
+  checks: "read",
+} as const;
 
 function createClient(
   fetcher: typeof fetch,
@@ -87,6 +95,94 @@ describe("github-installation-access-token.v1", () => {
     expect(String(init?.body)).not.toMatch(
       /repositories|repository_ids/,
     );
+  });
+
+  it("creates an activity-read token with the exact six read permissions", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          token: "synthetic-activity-token",
+          expires_at: "2026-07-27T06:30:00.000Z",
+          repository_selection: "selected",
+          permissions: activityReadPermissions,
+        }),
+        { status: 201 },
+      ),
+    );
+
+    await expect(
+      createClient(fetcher).createActivity(81001),
+    ).resolves.toEqual({
+      token: "synthetic-activity-token",
+      expiresAt: "2026-07-27T06:30:00.000Z",
+      repositorySelection: "selected",
+    });
+
+    const [, init] = fetcher.mock.calls[0]!;
+    const requestBody = JSON.parse(String(init?.body));
+    expect(requestBody).toEqual({
+      permissions: activityReadPermissions,
+    });
+    expect(requestBody).not.toHaveProperty("repositories");
+    expect(requestBody).not.toHaveProperty("repository_ids");
+    expect(JSON.stringify(requestBody)).not.toMatch(/"write"/);
+  });
+
+  it.each(Object.keys(activityReadPermissions))(
+    "rejects an activity token response missing required %s permission without exposing its token",
+    async (missingPermission) => {
+      const permissions = { ...activityReadPermissions };
+      delete permissions[
+        missingPermission as keyof typeof permissions
+      ];
+      const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            token: "must-not-leak-activity-token",
+            expires_at: "2026-07-27T06:30:00.000Z",
+            repository_selection: "selected",
+            permissions,
+          }),
+          { status: 201 },
+        ),
+      );
+
+      const error = await createClient(fetcher)
+        .createActivity(81001)
+        .catch((caught: unknown) => caught);
+
+      expect(error).toEqual(
+        new Error("github_installation_token_invalid_response"),
+      );
+      expect(String(error)).not.toContain(
+        "must-not-leak-activity-token",
+      );
+    },
+  );
+
+  it("rejects an activity token response that upgrades a required permission to write", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          token: "must-not-leak-write-token",
+          expires_at: "2026-07-27T06:30:00.000Z",
+          repository_selection: "selected",
+          permissions: {
+            ...activityReadPermissions,
+            contents: "write",
+          },
+        }),
+        { status: 201 },
+      ),
+    );
+
+    const error = await createClient(fetcher)
+      .createActivity(81001)
+      .catch((caught: unknown) => caught);
+    expect(error).toEqual(
+      new Error("github_installation_token_invalid_response"),
+    );
+    expect(String(error)).not.toContain("must-not-leak-write-token");
   });
 
   it.each([200, 202, 204])(

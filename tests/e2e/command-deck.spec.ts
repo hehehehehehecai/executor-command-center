@@ -18,7 +18,7 @@ test("shows the fictional Command Deck without non-local requests at narrow widt
     }
   });
 
-  await page.setViewportSize({ width: 390, height: 844 });
+  await page.setViewportSize({ width: 360, height: 800 });
   await page.goto("/");
   await page.waitForLoadState("networkidle");
 
@@ -32,8 +32,17 @@ test("shows the fictional Command Deck without non-local requests at narrow widt
   await expect(
     page.getByRole("heading", { level: 2, name: "Command Deck" }),
   ).toBeVisible();
-  await expect(page.getByText("演示数据 · 完全虚构")).toBeVisible();
-  await expect(page.getByText("演示数据版本 1.0.0")).toBeVisible();
+  const navigationTrigger = page.getByRole("button", { name: "打开主导航" });
+  await expect(navigationTrigger).toBeVisible();
+  await expect(navigationTrigger).toHaveAttribute("aria-expanded", "false");
+  await expect(
+    page.getByRole("navigation", { name: "桌面主导航" }),
+  ).toBeHidden();
+  const previewContract = page.getByLabel("Preview 数据说明");
+  await expect(
+    previewContract.getByText("演示数据 · 完全虚构"),
+  ).toBeVisible();
+  await expect(previewContract.getByText("演示数据版本 1.1.0")).toBeVisible();
 
   const panels = page.getByRole("article");
   const links = page.getByRole("link", { name: /^打开.+演示入口$/ });
@@ -58,6 +67,51 @@ test("shows the fictional Command Deck without non-local requests at narrow widt
     ).toHaveAttribute("href", feature.route);
   }
 
+  await navigationTrigger.click();
+  await expect(navigationTrigger).toHaveAttribute("aria-expanded", "true");
+
+  const mobileNavigation = page.getByRole("navigation", {
+    name: "移动主导航",
+  });
+  await expect(mobileNavigation).toBeVisible();
+
+  for (const feature of featureRegistry) {
+    await expect(
+      mobileNavigation.getByRole("link", {
+        name: `${feature.title} ${feature.subtitle}`,
+      }),
+    ).toHaveAttribute("href", feature.route);
+  }
+
+  await page.keyboard.press("Escape");
+  await expect(mobileNavigation).toBeHidden();
+  await expect(navigationTrigger).toHaveAttribute("aria-expanded", "false");
+  await expect(navigationTrigger).toBeFocused();
+
+  const mobileFlow = await page.evaluate(() => {
+    const workspace = document.querySelector<HTMLElement>(".workspace-main");
+    const inspector = document.querySelector<HTMLElement>(".workspace-inspector");
+    const cards = Array.from(
+      document.querySelectorAll<HTMLElement>(".command-panel"),
+    );
+
+    if (!workspace || !inspector || cards.length !== 5) {
+      return false;
+    }
+
+    return (
+      workspace.getBoundingClientRect().top < inspector.getBoundingClientRect().top &&
+      cards.every(
+        (card, index) =>
+          index === 0 ||
+          cards[index - 1].getBoundingClientRect().top <
+            card.getBoundingClientRect().top,
+      )
+    );
+  });
+
+  expect(mobileFlow).toBe(true);
+
   await expect(
     page.getByText(/请登录|登录后|连接成功|同步成功|Connected Mode/i),
   ).toHaveCount(0);
@@ -71,4 +125,61 @@ test("shows the fictional Command Deck without non-local requests at narrow widt
 
   expect(hasHorizontalOverflow).toBe(false);
   expect(nonLocalRequests).toEqual([]);
+});
+
+test("renders the Command Deck as a three-column workspace at desktop width", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/");
+
+  const desktopNavigation = page.getByRole("navigation", {
+    name: "桌面主导航",
+  });
+  const workspace = page.getByRole("region", { name: "Command Deck 工作区" });
+  const inspector = page.getByRole("complementary", { name: "舰桥上下文" });
+
+  await expect(desktopNavigation).toBeVisible();
+  await expect(workspace).toBeVisible();
+  await expect(inspector).toBeVisible();
+  await expect(page.getByRole("button", { name: "打开主导航" })).toBeHidden();
+
+  const columnOrder = await page.evaluate(() => {
+    const navigation = document.querySelector<HTMLElement>(
+      ".workspace-navigation",
+    );
+    const workspace = document.querySelector<HTMLElement>(".workspace-main");
+    const inspector = document.querySelector<HTMLElement>(".workspace-inspector");
+
+    if (!navigation || !workspace || !inspector) {
+      return false;
+    }
+
+    const navigationBox = navigation.getBoundingClientRect();
+    const workspaceBox = workspace.getBoundingClientRect();
+    const inspectorBox = inspector.getBoundingClientRect();
+
+    return navigationBox.left < workspaceBox.left && workspaceBox.left < inspectorBox.left;
+  });
+
+  expect(columnOrder).toBe(true);
+});
+
+test("keeps overview cards in one vertical column across the drawer breakpoint", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 768, height: 900 });
+  await page.goto("/");
+
+  await expect(page.getByRole("button", { name: "打开主导航" })).toBeVisible();
+
+  const cardTops = await page
+    .locator(".command-panel")
+    .evaluateAll((cards) =>
+      cards.map((card) => (card as HTMLElement).getBoundingClientRect().top),
+    );
+
+  expect(cardTops).toHaveLength(5);
+  expect(cardTops.every((top, index) => index === 0 || cardTops[index - 1] < top))
+    .toBe(true);
 });

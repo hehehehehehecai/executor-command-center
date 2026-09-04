@@ -1,0 +1,218 @@
+{
+  "recordType": "stage3-phase9-pre-run-freeze",
+  "recordedAt": "2026-08-07T03:06:53.902Z",
+  "freezeOutcome": "BLOCKED_PRE_REMOTE_WRITE",
+  "batchId": "explorer-stage3-phase9-staging-smoke-83ed2e65",
+  "promptInstanceId": "explorer-stage3-phase9-synchronization-smoke-83ed2e65",
+  "authorization": {
+    "policy": "workflow-authorization.v1",
+    "envelopeId": "workflow-authorization.v1:83ed2e65f3979c22",
+    "humanOperationId": "sha256:0823e09f1d640214d7e85af222aba03aefd78da4d7f0a49f068831759870e17e",
+    "sourceReviewTicket": "sha256:57b561adaa69e8d6e534c09ba7f2c29b666268b707d61b9d51f86f964f1e686a",
+    "planVersion": "fe5902"
+  },
+  "runId": "stage3-phase9-smoke-20260807T030405Z-d4f551a1",
+  "baseline": {
+    "branch": "feature/stage3-phase8-data-freshness-ui",
+    "commit": "223ba41333d029940aeba6cf5f7524e42bfeaadc",
+    "tree": "d058e1ab44a3193023dba140802a8ad5dbc97ed4",
+    "parent": "4c80e9cd5b383c7a85fb0c5cde55a6d404c7c42f",
+    "worktree": "clean",
+    "origin": "github.com/hehehehehehecai/executor-command-center",
+    "originDefaultBranch": "main",
+    "originDefaultHead": "01abfef14effbfd7e61aa370b254ad34d4182134",
+    "aheadOfOriginDefault": 20,
+    "behindOriginDefault": 0
+  },
+  "testRepository": {
+    "id": 1322569219,
+    "owner": "hehehehehehecai",
+    "name": "explorer-staging-private-test-20260804",
+    "fullName": "hehehehehehecai/explorer-staging-private-test-20260804",
+    "visibility": "private",
+    "defaultBranch": "main",
+    "defaultHead": "4107e7210f5ae10920e5341d18d0cdd4565fb983",
+    "initialBranches": 1,
+    "initialIssues": 0,
+    "initialPullRequests": 0,
+    "initialReleases": 0,
+    "initialWorkflows": 0,
+    "runIdCollisionCounts": {
+      "issues": 0,
+      "code": 0,
+      "branches": 0
+    }
+  },
+  "stagingAssets": {
+    "vercel": {
+      "accountId": "team_IDGruFjuEZmy1dJRsg0RYkKf",
+      "projectId": "prj_vRfWcuvLYn240SSuKyNH0g4ShpW8",
+      "projectName": "executor-command-center",
+      "plan": "hobby",
+      "productionBranch": "main",
+      "environmentType": "branch-specific-preview-required",
+      "customEnvironmentCount": 0,
+      "stagingDeploymentCount": 0,
+      "stagingPreviewEnvironmentVariableCount": 0
+    },
+    "supabase": {
+      "projectId": "gsnuorsqdcdszjxtymhs",
+      "projectName": "executor-command-center-staging",
+      "organizationId": "xhbwmolvyznduecaraot",
+      "region": "ap-northeast-2",
+      "status": "ACTIVE_HEALTHY",
+      "linked": true,
+      "localMigrationCount": 14,
+      "remoteMigrationCount": 9,
+      "missingRemoteMigrations": [
+        "20260805181000",
+        "20260805190000",
+        "20260806100000",
+        "20260806123000",
+        "20260806153000"
+      ]
+    },
+    "githubApp": {
+      "appId": null,
+      "appSlug": null,
+      "installationId": null,
+      "exclusiveTestRepositoryCoverageVerified": false,
+      "eventSubscriptionsVerified": false,
+      "auditResult": "GitHub user token cannot access App-JWT-only installation metadata; no user-visible installation could be enumerated for the test repository."
+    },
+    "inngest": {
+      "environmentId": null,
+      "eventKeyConfiguredForStagingBranch": false,
+      "signingKeyConfiguredForStagingBranch": false,
+      "receivingEndpointPresentInRepository": false,
+      "consumerFunctionCount": 0
+    }
+  },
+  "reconciliationEntrypoint": {
+    "contract": "reconciliation-schedule.v1",
+    "applicationUseCasePresent": true,
+    "adapterPresent": true,
+    "adapterProductionReferenceCount": 0,
+    "deployableCronOrSchedulerRoutePresent": false,
+    "inngestFunctionPresent": false,
+    "status": "missing"
+  },
+  "blockers": [
+    {
+      "code": "phase9_daily_reconciliation_entrypoint_missing",
+      "classification": "product_capability_missing",
+      "exitCriteriaImpact": "A real Daily Reconciliation run cannot be triggered or proven without modifying prohibited Phase 1-8.1.2 product code."
+    },
+    {
+      "code": "phase9_inngest_consumer_missing",
+      "classification": "product_capability_missing",
+      "exitCriteriaImpact": "Provider events can be sent but no deployed consumer exists to execute synchronization jobs."
+    },
+    {
+      "code": "phase9_staging_database_schema_incomplete",
+      "classification": "staging_environment_incomplete",
+      "exitCriteriaImpact": "The linked staging database lacks five synchronization migrations, including snapshots, SyncRun, first-sync support, webhook inbox and reconciliation."
+    },
+    {
+      "code": "phase9_staging_github_app_isolation_unverified",
+      "classification": "staging_identity_unverified",
+      "exitCriteriaImpact": "Exclusive installation scope and required event subscriptions cannot be proven before the authorized webhook-disable case."
+    },
+    {
+      "code": "phase9_staging_preview_configuration_missing",
+      "classification": "staging_environment_incomplete",
+      "exitCriteriaImpact": "No staging deployment or staging-branch Preview environment variables exist."
+    }
+  ],
+  "contracts": {
+    "snapshots": "github-activity-snapshots.v1",
+    "synchronizationState": "synchronization-state.v1",
+    "syncRuns": "sync-runs.v1",
+    "webhookSignature": "github-webhook-signature.v1",
+    "webhookDelivery": "github-webhook-delivery.v1",
+    "webhookEvent": "github-webhook-event.v1",
+    "webhookIngestion": "github-webhook-ingestion.v1",
+    "webhookDispatcher": "github-webhook-dispatcher.v1",
+    "repositoryReconciliation": "repository-reconciliation.v1",
+    "reconciliationSchedule": "reconciliation-schedule.v1",
+    "manualResync": "manual-resync.v1",
+    "freshness": "freshness-status.v1",
+    "freshnessUi": "project-data-freshness-ui.v1"
+  },
+  "eligibleDenominators": {
+    "normalEvents": 5,
+    "completeLineageEvents": 5,
+    "duplicateReplay": 1,
+    "missedWebhookReconciliation": 1,
+    "freshnessFinalAccuracy": 1,
+    "deploymentVersionBinding": 1,
+    "newRequiredSkipped": 0
+  },
+  "plannedObjects": [
+    { "type": "push", "identity": "stage3-phase9-smoke-20260807T030405Z-d4f551a1-push" },
+    { "type": "issue", "identity": "stage3-phase9-smoke-20260807T030405Z-d4f551a1-issue" },
+    { "type": "pull_request", "identity": "stage3-phase9-smoke-20260807T030405Z-d4f551a1-pr" },
+    { "type": "prerelease", "identity": "stage3-phase9-smoke-20260807T030405Z-d4f551a1-release" },
+    { "type": "workflow_dispatch", "identity": "stage3-phase9-smoke-20260807T030405Z-d4f551a1-workflow" },
+    { "type": "missed_issue", "identity": "stage3-phase9-smoke-20260807T030405Z-d4f551a1-missed-issue" }
+  ],
+  "lineageFields": [
+    "run_id",
+    "deployment_id",
+    "deployment_commit_sha",
+    "github_repository_id",
+    "github_object_type",
+    "github_object_id",
+    "github_object_url",
+    "github_event_action",
+    "github_delivery_id",
+    "body_sha256",
+    "internal_event_id",
+    "provider_job_id",
+    "project_id",
+    "sync_run_id",
+    "snapshot_or_freshness_evidence"
+  ],
+  "authorizedRemoteWrites": [
+    "push only an origin staging branch",
+    "create only run_id-tagged objects in the specified test repository",
+    "configure only isolated staging Vercel, Supabase, GitHub App and Inngest assets",
+    "disable and immediately restore only the exclusive staging GitHub App webhook for one missed Issue"
+  ],
+  "remoteWritesExecutedBeforeFreeze": [],
+  "remoteWritesPermittedAfterFreeze": false,
+  "costBoundary": {
+    "required": "zero incremental cost or existing plan only",
+    "observedVercelPlan": "hobby",
+    "paidActionsExecuted": false
+  },
+  "failureAndCleanupRules": {
+    "preserveFirstFailure": true,
+    "sameSafeRetryMaximum": 1,
+    "manualDatabaseSuccessFabricationForbidden": true,
+    "manualResyncAsReconciliationEvidenceForbidden": true,
+    "remoteCleanupOnBlockedPreflight": "none_required_because_no_remote_writes_were_executed"
+  },
+  "strictAllowedRepositoryFiles": [
+    "tests/fixtures/synchronization/stage3-phase9-pre-run-freeze.json",
+    "docs/runbooks/stage3-phase9-synchronization-smoke-evidence.md"
+  ],
+  "forbidden": [
+    "production deployment, promotion, production database or production credentials",
+    "main or master push, merge or pull request",
+    "writes to any repository except the specified private test repository",
+    "modifying Phase 1-8.1.2 product code, migrations, contracts, historical Freeze or manifest files",
+    "modifying package.json, pnpm-lock.yaml or next-env.d.ts",
+    "manual database writes or Manual Resync as Daily Reconciliation evidence",
+    "paid trials, plan upgrades or any non-zero incremental cost",
+    "secrets, raw private payloads, cookies or authorization headers in evidence"
+  ],
+  "baselineFingerprints": {
+    "packageJsonSha256": "f9a6ab717fa98c452d290a69374e30b00b09b23f5253699d9900c935dd349468",
+    "pnpmLockSha256": "a087993aad1ff9993627e09050e70d61d22fcc2e9c33909074b52b00528c8eef",
+    "nextEnvSha256": "4e4da12aa061aac172fb1bcb48e9b6e4b293080d2f494327925fdba8f39632ac",
+    "migrationTree": "6f34643c35a88f0436cbc2fb2016e2a36e004a38",
+    "sourceTree": "0c6e92005816c37b472f88c5ae4eebe7ef617fbc",
+    "testTree": "71f475224bfc9010854fbe8d4d4c140e7d51e0f9"
+  }
+}

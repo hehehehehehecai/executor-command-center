@@ -36,7 +36,7 @@ test("verifies the unauthenticated fictional Preview without external integratio
   await page.waitForLoadState("networkidle");
   await expect(page.getByRole("heading", { level: 1, name: "EXECUTOR" })).toBeVisible();
   await expect(page.getByText("演示数据 · 完全虚构")).toBeVisible();
-  await expect(page.getByText("演示数据版本 1.0.0")).toBeVisible();
+  await expect(page.getByText("演示数据版本 1.1.0")).toBeVisible();
   await expect(page.getByText("Preview project")).toBeVisible();
   await expect(page.getByRole("article")).toHaveCount(5);
   await expect(

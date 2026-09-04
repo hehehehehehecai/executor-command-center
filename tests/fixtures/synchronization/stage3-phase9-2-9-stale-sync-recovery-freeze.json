@@ -1,0 +1,124 @@
+{
+  "contractVersion": "stage3-phase9-2-9-stale-sync-recovery-freeze.v1",
+  "immutable": true,
+  "recordedAt": "2026-08-11T17:18:53.9344488+08:00",
+  "batchId": "explorer-stage3-phase9-2-9-stale-sync-recovery-699b6009",
+  "promptInstanceId": "explorer-stage3-phase9-2-9-stale-queued-sync-recovery-699b6009",
+  "authorizationPolicy": "workflow-authorization.v1",
+  "authorizationEnvelopeId": "workflow-authorization.v1:699b600948750f90",
+  "sourceReviewLevel": "B",
+  "sourceReviewTicketSha256": "699b600948750f903bf55fb6b6b2822d876acbd39b5ac767bb38cffb4fdb77c3",
+  "blocker": {
+    "fingerprint": "0ce5e8577075b97381f2dddff4e705a7a4b5a03b8aa6d19a56c30b9e9e2a862b",
+    "round": "1/5"
+  },
+  "baseline": {
+    "branch": "feature/stage3-phase8-data-freshness-ui",
+    "commit": "73291f51e74dd5cbb965d2e5a15c0fd6f7d69d8b",
+    "tree": "3a1c9e58b15bb1f6a012eeb8754319cf45fdcd35",
+    "parent": "5b730d4e1e8d62837ee75d645d428bdfab0ec35e",
+    "message": "test(sync): record blocked staging synchronization smoke",
+    "initialWorktreeClean": true,
+    "localOriginStaging": "5b730d4e1e8d62837ee75d645d428bdfab0ec35e"
+  },
+  "protectedFingerprints": {
+    "phase928FreezeSha256": "2fdf0a373447c0e25c1fdab732178d000dcfa62dd1101e9af78269ee0d10692d",
+    "phase928EvidenceSha256": "83c3ca5f228507228787dffe4e7e2091bc3c698e6f79e073a5c4110cdad2450a",
+    "packageSha256": "f9a6ab717fa98c452d290a69374e30b00b09b23f5253699d9900c935dd349468",
+    "lockfileSha256": "a087993aad1ff9993627e09050e70d61d22fcc2e9c33909074b52b00528c8eef",
+    "nextEnvSha256": "4e4da12aa061aac172fb1bcb48e9b6e4b293080d2f494327925fdba8f39632ac",
+    "historicalReconciliationMigrationSha256": "5b820e5eb5c896befd37a269ab50b3c01d673e92f5dea15a2dd80c9f8ebc1928",
+    "existing0016Sha256": "62f934cfa5306ccc63c431d170054a27d9238c8102ade3d22e60e0338a7ef1b7",
+    "existing0017Sha256": "799f903e8a7c761e590f17909c375b7f936117dd5f0cf6a6591f080bb6747176",
+    "databaseTypesSha256": "f00caab1bb436be624c1774a8535d692a682e48268ba98d3fd2ad315cf38f4ac",
+    "migrationTree": "f28fb75265d04f66347b4eca72061dceb327be3d",
+    "databaseTestTree": "748871e87338d136ef6b36c4584cd9c05d6c1110"
+  },
+  "rootCause": {
+    "function": "public.request_project_sync(uuid,text,text,uuid,timestamptz)",
+    "currentActivePredicate": "same project and status in (queued,running)",
+    "missingFacts": ["dispatch lease", "stale threshold", "started/progress activity"],
+    "observedFailure": "a never-started queued version-1 run permanently coalesces later identities"
+  },
+  "recoveryContract": {
+    "staleThreshold": "15 minutes",
+    "thresholdRationale": "greater than the 60-second dispatch lease and 5-minute webhook processing lease",
+    "boundary": "age greater than or equal to 15 minutes is stale when every other predicate matches",
+    "requiredPredicates": {
+      "status": "queued",
+      "startedAt": null,
+      "lastProgressAt": null,
+      "finishedAt": null,
+      "progressCursor": null,
+      "queuedAt": "<= p_requested_at - interval '15 minutes'",
+      "createdAt": "<= p_requested_at - interval '15 minutes'",
+      "updatedAt": "<= p_requested_at - interval '15 minutes'"
+    },
+    "transition": {
+      "targetStatus": "failed",
+      "versionDelta": 1,
+      "finishedAt": "p_requested_at",
+      "errorCode": "sync_run_stale_queued",
+      "errorSummary": "Stale queued sync request recovered."
+    },
+    "ordering": [
+      "validate input and trusted context",
+      "acquire project advisory transaction lock",
+      "same-identity duplicate check",
+      "atomically fail only matching stale queued runs",
+      "re-query live queued/running",
+      "coalesce live run or create one new run and dispatch"
+    ],
+    "neverReclaim": ["queued younger than 15 minutes", "queued with any start/progress fact", "running", "partial"],
+    "concurrency": "the existing project advisory transaction lock serializes equivalent requests; at most one new run/dispatch is created"
+  },
+  "migration": {
+    "baselineCount": 15,
+    "targetCount": 16,
+    "forwardOnly": true,
+    "creation": "supabase migration new recover_stale_queued_sync_requests",
+    "historicalMigrationRewrite": false,
+    "functionSignatureUnchanged": true,
+    "securityDefiner": true,
+    "searchPath": "",
+    "owner": "postgres",
+    "executeGrant": "service_role only"
+  },
+  "testDenominators": {
+    "staleRecoveryCasesMinimum": 20,
+    "staleOlderThanThreshold": 1,
+    "exactlyFifteenMinutes": 1,
+    "youngerThanThreshold": 1,
+    "startedProgressVariants": 4,
+    "runningAndPartialPreserved": 2,
+    "sameIdentityDuplicate": 1,
+    "sequentialEquivalentRequests": 2,
+    "permissionAndSignature": 4,
+    "existing0016": "unchanged and full",
+    "existing0017": "unchanged and full",
+    "unitTestsBaseline": 1000,
+    "applicationIntegrationBaseline": 62,
+    "databaseTestsBaseline": 529,
+    "requiredSkipped": 0
+  },
+  "allowedLocalPaths": [
+    "tests/fixtures/synchronization/stage3-phase9-2-9-stale-sync-recovery-freeze.json",
+    "supabase/migrations/<supabase-cli-generated>_recover_stale_queued_sync_requests.sql",
+    "supabase/tests/0018_stale_queued_sync_recovery_test.sql",
+    "docs/runbooks/stage3-phase9-2-9-stale-sync-recovery-evidence.md"
+  ],
+  "forbidden": [
+    "remote provider access or mutation",
+    "remote Supabase query, migration or write",
+    "historical migration/test/freeze/evidence rewrite",
+    "package, lockfile, UI, webhook, reader or provider configuration changes",
+    "manual repair of the staging queued run",
+    "test deletion, denominator reduction or required skip"
+  ],
+  "remoteSideEffectBudget": 0,
+  "commitStrategy": {
+    "count": 1,
+    "message": "fix(sync): recover stale queued sync requests",
+    "push": false
+  }
+}

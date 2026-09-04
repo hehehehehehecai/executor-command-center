@@ -1,0 +1,82 @@
+import "server-only";
+import { Inngest } from "inngest";
+import { createClient } from "@supabase/supabase-js";
+import {
+  ExecuteDueAccountDeletion,
+  MarkAccountDeletionRetryExhausted,
+  RecoverExhaustedAccountDeletions,
+} from "@/application/account-deletion/account-deletion-use-cases";
+import { InngestAccountDeletionDispatcher } from "@/infrastructure/account-deletion/inngest-account-deletion-dispatcher";
+import { SupabaseAccountDeletionRepository } from "@/infrastructure/account-deletion/supabase-account-deletion-repository";
+import { SupabaseAuthIdentityAdmin } from "@/infrastructure/account-deletion/supabase-auth-identity-admin";
+import { ExecuteFirstRepositorySync } from "@/application/synchronization/first-sync-use-cases";
+import { ExecuteProjectSynchronization } from "@/application/synchronization/project-sync-use-cases";
+import { ProjectSyncRequestCoordinator, RunDailyRepositoryReconciliation } from "@/application/synchronization/reconciliation-use-cases";
+import { WebhookSynchronizationRuntime } from "@/application/synchronization/webhook-sync-use-cases";
+import { GitHubRestActivityReader } from "@/infrastructure/github/github-activity-reader";
+import { GitHubAppJwtSigner } from "@/infrastructure/github/github-app-jwt";
+import { GitHubAuthorizedRepositoryGatewayAdapter } from "@/infrastructure/github/github-authorized-repository-gateway";
+import { GitHubAuthorizedRepositoryReader } from "@/infrastructure/github/github-authorized-repository-reader";
+import { GitHubFirstSyncTokenProvider } from "@/infrastructure/github/github-first-sync-token-provider";
+import { GitHubInstallationTokenClient } from "@/infrastructure/github/github-installation-token-client";
+import { InngestJobDispatcher } from "@/infrastructure/jobs/inngest-job-dispatcher";
+import { createInngestSynchronizationFunctions } from "@/infrastructure/jobs/inngest-runtime";
+import { GitHubProjectRepositoryMetadataReader } from "@/infrastructure/synchronization/github-project-repository-metadata-reader";
+import { GitHubReconciliationReader } from "@/infrastructure/synchronization/github-reconciliation-reader";
+import { DailyReconciliationSchedulerAdapter } from "@/infrastructure/synchronization/reconciliation-scheduler";
+import { SupabaseFirstSyncStore } from "@/infrastructure/synchronization/supabase-first-sync-store";
+import { SupabaseReconciliationStore } from "@/infrastructure/synchronization/supabase-reconciliation-store";
+import { SupabaseGitHubWebhookDeliveryRepository } from "@/infrastructure/webhooks/supabase-github-webhook-delivery-repository";
+import { parseServerEnvironment } from "@/shared/configuration/server-environment";
+
+export const inngestRouteCompositionContract = "inngest-route-composition.v1" as const;
+type Environment = Readonly<Record<string, string | undefined>>;
+export function createInngestRouteDependencies(source: Environment) {
+  const environment = parseServerEnvironment(source);
+  if (!environment.NEXT_PUBLIC_SUPABASE_URL || !environment.SUPABASE_SERVICE_ROLE_KEY || !environment.GITHUB_APP_ID || !environment.GITHUB_APP_PRIVATE_KEY || !environment.GITHUB_REST_API_VERSION || !environment.INNGEST_EVENT_KEY || !environment.INNGEST_SIGNING_KEY) throw new Error("inngest_runtime_configuration_missing");
+  const clock = { now: () => new Date() };
+  const client = new Inngest({ id: "executor-command-center", eventKey: environment.INNGEST_EVENT_KEY, signingKey: environment.INNGEST_SIGNING_KEY });
+  const jwt = new GitHubAppJwtSigner({ appId: environment.GITHUB_APP_ID, privateKeyProvider: () => environment.GITHUB_APP_PRIVATE_KEY!, clock });
+  const tokenClient = new GitHubInstallationTokenClient({ jwtSigner: jwt, restApiVersion: environment.GITHUB_REST_API_VERSION, clock });
+  const tokens = new GitHubFirstSyncTokenProvider(tokenClient);
+  const repositoryReader = new GitHubAuthorizedRepositoryReader({ restApiVersion: environment.GITHUB_REST_API_VERSION, clock });
+  const repositoryGateway = new GitHubAuthorizedRepositoryGatewayAdapter({ tokenClient, repositoryReader });
+  const activityReader = new GitHubRestActivityReader({ restApiVersion: environment.GITHUB_REST_API_VERSION });
+  const firstStore = new SupabaseFirstSyncStore({ supabaseUrl: environment.NEXT_PUBLIC_SUPABASE_URL, serviceRoleKey: environment.SUPABASE_SERVICE_ROLE_KEY });
+  const reconciliationStore = new SupabaseReconciliationStore({ supabaseUrl: environment.NEXT_PUBLIC_SUPABASE_URL, serviceRoleKey: environment.SUPABASE_SERVICE_ROLE_KEY });
+  const deliveryStore = new SupabaseGitHubWebhookDeliveryRepository({ supabaseUrl: environment.NEXT_PUBLIC_SUPABASE_URL, serviceRoleKey: environment.SUPABASE_SERVICE_ROLE_KEY });
+  const metadata = new GitHubProjectRepositoryMetadataReader(repositoryGateway);
+  const firstSync = new ExecuteFirstRepositorySync({ runs: firstStore, contexts: firstStore, tokens, reader: activityReader, writer: firstStore, clock });
+  const projectSync = new ExecuteProjectSynchronization({ runs: firstStore, contexts: firstStore, tokens, reader: activityReader, metadata, writer: firstStore, clock });
+  const dispatcher = new InngestJobDispatcher(client);
+  const webhooks = new WebhookSynchronizationRuntime({ requests: reconciliationStore, deliveries: deliveryStore, dispatcher, executor: projectSync, clock });
+  const reconciliationReader = new GitHubReconciliationReader({ tokens, repositoryGateway, activityReader });
+  const coordinator = new ProjectSyncRequestCoordinator({ store: reconciliationStore, dispatcher });
+  const dailyUseCase = new RunDailyRepositoryReconciliation({ projects: reconciliationStore, reader: reconciliationReader, coordinator });
+  const daily = new DailyReconciliationSchedulerAdapter(dailyUseCase);
+  const accountDeletionRepository = new SupabaseAccountDeletionRepository({
+    supabaseUrl: environment.NEXT_PUBLIC_SUPABASE_URL,
+    serviceRoleKey: environment.SUPABASE_SERVICE_ROLE_KEY,
+  });
+  const accountDeletionAdminClient = createClient(
+    environment.NEXT_PUBLIC_SUPABASE_URL,
+    environment.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } },
+  );
+  const accountDeletionExecutor = new ExecuteDueAccountDeletion({
+    repository: accountDeletionRepository,
+    authAdmin: new SupabaseAuthIdentityAdmin(accountDeletionAdminClient),
+  });
+  const accountDeletionDispatcher = new InngestAccountDeletionDispatcher(client);
+  const accountDeletionExhaustion = new MarkAccountDeletionRetryExhausted(accountDeletionRepository);
+  const accountDeletionRecovery = new RecoverExhaustedAccountDeletions({
+    repository: accountDeletionRepository,
+    dispatcher: accountDeletionDispatcher,
+  });
+  const accountDeletion = {
+    execute: accountDeletionExecutor.execute.bind(accountDeletionExecutor),
+    markRetryExhausted: accountDeletionExhaustion.execute.bind(accountDeletionExhaustion),
+    recover: accountDeletionRecovery.execute.bind(accountDeletionRecovery),
+  };
+  return { client, functions: createInngestSynchronizationFunctions(client, { firstSync, projectSync, webhooks, daily, accountDeletion }) };
+}

@@ -1,0 +1,180 @@
+{
+  "contractVersion": "stage3-phase9-2-10-staging-smoke-freeze.v1",
+  "immutable": true,
+  "recordedAt": "2026-08-12T02:08:31.3293817Z",
+  "batchId": "explorer-stage3-phase9-2-10-staging-smoke-441f33cb",
+  "promptInstanceId": "explorer-stage3-phase9-2-10-full-staging-smoke-441f33cb",
+  "authorizationPolicy": "workflow-authorization.v1",
+  "authorizationEnvelopeId": "workflow-authorization.v1:441f33cba2bf3382",
+  "sourceReviewTicketSha256": "441f33cba2bf3382abdae15ef7d880c2f255d114c6f83a92a3edc4b7204ef2af",
+  "baseline": {
+    "branch": "feature/stage3-phase8-data-freshness-ui",
+    "commit": "6b82a1a875ac86ba65041f82bed409b6a9714a2b",
+    "tree": "c2061175fbf3f6d63977364a8b028b473a5f9b10",
+    "parent": "73291f51e74dd5cbb965d2e5a15c0fd6f7d69d8b",
+    "message": "fix(sync): recover stale queued sync requests",
+    "initialWorktreeClean": true,
+    "originStagingBefore": "5b730d4e1e8d62837ee75d645d428bdfab0ec35e",
+    "originStagingAfter": "6b82a1a875ac86ba65041f82bed409b6a9714a2b",
+    "pushWasFastForward": true
+  },
+  "sourcePhase929": {
+    "freezeSha256": "39fe60dccf794b7218853c7b5c3e4824d3339507ab51473d58067b583374aced",
+    "evidenceSha256": "dfcaf3f5c8af2697351b3a26d203b749e61fa860ab896ddfb7b53751998d7a15",
+    "migrationSha256": "6b88fb7e52651468b66e14e15c800ae6e28254a76369946c49aa62910f1a2884"
+  },
+  "run": {
+    "runId": "stage3-phase9-smoke-20260812T020232Z-41e9892f",
+    "firstSyncRequestId": "stage3-phase9-smoke-20260812T020232Z-41e9892f-first-sync",
+    "firstSyncReplayRequestId": "stage3-phase9-smoke-20260812T020232Z-41e9892f-first-sync",
+    "reconciliationRequestId": "stage3-phase9-smoke-20260812T020232Z-41e9892f-reconciliation",
+    "branch": "stage3-phase9-smoke-20260812T020232Z-41e9892f",
+    "tag": "stage3-phase9-smoke-20260812T020232Z-41e9892f",
+    "normalIssueMarker": "stage3-phase9-smoke-20260812T020232Z-41e9892f-issue",
+    "missedIssueMarker": "stage3-phase9-smoke-20260812T020232Z-41e9892f-missed-issue",
+    "workflowMarker": "stage3-phase9-smoke-20260812T020232Z-41e9892f-workflow"
+  },
+  "collisionCheck": {
+    "localEvidence": 0,
+    "issuesAndPullRequests": 0,
+    "branches": 0,
+    "tags": 0,
+    "exactRelease": 0,
+    "workflowDispatchRuns": 0,
+    "workflowFileInitialState": "absent",
+    "workflowMainException": ".github/workflows/stage3-phase9-smoke.yml"
+  },
+  "providers": {
+    "github": {
+      "account": "hehehehehehecai",
+      "repositoryFullName": "hehehehehehecai/explorer-staging-private-test-20260804",
+      "repositoryId": 1322569219,
+      "visibility": "private",
+      "defaultBranch": "main",
+      "appId": 4480141,
+      "appSlug": "executor-staging-hehehehehecai",
+      "installationId": 151329457,
+      "repositorySelection": "selected",
+      "selectedRepositoryCount": 1,
+      "permissions": ["actions:read", "checks:read", "contents:read", "issues:read", "metadata:read", "pull_requests:read"],
+      "events": ["issues", "pull_request", "push", "release", "repository", "workflow_run"],
+      "webhookActive": true,
+      "sslVerification": true
+    },
+    "vercel": {
+      "plan": "Hobby",
+      "projectId": "prj_vRfWcuvLYn240SSuKyNH0g4ShpW8",
+      "projectName": "executor-command-center",
+      "target": "Preview",
+      "branch": "staging",
+      "deploymentId": "dpl_FjZUo9QYfNGUfLHMzcduxf97Ynoz",
+      "deploymentUrl": "https://executor-command-center-1eklqxgmd-hehehehehehecais-projects.vercel.app",
+      "stableAlias": "https://executor-command-center-git-staging-hehehehehehecais-projects.vercel.app",
+      "status": "READY",
+      "commit": "6b82a1a875ac86ba65041f82bed409b6a9714a2b",
+      "production": false
+    },
+    "supabase": {
+      "projectRef": "gsnuorsqdcdszjxtymhs",
+      "projectName": "executor-command-center-staging",
+      "plan": "Free",
+      "status": "ACTIVE_HEALTHY",
+      "region": "ap-northeast-2",
+      "migrationLedgerBefore": "15/16",
+      "migrationLedgerAfter": "16/16",
+      "migrationVersion": "20260811093237"
+    },
+    "inngest": {
+      "environment": "staging-7050a935",
+      "plan": "Free",
+      "app": "executor-command-center",
+      "sdk": "4.15.0",
+      "syncUrl": "https://executor-command-center-1eklqxgmd-hehehehehehecais-projects.vercel.app/api/inngest",
+      "deploymentId": "FjZUo9QYfNGUfLHMzcduxf97Ynoz",
+      "commit": "6b82a1a",
+      "functionCount": 3,
+      "functions": ["executor-project-sync-consumer", "executor-github-webhook-consumer", "executor-daily-reconciliation"],
+      "dailyCron": "0 2 * * *"
+    }
+  },
+  "initialDatabaseFacts": {
+    "projectId": "81630aa3-a101-421c-b31e-dc16d1592c31",
+    "projectExists": true,
+    "syncRunCount": 3,
+    "dispatchCount": 0,
+    "snapshotCounts": {"repository": 1, "commit": 1, "issue": 0, "pull_request": 0, "release": 0, "workflow_run": 0},
+    "staleRun": {
+      "id": "06070d6a-23e2-44ba-8db2-90a4c644e8ea",
+      "status": "queued",
+      "version": 1,
+      "startedAtNull": true,
+      "lastProgressAtNull": true,
+      "finishedAtNull": true,
+      "progressCursorNull": true,
+      "errorCode": null
+    }
+  },
+  "denominators": {
+    "deploymentVersionBinding": 1,
+    "staleQueuedRecovery": 1,
+    "authenticatedFirstSync": 1,
+    "firstSyncReplay": 1,
+    "snapshotGroups": 6,
+    "normalEvents": 5,
+    "completeLineageEvents": 5,
+    "duplicateReplay": 1,
+    "controlledMissedIssue": 1,
+    "webhookConfigurationRestore": 1,
+    "reconciliationRepair": 1,
+    "freshnessConvergence": 1,
+    "requiredSkipped": 0
+  },
+  "polling": {
+    "firstSync": {"intervalSeconds": 10, "maximumAttempts": 30},
+    "eventLineage": {"intervalSeconds": 10, "maximumAttempts": 30},
+    "missedDeliveryAbsence": {"intervalSeconds": 10, "maximumAttempts": 6},
+    "reconciliation": {"intervalSeconds": 10, "maximumAttempts": 30}
+  },
+  "hardStops": [
+    "first sync is not terminal completed",
+    "first sync has retryable or safe error",
+    "any snapshot group is incomplete",
+    "webhook configuration cannot be restored exactly",
+    "provider identity or isolation drifts",
+    "payment, Trial, Production or unauthorized repository boundary appears"
+  ],
+  "remoteSideEffectBudget": {
+    "applicationStagingFastForwardPush": 1,
+    "stagingMigrationApplies": 1,
+    "firstSyncHttpRequests": 2,
+    "testRepositoryBranchPushes": 1,
+    "normalIssues": 1,
+    "pullRequests": 1,
+    "releases": 1,
+    "workflowFileMainExceptionCommits": 1,
+    "workflowDispatches": 1,
+    "duplicateRedeliveries": 1,
+    "githubAppIssuesEventConfigurationChanges": 2,
+    "missedIssues": 1,
+    "reconciliationRequests": 1,
+    "productionWrites": 0,
+    "otherRepositoryWrites": 0,
+    "manualDatabaseWrites": 0
+  },
+  "cleanup": {
+    "deleteRemoteObjects": false,
+    "mergePullRequest": false,
+    "promoteProduction": false,
+    "preserveEvidenceForReview": true
+  },
+  "cost": {"allowed": "free or existing plan only", "paidUpgrade": false, "trial": false},
+  "allowedLocalPaths": [
+    "tests/fixtures/synchronization/stage3-phase9-2-10-staging-smoke-freeze.json",
+    "docs/runbooks/stage3-phase9-2-10-staging-smoke-evidence.md"
+  ],
+  "protectedFingerprints": {
+    "packageSha256": "f9a6ab717fa98c452d290a69374e30b00b09b23f5253699d9900c935dd349468",
+    "lockfileSha256": "a087993aad1ff9993627e09050e70d61d22fcc2e9c33909074b52b00528c8eef",
+    "nextEnvSha256": "4e4da12aa061aac172fb1bcb48e9b6e4b293080d2f494327925fdba8f39632ac"
+  }
+}

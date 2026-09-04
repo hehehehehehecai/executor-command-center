@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 
 import {
+  AccountDeletionPanel,
   GitHubInstallationStatus,
   type GitHubInstallationUiStatus,
 } from "@/features/onboarding";
@@ -16,6 +17,7 @@ export default async function OnboardingPage(input: {
   }>;
 }) {
   let authenticated = false;
+  let authenticatedUserId: string | null = null;
   let installationStatus: GitHubInstallationUiStatus = "not_registered";
 
   try {
@@ -27,6 +29,7 @@ export default async function OnboardingPage(input: {
     });
     const { data, error } = await client.auth.getUser();
     authenticated = !error && Boolean(data.user);
+    authenticatedUserId = data.user?.id ?? null;
 
     if (authenticated && data.user) {
       const { data: installation, error: installationError } = await client
@@ -58,13 +61,14 @@ export default async function OnboardingPage(input: {
   }
 
   return (
-    <main className="auth-status-shell">
+    <main id="main-content" className="auth-status-shell" tabIndex={-1}>
       <p className="section-kicker">GitHub identity</p>
       <h1>{authenticated ? "GitHub 身份登录成功" : "尚未登录"}</h1>
       <GitHubInstallationStatus
         authenticated={authenticated}
         installationStatus={installationStatus}
       />
+      {authenticatedUserId ? <AccountDeletionPanel userId={authenticatedUserId} /> : null}
       <Link href="/">返回 Command Deck</Link>
     </main>
   );

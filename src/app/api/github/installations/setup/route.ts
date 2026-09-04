@@ -6,11 +6,13 @@ import { SupabaseVerifiedSessionReader } from "@/infrastructure/auth/supabase-ve
 import { GitHubAppInstallationReaderAdapter } from "@/infrastructure/github/github-app-installation-reader";
 import { GitHubAppJwtSigner } from "@/infrastructure/github/github-app-jwt";
 import {
+  clearGitHubInstallationCallbackCookie,
   createGitHubInstallationFailureRecord,
   handleGitHubInstallationSetup,
 } from "@/infrastructure/github/github-installation-http";
 import { SupabaseGitHubInstallationRepository } from "@/infrastructure/github/supabase-github-installation-repository";
 import { parseServerEnvironment } from "@/shared/configuration/server-environment";
+import { writeSafeSecurityWarning } from "@/shared/security/safe-log-redaction";
 
 function copyHeaders(source: Headers, target: Headers) {
   source.forEach((value, name) => target.set(name, value));
@@ -74,8 +76,7 @@ function logFailure(input: {
       ? null
       : false;
 
-  console.warn(
-    JSON.stringify(
+  writeSafeSecurityWarning(
       createGitHubInstallationFailureRecord({
         failureId: crypto.randomUUID(),
         stage: "installation_setup",
@@ -99,7 +100,6 @@ function logFailure(input: {
         ownershipMatch,
         installationPersisted,
       }),
-    ),
   );
 }
 
@@ -136,7 +136,7 @@ export async function GET(request: Request) {
         },
       });
       copyHeaders(responseHeaders, response.headers);
-      return response;
+      return clearGitHubInstallationCallbackCookie(response);
     }
 
     let environment;
@@ -207,8 +207,10 @@ export async function GET(request: Request) {
       sessionValid,
       stateValid: null,
     });
-    return new Response("GitHub App installation is not configured.", {
-      status: 503,
-    });
+    return clearGitHubInstallationCallbackCookie(
+      new Response("GitHub App installation is not configured.", {
+        status: 503,
+      }),
+    );
   }
 }

@@ -50,6 +50,7 @@ describe("GitHub App installation start", () => {
     );
     expect(url.searchParams.get("state")).toMatch(/^[A-Za-z0-9_-]+$/);
     expect([...url.searchParams.keys()]).toEqual(["state"]);
+    expect(result.callbackState).toBe(url.searchParams.get("state"));
     expect(repository.created).toHaveLength(1);
   });
 

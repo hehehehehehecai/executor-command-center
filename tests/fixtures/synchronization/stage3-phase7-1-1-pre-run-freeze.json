@@ -1,0 +1,93 @@
+{
+  "record_type": "stage3-phase7-1-1-pre-run-freeze",
+  "recorded_at": "2026-08-06T15:06:01.4874697+08:00",
+  "batch_id": "explorer-stage3-phase7-1-1-http-13dba4cc",
+  "prompt_instance_id": "explorer-stage3-phase7-1-1-origin-session-13dba4cc",
+  "authorization_envelope_id": "workflow-authorization.v1:13dba4cc16b8b4fd",
+  "baseline": {
+    "branch": "feature/stage3-phase7-reconciliation",
+    "commit": "2978781562f06f67c29afd7dd18064a36a5ecb06",
+    "tree": "d221a53057bcd0e77827ac73c566a1f9f45215b3",
+    "parent": "08c80e8e5b67afb130d1ea96fcb9f053b3b8fe08",
+    "worktree": "clean",
+    "repair_branch": "fix/stage3-phase7-1-1-manual-resync-http"
+  },
+  "source_evidence": {
+    "review_ticket": "sha256:6d30b1b19027c8049d904e88a251b092e064b0c2c777f19a503c8e0a88005e83",
+    "independent_evidence": "sha256:67f60f7b1cf5a365c95a9c441f159d2e7b8359d2b95c5588322cdfb009b329f5",
+    "plan_version": "fe5902"
+  },
+  "immutable_artifact_sha256": {
+    "phase7_freeze": "731ed3191cdf49a19653ce4430deb9d81c7c2e22594a932c9cf64fdb6ff2094e",
+    "reconciliation_http": "d40a60c7e5dcccd285e7c203cffbc00470b3c3124f218d78ea19fc205a09df18",
+    "reconciliation_http_test": "33f0cc784425bf50788fb2734eb1c3ab86807ff0c15cbf110e93d082b4a3b649",
+    "manual_route": "0efd7ff2d2d9f9eeb422975cba0663044333561671bf70b60635bc8b3ba82bbf",
+    "manual_route_test": "1284da7b5f561c99ae95ed3368920b134bf5b702460bf17d3f339bfee33987d7",
+    "package_json": "f9a6ab717fa98c452d290a69374e30b00b09b23f5253699d9900c935dd349468",
+    "pnpm_lock": "a087993aad1ff9993627e09050e70d61d22fcc2e9c33909074b52b00528c8eef"
+  },
+  "defects": [
+    "Manual HTTP adapter parses JSON before exact Origin and content-type validation",
+    "Manual Route creates responseHeaders but does not pass APP_ORIGIN or responseHeaders to the adapter",
+    "success and failure responses omit Supabase session refresh headers and private no-store headers"
+  ],
+  "contracts": {
+    "manual_resync": "manual-resync.v1",
+    "manual_resync_http": "manual-resync-http.v1",
+    "session": "supabase-session.v1",
+    "cookie_adapter": "supabase-ssr-cookie-adapter.v1",
+    "same_origin_reference": "same-origin-mutation.v1"
+  },
+  "http_gate": {
+    "order": ["canonical APP_ORIGIN", "exact Origin", "application/json content-type", "JSON parse", "strict body", "dependencies/session/application"],
+    "app_origin": "an exact canonical http/https origin with no credentials, path, query or fragment; production requires https",
+    "request_origin": "raw Origin header must equal canonical APP_ORIGIN exactly",
+    "content_type": "media type before optional semicolon must case-insensitively equal application/json",
+    "missing_or_foreign_origin": "403 manual_resync_origin_forbidden",
+    "invalid_app_origin": "503 manual_resync_configuration_missing",
+    "invalid_content_or_body": "400 manual_resync_invalid_request",
+    "rejected_side_effects": "zero dependency construction, session, database mutation, GitHub read and dispatch"
+  },
+  "response_headers": {
+    "session_headers": "copy every non-cookie header and preserve every Set-Cookie value",
+    "cache_control": "private, no-store, max-age=0",
+    "pragma": "no-cache",
+    "vary_required": ["Cookie", "Origin"],
+    "all_branches": ["http rejection", "business success", "business failure", "unexpected safe failure"]
+  },
+  "test_denominator": {
+    "missing_origin": 1,
+    "foreign_origin": 1,
+    "invalid_app_origin": 1,
+    "non_json_content_type": 1,
+    "malformed_json": 1,
+    "strict_extra_field": 1,
+    "valid_origin_success": 1,
+    "business_failure_headers": 1,
+    "single_set_cookie": 1,
+    "multiple_set_cookie": 1,
+    "cache_pragma_vary": 1,
+    "route_dependency_zero_before_gate": 1,
+    "new_required_skips": 0
+  },
+  "allowed_paths": [
+    "src/infrastructure/synchronization/reconciliation-http.ts",
+    "src/infrastructure/synchronization/reconciliation-http.test.ts",
+    "src/app/api/projects/[projectId]/resync/route.ts",
+    "src/app/api/projects/[projectId]/resync/route.test.ts",
+    "tests/fixtures/synchronization/stage3-phase7-1-1-pre-run-freeze.json"
+  ],
+  "forbidden_scope": [
+    "reconciliation Domain or Application",
+    "SQL, RPC, scheduler, Reader, dispatcher or generated database types",
+    "Phase 1-7 historical migrations and Freeze files",
+    "package or lockfile changes",
+    "Phase 8-9",
+    "real GitHub, Inngest, remote Supabase, credentials, Push, Merge, PR or deployment"
+  ],
+  "tool_observation": {
+    "pnpm": "11.9.0",
+    "node_direct_probe": "unavailable in the current PowerShell child PATH; repository pnpm scripts remain authoritative",
+    "supabase_direct_probe": "unavailable in the current PowerShell child PATH; repository pnpm scripts remain authoritative"
+  }
+}

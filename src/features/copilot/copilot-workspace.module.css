@@ -1,0 +1,445 @@
+.shell {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 40px 0 64px;
+  color: var(--foreground);
+}
+
+.header,
+.contextRegion,
+.evidenceRegion,
+.briefRegion,
+.followUpRegion,
+.briefState {
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+}
+
+.briefRegion,
+.followUpRegion,
+.briefState {
+  margin-top: 24px;
+  padding: 24px;
+}
+
+.briefHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.briefHeader h2,
+.followUpRegion h2 {
+  margin: 4px 0 0;
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+}
+
+.statusBadge {
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 7px 12px;
+  color: var(--accent);
+  font-weight: 800;
+}
+
+.briefSummary,
+.officialStatus,
+.freshness,
+.selectedEvidence,
+.boundary,
+.briefSections > section {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--background);
+  padding: 18px;
+}
+
+.briefSummary,
+.officialStatus,
+.freshness,
+.boundary,
+.briefSections,
+.selectedEvidence,
+.briefMetadata {
+  margin-top: 18px;
+}
+
+.briefSummary h3,
+.officialStatus h3,
+.freshness h3,
+.selectedEvidence h3,
+.boundary h3,
+.briefSections h3 {
+  margin-top: 0;
+}
+
+.briefSections {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.briefItems,
+.inlineEvidence {
+  display: grid;
+  gap: 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.briefItems li {
+  min-width: 0;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.briefItems li:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.inlineEvidence {
+  margin: 12px 0 0;
+}
+
+.inlineEvidence a,
+.inlineEvidence span {
+  display: inline-block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: var(--accent);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.inlineEvidence a:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.noEvidence,
+.missingEvidence {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.freshness dl,
+.selectedEvidence dl,
+.briefMetadata {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.freshness dl div,
+.selectedEvidence dl div,
+.briefMetadata div {
+  min-width: 0;
+}
+
+.freshness dt,
+.selectedEvidence dt,
+.briefMetadata dt {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.freshness dd,
+.selectedEvidence dd,
+.briefMetadata dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.boundary {
+  border-color: var(--accent);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 28px;
+  padding: 28px;
+}
+
+.title {
+  margin: 8px 0 10px;
+  font-size: clamp(2rem, 5vw, 4.1rem);
+  line-height: 1;
+}
+
+.intro,
+.footer p,
+.form small,
+.emptyState {
+  color: var(--muted);
+}
+
+.intro {
+  max-width: 700px;
+  margin: 0;
+  line-height: 1.7;
+}
+
+.provenance {
+  display: grid;
+  flex: 0 0 min(290px, 34vw);
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+  border-radius: 15px;
+  background: var(--background);
+}
+
+.feedback {
+  margin: 18px 0 0;
+  padding: 14px 18px;
+  border-left: 4px solid var(--accent);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.feedback[data-feedback-kind="error"] {
+  border-left-color: #8b2b2b;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.contextRegion,
+.evidenceRegion {
+  padding: 24px;
+}
+
+.sectionHeading {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.sectionHeading h2 {
+  margin: 4px 0 0;
+  font-size: clamp(1.5rem, 4vw, 2.25rem);
+}
+
+.metaLabel {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.reason {
+  max-width: 16rem;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.contextDetails {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 24px 0;
+  border: 1px solid var(--border);
+  background: var(--background);
+}
+
+.contextDetails div {
+  min-width: 0;
+  padding: 14px;
+}
+
+.contextDetails div + div {
+  border-left: 1px solid var(--border);
+}
+
+.contextDetails dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.contextDetails dd {
+  margin: 5px 0 0;
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+
+.form {
+  display: grid;
+  gap: 12px;
+  margin-top: 24px;
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+}
+
+.form label {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  font-weight: 700;
+}
+
+.form input,
+.form select,
+.form textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 10px 12px;
+  color: var(--foreground);
+  font: inherit;
+}
+
+.form textarea {
+  resize: vertical;
+}
+
+.form button {
+  width: fit-content;
+  min-height: 42px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--accent);
+  padding: 9px 16px;
+  color: #fff;
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.form input:focus-visible,
+.form select:focus-visible,
+.form textarea:focus-visible,
+.form button:focus-visible,
+.footer a:focus-visible,
+.inlineEvidence a:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.evidenceList {
+  display: grid;
+  gap: 8px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.evidenceList li,
+.emptyState {
+  overflow-wrap: anywhere;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--background);
+  padding: 12px;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 24px;
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+}
+
+.footer p {
+  margin: 0;
+}
+
+.footer a {
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+@media (max-width: 56rem) {
+  .header,
+  .footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .provenance {
+    flex-basis: auto;
+  }
+
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .briefSections {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 30rem) {
+  .shell {
+    width: min(100% - 20px, 1180px);
+    padding-top: 20px;
+  }
+
+  .header,
+  .contextRegion,
+  .evidenceRegion {
+    padding: 18px;
+    border-radius: 16px;
+  }
+
+  .briefRegion,
+  .followUpRegion,
+  .briefState {
+    padding: 18px;
+    border-radius: 16px;
+  }
+
+  .briefHeader,
+  .freshness dl,
+  .selectedEvidence dl,
+  .briefMetadata {
+    grid-template-columns: 1fr;
+  }
+
+  .briefHeader {
+    flex-direction: column;
+  }
+
+  .sectionHeading {
+    flex-direction: column;
+  }
+
+  .reason {
+    max-width: 100%;
+  }
+
+  .contextDetails {
+    grid-template-columns: 1fr;
+  }
+
+  .contextDetails div + div {
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
+}

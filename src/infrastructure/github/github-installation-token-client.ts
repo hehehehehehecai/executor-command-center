@@ -1,6 +1,10 @@
 import "server-only";
 
 import type { GitHubRepositorySelection } from "@/domain/github-installation/github-app-installation";
+import {
+  githubActivityReadPermissions,
+  githubMetadataOnlyPermissions,
+} from "@/shared/security/github-minimum-permissions";
 import { z } from "zod";
 
 export const installationAccessTokenContract =
@@ -22,15 +26,31 @@ type TokenClientOptions = {
   readonly timeoutMilliseconds?: number;
 };
 
-const tokenResponseSchema = z.object({
+const tokenResponseBaseSchema = z.object({
   token: z.string().refine((value) => value.trim().length > 0),
   expires_at: z.iso.datetime({ offset: true }),
   repository_selection: z.enum(["all", "selected"]),
+});
+
+const metadataTokenResponseSchema = tokenResponseBaseSchema.extend({
   permissions: z
     .object({
       metadata: z.literal("read"),
     })
     .optional(),
+});
+
+const activityTokenResponseSchema = tokenResponseBaseSchema.extend({
+  permissions: z
+    .object({
+      metadata: z.literal("read"),
+      contents: z.literal("read"),
+      issues: z.literal("read"),
+      pull_requests: z.literal("read"),
+      actions: z.literal("read"),
+      checks: z.literal("read"),
+    })
+    .strict(),
 });
 
 const tokenFailureCodes = new Set([
@@ -86,6 +106,29 @@ export class GitHubInstallationTokenClient {
     installationId: number,
     operationSignal?: AbortSignal,
   ): Promise<InstallationAccessToken> {
+    return this.createForProfile(
+      installationId,
+      "metadata-only",
+      operationSignal,
+    );
+  }
+
+  async createActivity(
+    installationId: number,
+    operationSignal?: AbortSignal,
+  ): Promise<InstallationAccessToken> {
+    return this.createForProfile(
+      installationId,
+      "activity-read",
+      operationSignal,
+    );
+  }
+
+  private async createForProfile(
+    installationId: number,
+    profile: "metadata-only" | "activity-read",
+    operationSignal?: AbortSignal,
+  ): Promise<InstallationAccessToken> {
     if (!Number.isSafeInteger(installationId) || installationId <= 0) {
       throw new Error("github_installation_token_unavailable");
     }
@@ -114,7 +157,10 @@ export class GitHubInstallationTokenClient {
             "x-github-api-version": this.options.restApiVersion,
           },
           body: JSON.stringify({
-            permissions: { metadata: "read" },
+            permissions:
+              profile === "activity-read"
+                ? githubActivityReadPermissions
+                : githubMetadataOnlyPermissions,
           }),
           signal: controller.signal,
         },
@@ -138,7 +184,10 @@ export class GitHubInstallationTokenClient {
         throw new Error("github_installation_token_invalid_response");
       }
 
-      const parsed = tokenResponseSchema.safeParse(payload);
+      const parsed =
+        profile === "activity-read"
+          ? activityTokenResponseSchema.safeParse(payload)
+          : metadataTokenResponseSchema.safeParse(payload);
       const expiresAt = parsed.success
         ? Date.parse(parsed.data.expires_at)
         : Number.NaN;

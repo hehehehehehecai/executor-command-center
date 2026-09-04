@@ -2,9 +2,9 @@
 
 ## 目标
 
-本文件记录 `feature-registry.v1` 与 `module-boundaries.v1`。Feature Registry 固化五个核心 Feature 的身份、展示文案、路由元数据和顺序；模块边界规则保护 Domain 的纯 TypeScript 属性，并防止 Feature 绕过公开入口读取其他 Feature 的内部文件。
+本文件记录 `feature-registry.v1`、`panel-query.v1` 与 `module-boundaries.v1`。Feature Registry 固化五个核心 Feature 的身份、展示文案、路由元数据和顺序；Panel Query 提供后续面板共用的 Preview / Connected 查询合同；模块边界规则保护纯 TypeScript 合同，并防止 Feature 绕过公开入口读取其他 Feature 的内部文件。
 
-本阶段只建立注册表、边界规则和验证机制，不代表五个 Feature Module、页面或路由已经实现。
+注册表元数据不等同于页面实现；当前只有经过对应阶段验证的 Feature 才能被视为具备公开页面。
 
 ## 模块化单体依赖方向
 
@@ -58,6 +58,129 @@ export interface FeatureDefinition {
 | `copilot` | Copilot | AI 副驾驶 | `/copilot` | 50 | `true` |
 
 ID、Route 和 Order 是稳定契约：三者分别唯一，Registry 顺序与严格递增的 Order 一致。修改这些值属于契约变更，不能作为普通内部重构处理。Route 是元数据，不表示对应 Next.js Route 已经存在。
+
+## Panel Query 公共合同
+
+唯一公共入口是 `src/shared/panel-query/index.ts`，后续调用方应通过 `@/shared/panel-query` 复用。冻结合同为：
+
+```ts
+export type PanelMode = "preview" | "connected";
+
+export interface PanelQuery<T> {
+  load(): Promise<T>;
+}
+```
+
+`createPreviewPanelQuery` 接收本地 Preview loader，`createConnectedPanelQuery` 接收调用方注入的 provider-neutral `ConnectedPanelPort<T>`。两者都返回同一个 `PanelQuery<T>`，不定义两套 View Model，也不在合同层读取 Supabase、GitHub、Inngest、网络或 Feature 内部文件。
+
+`resolvePanelQuery` 必须由调用方传入明确的 `PanelMode`；`parsePanelMode` 只接受精确字面量，未知值抛出 `InvalidPanelModeError`。Connected port 的失败原样保持可观察，不捕获、不补入 Demo 数据，也不回退 Preview。
+
+数据来源的责任边界如下：
+
+```text
+Preview fixture / loader → createPreviewPanelQuery ┐
+                                                   ├→ PanelQuery<T> → caller
+Injected ConnectedPanelPort<T> → createConnectedPanelQuery ┘
+```
+
+公共合同本身不包含任何面板业务 View Model。具体 Feature 后续可以声明自身唯一的 `T`，但 Preview 与 Connected 必须对同一 `T` 完成确定性映射。
+
+## Project Galaxy 公共边界
+
+Project Galaxy 的唯一公开入口是 `src/features/project-galaxy/index.ts`。Preview 与 Connected 都映射为同一个 `ProjectGalaxyViewModel`，UI 只消费该 View Model；Feature 内部的 query adapter 只接收注入的 loader 或 port，不直接导入 Demo fixture、基础设施、外部 Provider SDK 或 `server-only`。
+
+数据链路为：
+
+```text
+src/app/project-galaxy/page.tsx
+  → explicit PanelMode
+  → injected Preview loader / Connected port
+  → Project Galaxy query
+  → deterministic mapper
+  → ProjectGalaxyViewModel
+  → ProjectGalaxyPanel
+```
+
+`officialStatus` 是项目事实，`suggestedStatus` 是独立、可空的建议；两者不得相互 fallback。读取、刷新或渲染建议不会赋值、回写或替换 Official Status。Connected 失败保持可观察，不回退 Preview。
+
+## Flight Log 公共边界
+
+Flight Log 的唯一公开入口是 `src/features/flight-log/index.ts`。Preview 与 Connected 共用 `FlightLogViewModel` 和公共 `PanelQuery<T>`；Feature 只接收注入的 loader 或 port，不直接导入 Demo fixture、基础设施、外部 Provider SDK 或 `server-only`。
+
+```text
+src/app/flight-log/page.tsx
+  → explicit PanelMode + validated filters
+  → injected Preview loader / Connected port
+  → Flight Log query
+  → deterministic filter and mapper
+  → FlightLogViewModel
+  → FlightLogPanel
+```
+
+统一事件类型固定为 `commit | issue | pull_request | release | workflow | sync_event`。排序按 `occurredAt` 降序、固定类型顺序、稳定 ID 升序；时间窗口使用 UTC 包含边界。只有不含凭据的合法 `https` 原始 URL 可渲染为链接。Connected 失败保持可观察且不回退 Preview。
+
+## Mission Control 公共边界
+
+Mission Control 的唯一公开入口是 `src/features/mission-control/index.ts`。Preview 与 Connected 共用 `MissionControlViewModel` 和公共 `PanelQuery<T>`；Feature 只接收注入的 loader 或只读 port，不直接导入 Demo fixture、基础设施、外部 Provider SDK 或 `server-only`。
+
+```text
+src/app/mission-control/page.tsx
+  → explicit PanelMode
+  → injected Preview loader / Connected read port
+  → Mission Control query
+  → deterministic mapper
+  → recordedTasks + suggestions
+  → MissionControlViewModel
+  → MissionControlPanel
+```
+
+`recordedTasks` 只表达 GitHub 已记录事实，`suggestions` 只表达本地候选行动；两者按稳定 ID 对齐，不按标题合并，也不在状态转换中互相移动。建议状态固定为 `suggested | accepted | snoozed | dismissed | completed`。`accepted` 与 `completed` 均不声明 GitHub 远端状态；纯本地 Issue 草稿只包含 `title`、`body` 与 `sourceSuggestionId`，不包含远端 Issue number 或 URL，也不触发网络写入。Connected 失败保持可观察且不回退 Preview。
+
+## Decision Archive 公共边界
+
+Decision Archive 的唯一公开入口是 `src/features/decision-archive/index.ts`。Preview 与 Connected 共用 `DecisionArchiveViewModel` 和公共 `PanelQuery<T>`；Feature 只接收注入的 loader 或 port，不直接导入 Demo fixture、基础设施、外部 Provider SDK、AI 模型或 `server-only`。
+
+```text
+src/app/decision-archive/page.tsx
+  → explicit PanelMode
+  → injected Preview loader / Connected port
+  → Decision Archive query
+  → deterministic mapper
+  → candidates + records
+  → explicit local manual / confirmation action
+  → DecisionArchiveViewModel
+  → DecisionArchivePanel
+```
+
+`DecisionCandidate` 与 `DecisionRecord` 是不同类型和集合，按稳定 ID 关联而不按标题合并。Candidate 只有在用户显式确认并填写非空白原因后，才能生成带独立 ID 的 Record；确认后 Candidate 仍保留，并记录 `confirmedRecordId`。手动 Record 不需要 Candidate。ID、确认者与时间由调用方注入，操作仅返回本地 View Model，不声明数据库持久化、真实模型调用或外部写入。Connected 失败保持可观察且不回退 Preview。
+
+## Copilot Workspace 公共边界
+
+Copilot Workspace 的唯一公开入口是 `src/features/copilot/index.ts`。Preview 与 Connected 共用 `CopilotWorkspaceViewModel` 和公共 `PanelQuery<T>`；Feature 只接收注入的 loader 或 port，不直接导入 Demo fixture、基础设施、外部 Provider SDK、AI 模型或 `server-only`。
+
+冻结的上下文合同为：
+
+```ts
+export interface CopilotContext {
+  featureId: FeatureId;
+  projectId: string | null;
+  evidenceReferenceIds: string[];
+}
+```
+
+`featureId` 复用 Feature Registry 的 `FeatureId`。上下文身份按 `featureId + projectId` 精确匹配；任一身份字段变化都会清空既有 `evidenceReferenceIds`，同一身份可保留并按首次出现顺序稳定去重引用。未知 Feature 失败关闭，不按标题或环境推断身份。
+
+```text
+src/app/copilot/page.tsx
+  → explicit PanelMode
+  → injected Preview loader / Connected port
+  → Copilot Workspace query
+  → pure context transition
+  → CopilotWorkspaceViewModel
+  → CopilotWorkspacePanel
+```
+
+Workspace Shell 只管理显式上下文和引用 ID，不内嵌伪造证据、不生成答案、不调用模型或网络，也不声明持久化成功。Connected 失败保持可观察且不回退 Preview。
 
 ## Domain 纯 TypeScript 边界
 
@@ -126,13 +249,16 @@ import SecretAlias = require("@/features/flight-log/internal/secret");
 - 识别 importer 所属 Feature、Feature 别名和跨 Feature 相对路径。
 - 每个违规包含文件、specifier、引用类型和原因。
 - 正向与负向内存合成示例验证边界分类，当前源码树违规数必须为 0。
+- 递归扫描 `src/shared/panel-query`，禁止其导入 Feature、Demo fixture、应用或基础设施内部模块，以及 React、Next.js、Supabase、Octokit、Inngest、AI SDK、`server-only` 和 Node.js 运行时模块。
+- 对 `src/features/project-galaxy`、`src/features/flight-log`、`src/features/mission-control` 与 `src/features/decision-archive` 额外禁止直接导入 Demo fixture、基础设施、外部 Provider SDK 与 `server-only`，确保两种来源只能经注入边界进入。
+- 递归扫描 `src/testing/connected-panels` 的非测试源码，只允许本地 helper、`next/headers` 和五个 Feature 公开根入口，拒绝 Feature 私有路径、基础设施和其他未声明依赖。
 
 ### 当前尚未自动强制
 
 - 尚未全面验证 `src/application`、`src/infrastructure` 与 `src/app` 的所有依赖方向。
 - 尚未检测模块循环依赖或所有可能的运行时反射加载方式。
 - 尚未强制每个 Feature 已经存在公开根入口，也未验证公共入口导出的业务 API 设计。
-- 尚未验证五个 Registry Route 对应真实页面；本阶段明确不创建这些页面。
+- 五个 Registry Route 的 Preview 页面均已有本地 Playwright 覆盖；Connected 业务旅程仍未在本阶段验证。
 - 尚未把整个模块化单体的所有架构约束编码为自动化规则。
 
 这些项目属于未自动覆盖范围，不能因为当前测试通过就宣称已经得到保证。
@@ -153,6 +279,19 @@ import SecretAlias = require("@/features/flight-log/internal/secret");
 - Feature 读取自身内部文件时，改用相对路径。
 - 不得通过关闭规则、添加跳过、放宽路径或删除负向测试处理违规。
 
+## 五面板 Preview 一致性边界
+
+- 五个 Feature 只通过公开的 `@/shared/demo-disclosure` 展示统一数据来源语义；共享组件只消费 `PanelMode` 与显示文本，不读取任何 Feature 内部状态。
+- 五个 Preview loader 每次返回对应虚构 fixture 的独立深拷贝，避免本地交互污染其他请求或 Case；fixture 版本、来源与冻结 ViewModel 合同不变。
+- Project Galaxy 的建议边界、Flight Log 的筛选、Mission Control 的本地草稿、Decision Archive 的本地确认和 Copilot 的上下文校准均为 Preview 交互，不声明外部写入成功。
+
+## Connected Panel E2E 测试边界
+
+- Connected 浏览器旅程的确定性 test double 仅位于 `src/testing/connected-panels`，只实现五个 Feature 公开根导出的应用端口，不读取任何 Feature 私有文件。
+- test harness 只有在非 production 环境且显式设置 `CONNECTED_PANEL_E2E=1` 时可用；用户与项目必须同时匹配固定的纯虚构白名单，否则失败关闭。
+- production 环境会在进程入口和服务端访问解析两层拒绝启用 test harness；正常 Connected 端口仍保持原有失败关闭语义，不回退 Preview。
+- 浏览器测试使用两个虚构用户、两个虚构项目与稳定 ID，验证项目、事件、建议、草稿、决策记录和 Copilot evidence 的双向隔离；所有请求均限制为本地测试服务。
+
 ## 本 Phase 明确不做
 
-本阶段不实现五个面板页面、任何新增 Next.js Route、Command Deck、Preview Mode、Feature Flag、权限判断、Supabase、GitHub 集成、Inngest、AI Provider、数据库、API Route、Server Action、后台任务、CI 或最终 HUD 视觉。
+Connected Panel E2E Phase 不调用 GitHub、Supabase、Inngest、LLM、AI SDK 或其他真实外部服务，不修改 Command Deck Shell、Feature Registry、数据库、认证、同步管线或任何外部 Provider，也不把 test harness 暴露为 production 能力。

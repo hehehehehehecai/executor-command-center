@@ -47,9 +47,11 @@ describe("GitHub installation HTTP boundary", () => {
   });
 
   it("redirects a successful start to the fixed GitHub installation URL", async () => {
+    const rawState = "a".repeat(43);
     const execute = vi.fn().mockResolvedValue({
       installationUrl:
-        "https://github.com/apps/executor-fixture-app/installations/new?state=synthetic_state",
+        `https://github.com/apps/executor-fixture-app/installations/new?state=${rawState}`,
+      callbackState: rawState,
     });
 
     const response = await handleGitHubInstallationStart({
@@ -64,7 +66,10 @@ describe("GitHub installation HTTP boundary", () => {
     expect(response.status).toBe(303);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("location")).toBe(
-      "https://github.com/apps/executor-fixture-app/installations/new?state=synthetic_state",
+      `https://github.com/apps/executor-fixture-app/installations/new?state=${rawState}`,
+    );
+    expect(response.headers.get("set-cookie")).toBe(
+      `__Secure-executor-installation-state=${rawState}; Max-Age=600; Path=/api/github/installations/setup; HttpOnly; Secure; SameSite=Lax`,
     );
   });
 
@@ -110,7 +115,128 @@ describe("GitHub installation HTTP boundary", () => {
     expect(response.headers.get("location")).toBe(
       "https://executor.example.test/onboarding",
     );
+    expect(response.headers.get("set-cookie")).toBe(
+      "__Secure-executor-installation-state=; Max-Age=0; Path=/api/github/installations/setup; HttpOnly; Secure; SameSite=Lax",
+    );
   });
+
+  it("uses the one-time callback cookie only when GitHub omits query state", async () => {
+    const rawState = "b".repeat(43);
+    const execute = vi.fn().mockResolvedValue({
+      redirectTo: "/onboarding",
+      installationStatus: "active",
+      installationRecordId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    });
+
+    const response = await handleGitHubInstallationSetup({
+      request: new Request(
+        "https://executor.example.test/api/github/installations/setup?installation_id=81001",
+        {
+          headers: {
+            cookie: `unrelated=value; __Secure-executor-installation-state=${rawState}`,
+          },
+        },
+      ),
+      trustedOrigin: "https://executor.example.test",
+      execute,
+    });
+
+    expect(execute).toHaveBeenCalledWith({
+      rawState,
+      installationId: "81001",
+    });
+    expect(response.headers.get("location")).toBe(
+      "https://executor.example.test/onboarding",
+    );
+    expect(response.headers.get("set-cookie")).toContain("Max-Age=0");
+  });
+
+  it("fails closed when query state conflicts with the callback cookie", async () => {
+    const queryState = "c".repeat(43);
+    const cookieState = "d".repeat(43);
+    const execute = vi.fn();
+    const onFailure = vi.fn();
+
+    const response = await handleGitHubInstallationSetup({
+      request: new Request(
+        `https://executor.example.test/api/github/installations/setup?state=${queryState}&installation_id=81001`,
+        {
+          headers: {
+            cookie: `__Secure-executor-installation-state=${cookieState}`,
+          },
+        },
+      ),
+      trustedOrigin: "https://executor.example.test",
+      execute,
+      onFailure,
+    });
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(onFailure).toHaveBeenCalledWith("installation_state_invalid");
+    expect(response.headers.get("location")).toBe(
+      "https://executor.example.test/onboarding?installation=configuration_failed",
+    );
+    expect(response.headers.get("set-cookie")).toContain("Max-Age=0");
+    expect(JSON.stringify(onFailure.mock.calls)).not.toContain(queryState);
+    expect(JSON.stringify(onFailure.mock.calls)).not.toContain(cookieState);
+  });
+
+  it("fails closed when both query state and the callback cookie are missing", async () => {
+    const execute = vi.fn().mockRejectedValue(
+      new Error("installation_state_missing"),
+    );
+    const onFailure = vi.fn();
+
+    const response = await handleGitHubInstallationSetup({
+      request: new Request(
+        "https://executor.example.test/api/github/installations/setup?installation_id=81001",
+      ),
+      trustedOrigin: "https://executor.example.test",
+      execute,
+      onFailure,
+    });
+
+    expect(execute).toHaveBeenCalledWith({
+      rawState: null,
+      installationId: "81001",
+    });
+    expect(onFailure).toHaveBeenCalledWith("installation_state_missing");
+    expect(response.headers.get("location")).toBe(
+      "https://executor.example.test/onboarding?installation=configuration_failed",
+    );
+    expect(response.headers.get("set-cookie")).toContain("Max-Age=0");
+  });
+
+  it.each([
+    "installation_state_expired",
+    "installation_state_wrong_user",
+    "installation_state_replayed",
+  ])(
+    "clears the fallback cookie when state consumption rejects with %s",
+    async (failureCode) => {
+      const rawState = "e".repeat(43);
+      const onFailure = vi.fn();
+      const response = await handleGitHubInstallationSetup({
+        request: new Request(
+          "https://executor.example.test/api/github/installations/setup?installation_id=81001",
+          {
+            headers: {
+              cookie: `__Secure-executor-installation-state=${rawState}`,
+            },
+          },
+        ),
+        trustedOrigin: "https://executor.example.test",
+        execute: async () => {
+          throw new Error(failureCode);
+        },
+        onFailure,
+      });
+
+      expect(onFailure).toHaveBeenCalledWith(failureCode);
+      expect(response.headers.get("set-cookie")).toContain("Max-Age=0");
+      expect(JSON.stringify(onFailure.mock.calls)).not.toContain(rawState);
+    },
+  );
 
   it("rejects a forged installation_id through a generic failure redirect", async () => {
     const onFailure = vi.fn();

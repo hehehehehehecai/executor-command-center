@@ -1,0 +1,248 @@
+.shell {
+  width: min(100% - 2rem, 80rem);
+  min-width: 0;
+  margin: 0 auto;
+  padding: 2rem 0 3rem;
+}
+
+.header {
+  display: grid;
+  gap: 1.5rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1.5rem;
+}
+
+.title {
+  overflow-wrap: anywhere;
+  font-size: clamp(2.75rem, 10vw, 6rem);
+}
+
+.intro {
+  max-width: 42rem;
+  margin: 1rem 0 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.provenance {
+  align-self: end;
+  display: grid;
+  gap: 0.3rem;
+  border-left: 3px solid var(--accent);
+  padding-left: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.provenance span {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.identity {
+  display: grid;
+  min-width: 0;
+  margin: 1.5rem 0;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.identity div {
+  display: grid;
+  min-width: 0;
+  gap: 0.35rem;
+  padding: 1rem;
+}
+
+.identity div + div {
+  border-top: 1px solid var(--border);
+}
+
+.identity span,
+.kindLabel {
+  color: var(--muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.identity strong {
+  overflow-wrap: anywhere;
+}
+
+.statusGrid,
+.contentGrid {
+  display: grid;
+  min-width: 0;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.officialStatus,
+.suggestedStatus,
+.contentCard,
+.activityCard {
+  min-width: 0;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 1.25rem;
+}
+
+.officialStatus {
+  border-left: 4px solid var(--accent);
+}
+
+.suggestedStatus {
+  border-left: 4px dashed #9b6709;
+  background: #fffbf2;
+}
+
+.officialStatus h2,
+.suggestedStatus h2,
+.contentCard h2,
+.activityCard h2 {
+  margin: 0.4rem 0 1rem;
+  font-size: 1.25rem;
+}
+
+.officialStatus p,
+.suggestedStatus p,
+.contentCard p,
+.activityCard p {
+  line-height: 1.6;
+}
+
+.kindLabel {
+  margin: 0;
+}
+
+.statusValue {
+  display: block;
+  width: fit-content;
+  margin-bottom: 0.75rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 0.4rem 0.65rem;
+  color: var(--accent);
+}
+
+.suggestedStatus .statusValue {
+  color: #744900;
+}
+
+.suggestedStatus time {
+  display: block;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.suggestionBoundary {
+  border-top: 1px solid #dcc79f;
+  padding-top: 0.75rem;
+  font-weight: 700;
+}
+
+.previewDetails {
+  margin-top: 0.75rem;
+  border-top: 1px solid #dcc79f;
+  padding-top: 0.75rem;
+}
+
+.previewDetails summary {
+  width: fit-content;
+  cursor: pointer;
+  color: #744900;
+  font-weight: 750;
+  text-underline-offset: 0.2em;
+}
+
+.previewDetails summary:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.emptyState {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.blockerList,
+.activityList {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.blockerList li {
+  border-left: 3px solid #8b2b2b;
+  padding-left: 0.75rem;
+  line-height: 1.55;
+}
+
+.activityCard {
+  margin-bottom: 1rem;
+}
+
+.activityList li {
+  display: grid;
+  min-width: 0;
+  gap: 0.35rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+}
+
+.activityList span {
+  overflow-wrap: anywhere;
+  font-weight: 650;
+}
+
+.activityList time {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.unknownFreshness h2 {
+  margin: 0.35rem 0 0;
+  font-size: clamp(1.5rem, 4vw, 2.25rem);
+  letter-spacing: -0.03em;
+}
+
+.footer {
+  border-top: 1px solid var(--border);
+  padding-top: 1.25rem;
+}
+
+.footer a {
+  color: var(--accent);
+  font-weight: 700;
+  text-underline-offset: 0.2em;
+}
+
+@media (min-width: 48rem) {
+  .shell {
+    padding: 3rem 0 4rem;
+  }
+
+  .header {
+    grid-template-columns: minmax(0, 1.5fr) minmax(15rem, 0.5fr);
+    align-items: end;
+  }
+
+  .identity {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .identity div + div {
+    border-top: 0;
+    border-left: 1px solid var(--border);
+  }
+
+  .statusGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .contentGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

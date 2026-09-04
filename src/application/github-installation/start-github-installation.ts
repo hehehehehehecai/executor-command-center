@@ -59,6 +59,7 @@ export class StartGitHubInstallation {
 
     return {
       installationUrl: installationUrl.toString(),
+      callbackState: state.rawState,
     };
   }
 }

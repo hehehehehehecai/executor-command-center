@@ -20,7 +20,21 @@ test("completes synthetic GitHub sign-in, restores the session, and grants no re
     page.getByRole("heading", { name: "GitHub 身份登录成功" }),
   ).toBeVisible();
   await expect(page.getByText("not_registered", { exact: true })).toBeVisible();
-  await expect(page.getByText("none", { exact: true })).toHaveCount(2);
+  await expect(
+    page
+      .getByText("selected_repository_count", { exact: true })
+      .locator("..")
+      .locator("dd"),
+  ).toHaveText("unknown");
+  await expect(
+    page.getByText("calibration_status", { exact: true }).locator("..").locator("dd"),
+  ).toHaveText("unknown");
+  await expect(
+    page.getByText("projects", { exact: true }).locator("..").locator("dd"),
+  ).toHaveText("unknown");
+  await expect(
+    page.getByText("repository_content", { exact: true }).locator("..").locator("dd"),
+  ).toHaveText("none");
 
   await page.reload();
   await expect(
@@ -28,11 +42,13 @@ test("completes synthetic GitHub sign-in, restores the session, and grants no re
   ).toBeVisible();
 
   await page.goto("/");
-  await page.getByRole("link", { name: "使用 GitHub 登录" }).click();
+  await expect(page.getByText("GitHub 身份已登录", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "使用 GitHub 登录" })).toHaveCount(0);
+  await page.getByRole("link", { name: "查看 GitHub App 状态" }).click();
   await expect(page).toHaveURL("http://127.0.0.1:3000/onboarding");
 
   const fixtureStateResponse = await request.get(
-    "http://127.0.0.1:54322/__fixture/state",
+    "http://127.0.0.1:54331/__fixture/state",
   );
   expect(fixtureStateResponse.ok()).toBe(true);
   expect(await fixtureStateResponse.json()).toEqual({
@@ -47,7 +63,7 @@ test("completes synthetic GitHub sign-in, restores the session, and grants no re
     installation_created: false,
     repository_access: "none",
     internal_user_count: 1,
-    identity_ensure_calls: 2,
+    identity_ensure_calls: 1,
   });
   expect(externalRequests).toEqual([]);
 });

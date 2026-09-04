@@ -12,7 +12,7 @@ if (process.env.NODE_ENV === "production") {
 
 const hostname = "127.0.0.1";
 const appPort = 3000;
-const fixturePort = 54322;
+const fixturePort = 54331;
 const projectRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",

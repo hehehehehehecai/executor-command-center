@@ -1,0 +1,36 @@
+{
+  "batch_id": "explorer-stage3-task2-ed30a0df",
+  "authorization_envelope_id": "workflow-authorization.v1:ed30a0dfb4d2be85",
+  "recorded_at": "2026-08-05T18:54:43.0148331+08:00",
+  "baseline": {
+    "branch": "feature/stage3-task1-github-activity-snapshots",
+    "commit": "dac9b66daaf18d7fe0edefc4d56fd07ecb40fef0",
+    "tree": "6793406ca68394f3f3e2833519690c2c24067933",
+    "worktree": "clean",
+    "database_types_sha256": "06162b9d7271c0e06f4f13c58d30e2fa91532de50d1ba0cadbf1b72bc5cd4c26"
+  },
+  "contracts": {
+    "domain": "synchronization-state.v1",
+    "persistence": "sync-runs.v1",
+    "freshness": "freshness-status.v1",
+    "unchanged_baseline": "github-activity-snapshots.v1"
+  },
+  "sync_statuses": ["queued", "running", "partial", "completed", "failed", "cancelled"],
+  "freshness_statuses": ["fresh", "stale", "partial", "syncing", "failed", "authorization_revoked"],
+  "allowed_transitions": {
+    "queued": ["running", "cancelled", "failed"],
+    "running": ["partial", "completed", "failed", "cancelled"],
+    "partial": ["running", "completed", "failed", "cancelled"],
+    "completed": [],
+    "failed": [],
+    "cancelled": []
+  },
+  "same_status_replay": "idempotent_no_op",
+  "freshness_boundary": "last_success_at is fresh when now - last_success_at <= 24h; stale when > 24h",
+  "project_ownership": "sync_runs.project_id -> projects.id -> projects.user_id",
+  "idempotency_scope": "unique(project_id, idempotency_key)",
+  "planned_migration": "20260805190000_create_sync_runs.sql",
+  "planned_pgtap": "0013_sync_runs_test.sql",
+  "forbidden_fields": ["token", "secret", "authorization_header", "raw_payload", "raw_response", "github_payload"],
+  "forbidden_scope": ["JobDispatcher", "Inngest", "GitHub Reader", "First Sync", "Webhook", "Reconciliation", "Manual Sync", "Freshness UI", "Staging Smoke"]
+}

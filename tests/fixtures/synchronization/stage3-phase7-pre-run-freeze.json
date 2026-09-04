@@ -1,0 +1,166 @@
+{
+  "record_type": "stage3-phase7-pre-run-freeze",
+  "recorded_at": "2026-08-06T13:50:56.1532894+08:00",
+  "batch_id": "explorer-stage3-phase7-reconciliation-79293dab",
+  "prompt_instance_id": "explorer-stage3-phase7-reconciliation-manual-79293dab",
+  "authorization_envelope_id": "workflow-authorization.v1:79293dab8e0705ce",
+  "baseline": {
+    "branch": "feature/stage3-phase6-verified-github-webhook",
+    "commit": "08c80e8e5b67afb130d1ea96fcb9f053b3b8fe08",
+    "tree": "880a56839ea7cd5963e993513c3a5c6aad666046",
+    "parent": "42b5166c0140f8d75090b33b690ba916ac15ea1e",
+    "worktree": "clean",
+    "phase7_branch": "feature/stage3-phase7-reconciliation"
+  },
+  "source_evidence": {
+    "review_ticket": "sha256:efe694002bff80e88e40c5f83f84d4f0efeddc57a2fbd8cf5d6a0caffc9512de",
+    "independent_review": "sha256:08d3e260b149a105a9dec386b5d508d9e068905ca5ccdee27642dda7f2e977e0",
+    "plan_version": "fe5902"
+  },
+  "contracts": {
+    "repository_reconciliation": "repository-reconciliation.v1",
+    "schedule": "reconciliation-schedule.v1",
+    "manual_resync": "manual-resync.v1",
+    "coalescing": "sync-request-coalescing.v1",
+    "sync_state": "synchronization-state.v1",
+    "sync_runs": "sync-runs.v1",
+    "background_job": "background-job.v1",
+    "job_dispatcher": "job-dispatcher.v1",
+    "snapshots": "github-activity-snapshots.v1",
+    "snapshot_writer": "github-activity-snapshot-writer.v1",
+    "reader": "github-activity-reader.v1",
+    "webhook": "github-webhook-ingestion.v1"
+  },
+  "core_artifact_sha256": {
+    "github_activity_snapshots_migration": "01645d46419adf5ccbde1313a1c0b589bf5b03e1ea0ee04e92c7b49fc34a2517",
+    "sync_runs_migration": "6fc92bc0ce971c665fbf689f689f3d48a5a4a60f0959eba3985f5ff52173c8fe",
+    "first_sync_migration": "c309bffc9d7ffe613622fcff07df1c2d817d86c733c96fd5efba1ca0de47a64d",
+    "webhook_migration": "ad0b397ba227639c5dca302ca1c1d9d34dae54db6fe949e8ea31b7c565ba5648",
+    "first_sync_use_case": "09c3519cb039b8fc48c289b0b7ea243b8dd022f499efc8090a3f7008990de506",
+    "webhook_use_case": "665e7ca42da39667f8ae49e8915c427e8b723f3505cdbcc78f430e24a24be8d9",
+    "background_job": "4af2b1ac4fa5aa515480a776d96966495457abb33d3ba2e5fcb339c1dc516ac1",
+    "github_activity_reader": "4a66ccd35696bf94c5815e276599fbcac2dc4122eee09e3b5ebca67e13658b6f",
+    "database_types": "03d3676f133b504e34896ba2b4b6565cb0cb4a4aaffc7503eb5ca6465459a610",
+    "package_json": "f9a6ab717fa98c452d290a69374e30b00b09b23f5253699d9900c935dd349468",
+    "pnpm_lock": "a087993aad1ff9993627e09050e70d61d22fcc2e9c33909074b52b00528c8eef"
+  },
+  "daily_schedule": {
+    "timezone": "UTC",
+    "window": "[UTC calendar day start, next UTC calendar day start)",
+    "identity": "reconciliation:<YYYY-MM-DD>",
+    "snapshot_since": "windowEnd minus 90 calendar days",
+    "retry": "explicit scheduledAt in the same UTC day reuses the same project-scoped identity",
+    "catch_up": "each missed UTC date is invoked explicitly and has a distinct identity"
+  },
+  "eligible_projects": {
+    "project_statuses": ["in_planning", "in_development", "polishing"],
+    "excluded_project_statuses": ["dormant", "completed", "archived"],
+    "active_installation": "eligible for remote read",
+    "suspended_installation": "blocked before remote read and dispatch",
+    "revoked_installation": "authorization_revoked before remote read and dispatch",
+    "missing_mapping": "blocked before remote read and dispatch"
+  },
+  "facts": {
+    "groups": ["repository", "commit", "issue", "pull_request", "release", "workflow_run"],
+    "collection_digest": "lowercase sha256 of githubObjectId + unit-separator + sourceVersion records sorted by githubObjectId and joined by record-separator",
+    "repository_digest": "lowercase sha256 of stable repository id, full name, default branch, visibility, private, fork, archived and disabled fields",
+    "local_source": "structured Phase 1 snapshot columns filtered by sourceUpdatedAt >= snapshotSince",
+    "remote_source": "typed Phase 4 read models plus existing authorized-repository metadata reader",
+    "raw_response": "forbidden",
+    "pagination": {"max_pages": 100, "max_objects_per_group": 10000},
+    "remote_calls_per_eligible_project": {"repository_metadata": 1, "activity_groups": 5}
+  },
+  "decision_matrix": {
+    "active_and_equal": "no_difference; zero SyncRun, job and snapshot writes",
+    "active_and_different": "difference; request one project sync",
+    "queued_or_running": "coalesced; no second SyncRun",
+    "suspended": "blocked; zero reader and dispatch",
+    "revoked": "authorization_revoked; zero reader and dispatch",
+    "missing_mapping": "blocked; zero reader and dispatch",
+    "remote_read_failure": "failed; zero sync request and dispatch",
+    "manual_owner_active": "accepted or coalesced through database request",
+    "manual_non_owner": "forbidden with zero mutation and dispatch",
+    "manual_missing_identity_or_invalid_input": "rejected before database mutation",
+    "same_identity_terminal_replay": "duplicate; no new SyncRun or job"
+  },
+  "coalescing": {
+    "lock": "transaction-scoped PostgreSQL advisory lock keyed by projectId",
+    "active_statuses": ["queued", "running"],
+    "partial_and_failed": "historical rows remain unchanged and do not block a new request",
+    "request_identity": {
+      "reconciliation": "reconciliation:<YYYY-MM-DD>",
+      "manual": "manual:<requestId>",
+      "webhook": "existing object-level github-webhook:<deliveryId>",
+      "first_sync": "existing first-sync:<requestId>"
+    },
+    "dispatch_inbox": "one project_sync_dispatch row per SyncRun with pending/dispatching/dispatched state, optimistic version and a 60-second lease",
+    "crash_recovery": "missing receipt is reclaimed after lease expiry with the same BackgroundJob id, correlation id and idempotency key",
+    "webhook_concurrency": "Webhook remains object-level; project SyncRun count is one and Phase 1 project+object unique keys prevent duplicate snapshot facts"
+  },
+  "lineage": [
+    "trigger source and stable request identity",
+    "trusted project, selected repository, installation and GitHub repository",
+    "local and remote six-group digests",
+    "decision",
+    "SyncRun new or reused",
+    "BackgroundJob with run identity",
+    "provider receipt",
+    "existing snapshot, cursor and freshness contracts"
+  ],
+  "database_boundary": {
+    "migration": "20260806153000_create_repository_reconciliation.sql",
+    "logical_migration_id": "0014",
+    "pgtap": "0016_repository_reconciliation_test.sql",
+    "rpc_role": "service_role only",
+    "direct_table_access": "none for anon, authenticated and service_role",
+    "rls": "enabled",
+    "manual_actor": "verified server-side user id passed to RPC and checked against projects.user_id",
+    "client_claims": "repository, installation status, owner and freshness are never trusted"
+  },
+  "boundaries": {
+    "domain_application": "no Next, Supabase, Inngest or scheduler SDK imports",
+    "scheduler": "injects explicit scheduledAt only; no deployed cron",
+    "manual_route": "parses request, resolves verified session and maps stable result only",
+    "database": "owns project mapping, ownership, installation gate and cross-process coalescing",
+    "reader": "reads and hashes typed minimal facts only",
+    "dispatcher": "dispatches existing project.sync.requested.v1 BackgroundJob only"
+  },
+  "test_denominator_minimum": {
+    "domain_cases": 8,
+    "application_cases": 12,
+    "adapter_route_scheduler_cases": 6,
+    "pgtap_assertions": 25,
+    "concurrent_cases": 3,
+    "missed_webhook_cases": 1,
+    "manual_ownership_positive": 1,
+    "manual_ownership_negative": 3,
+    "new_required_skips": 0
+  },
+  "allowed_paths": [
+    "src/domain/synchronization/reconciliation*",
+    "src/application/synchronization/reconciliation*",
+    "src/infrastructure/synchronization/*reconciliation*",
+    "src/app/api/projects/[projectId]/resync/*",
+    "supabase/migrations/20260806153000_create_repository_reconciliation.sql",
+    "supabase/tests/0016_repository_reconciliation_test.sql",
+    "tests/integration/synchronization/reconciliation*",
+    "tests/fixtures/synchronization/stage3-phase7-pre-run-freeze.json",
+    "src/infrastructure/database/database.types.ts"
+  ],
+  "forbidden_scope": [
+    "Phase 8 freshness UI",
+    "Phase 9 staging smoke",
+    "real cron enablement",
+    "real GitHub or Inngest requests",
+    "remote Supabase",
+    "raw GitHub response, source, diff or credentials",
+    "historical migration or Freeze edits",
+    "package or lockfile changes",
+    "push, merge, PR or deployment"
+  ],
+  "tool_versions": {
+    "node": "v22.22.3",
+    "pnpm": "11.5.0",
+    "supabase_cli": "2.109.1"
+  }
+}

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { AuthorizedRepositoryList } from "./authorized-repository-list";
+import { ProjectCalibrationPanel } from "./project-calibration-panel";
 
 export type GitHubInstallationUiStatus =
   | "not_registered"
@@ -39,23 +40,31 @@ export function GitHubInstallationStatus(input: {
             <dd>not_loaded</dd>
           </div>
         ) : null}
-        <div>
-          <dt>selected_repositories</dt>
-          <dd>none</dd>
-        </div>
-        <div>
-          <dt>projects</dt>
-          <dd>none</dd>
-        </div>
       </dl>
       <p>{statusMessage[input.installationStatus]}</p>
-      {input.installationStatus === "active" ||
-      input.installationStatus === "suspended" ||
-      input.installationStatus === "revoked" ? (
-        <AuthorizedRepositoryList
-          installationStatus={input.installationStatus}
-        />
-      ) : null}
+      {input.authenticated ? (
+        <>
+          <AuthorizedRepositoryList
+            installationStatus={input.installationStatus}
+          />
+          <ProjectCalibrationPanel />
+        </>
+      ) : (
+        <dl className="auth-state-list">
+          <div>
+            <dt>selected_repository_count</dt>
+            <dd>unknown</dd>
+          </div>
+          <div>
+            <dt>calibration_status</dt>
+            <dd>pending</dd>
+          </div>
+          <div>
+            <dt>projects</dt>
+            <dd>none</dd>
+          </div>
+        </dl>
+      )}
       {input.authenticated &&
       input.installationStatus === "not_registered" ? (
         <Link href="/api/github/installations/start?returnTo=%2Fonboarding">

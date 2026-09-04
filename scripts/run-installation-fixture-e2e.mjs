@@ -255,10 +255,16 @@ function createFixtureServer() {
     }
 
     if (
-      request.method === "GET" &&
-      requestUrl.pathname === "/rest/v1/github_identities"
+      request.method === "POST" &&
+      requestUrl.pathname ===
+        "/rest/v1/rpc/read_current_github_identity"
     ) {
-      writeJson(response, 200, [{ github_user_id: githubUserId }]);
+      const body = JSON.parse(await readBody(request));
+      writeJson(
+        response,
+        200,
+        body.p_user_id === internalUserId ? githubUserId : null,
+      );
       return;
     }
 

@@ -45,6 +45,15 @@ jobs:
       - name: Validate environment contract
         run: pnpm env:check
 
+      - name: Scan tracked files for secrets
+        run: pnpm security:secret-scan
+
+      - name: Audit production dependencies
+        run: pnpm security:dependency-audit
+
+      - name: Run security contract tests
+        run: pnpm security:test
+
       - name: Lint
         run: pnpm lint
 
@@ -81,8 +90,23 @@ jobs:
       - name: Run local end-to-end tests
         run: pnpm test:e2e
 
+      - name: Run core journey end-to-end tests
+        run: pnpm test:e2e:core-journeys
+
+      - name: Run authenticated fixture end-to-end tests
+        run: pnpm test:e2e:auth-fixture
+
+      - name: Run connected panel fixture end-to-end tests
+        run: pnpm test:e2e:connected-panels
+
+      - name: Run accessibility and responsive end-to-end tests
+        run: pnpm test:e2e:phase6-accessibility
+
       - name: Build the application
         run: pnpm build
+
+      - name: Verify production CSP nonce runtime
+        run: pnpm test:security:csp-runtime
 
       - name: Stop local Supabase
         if: always()

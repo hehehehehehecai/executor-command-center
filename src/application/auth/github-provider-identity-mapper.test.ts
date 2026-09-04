@@ -37,6 +37,32 @@ describe("github-provider-identity.v1", () => {
     });
   });
 
+  it("maps the UserIdentity shape returned by the locked Supabase auth SDK", () => {
+    const sdkUser = {
+      id: authUserId,
+      identities: [
+        {
+          id: "12345678",
+          user_id: authUserId,
+          identity_id: "33333333-3333-4333-8333-333333333333",
+          provider: "github",
+          identity_data: {
+            provider_id: "12345678",
+            user_name: "octo-fixture",
+            avatar_url: "https://avatars.example.test/u/12345678",
+          },
+        },
+      ],
+    } as unknown as SupabaseAuthUserSnapshot;
+
+    expect(mapVerifiedGitHubAuthIdentity(sdkUser)).toEqual({
+      authUserId,
+      githubUserId: 12345678,
+      githubLogin: "octo-fixture",
+      avatarUrl: "https://avatars.example.test/u/12345678",
+    });
+  });
+
   it("uses provider_id as the stable key when login changes", () => {
     const first = mapVerifiedGitHubAuthIdentity(githubUser());
     const renamed = mapVerifiedGitHubAuthIdentity(

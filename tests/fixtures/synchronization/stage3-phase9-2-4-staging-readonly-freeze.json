@@ -1,0 +1,109 @@
+{
+  "contractVersion": "stage3-phase9-2-4-staging-readonly-freeze.v1",
+  "recordedAt": "2026-08-11T08:34:00.000Z",
+  "batch": {
+    "batchId": "explorer-stage3-phase9-2-4-staging-readonly-evidence-3ed35cd0",
+    "promptInstanceId": "explorer-stage3-phase9-2-4-staging-cursor-forensics-3ed35cd0",
+    "authorizationEnvelopeId": "workflow-authorization.v1:3ed35cd00bba54d4",
+    "sourceTicket": "sha256:3ed35cd00bba54d4d1f117b22a62f9b7edda721cd8ddc8ec9e6f919cbb94547b",
+    "blockerFingerprint": "sha256:5242b2664d228b6c2c6248ba996993917b6288edb3c5f396a3659ca9b6a37e97",
+    "blockerRound": "2/5"
+  },
+  "baseline": {
+    "branch": "feature/stage3-phase8-data-freshness-ui",
+    "commit": "f67bf836b8d0dd2826db6fb26178992263b3a1cc",
+    "tree": "4a6a8218da1e32d0c057f0f7c22399b139da6108",
+    "parent": "984419866d809d8a9ef89451653847488b7d3f56",
+    "message": "docs(sync): record unreproduced first sync cursor blocker",
+    "worktree": "clean"
+  },
+  "fixedStagingObjects": {
+    "githubRepositoryFullName": "hehehehehehecai/explorer-staging-private-test-20260804",
+    "githubRepositoryId": 1322569219,
+    "supabaseProjectRef": "gsnuorsqdcdszjxtymhs",
+    "vercelProject": "executor-command-center",
+    "vercelAlias": "executor-command-center-git-staging-hehehehehehecais-projects.vercel.app",
+    "expectedReadyDeploymentId": "dpl_EQMcmKFvUYZ5r4v9WfPHXzNEHPk2",
+    "inngestWorkspace": "staging-7050a935",
+    "projectId": "81630aa3-a101-421c-b31e-dc16d1592c31",
+    "syncRunId": "06070d6a-23e2-44ba-8db2-90a4c644e8ea",
+    "requestId": "stage3-phase9-1ef8fde8-first-sync",
+    "smokeRunId": "stage3-phase9-smoke-20260811T010100Z-1ef8fde8"
+  },
+  "actualRepositoryFunctionSignatures": {
+    "validator": "app_private.first_sync_cursor_is_valid(text,uuid,uuid)",
+    "checkpoint": "public.checkpoint_first_sync_run(uuid,uuid,text,bigint,timestamptz,text)",
+    "promptSignatureNote": "The prompt used abbreviated jsonb signatures; remote comparison must target the actual repository overloads above."
+  },
+  "localNormalizedFunctionDefinitionSha256": {
+    "normalization": "btrim(regexp_replace(pg_get_functiondef(oid), E'\\\\s+', ' ', 'g')) encoded as UTF-8",
+    "validator": "b6c7f8b4701175cfe5abc1fc884637644ab57612b61c765b35deb293f0e61ccd",
+    "checkpoint": "ee37cd754ae346794b29bb4e7f77fc4e23f9b8f36ebe00e28e03e140a7325fd4"
+  },
+  "allowedRemoteReads": [
+    "Vercel alias and deployment metadata for the fixed deployment only",
+    "Supabase project identity confirmation for gsnuorsqdcdszjxtymhs",
+    "BEGIN TRANSACTION READ ONLY queries for migration ledger, actual function definition hashes, one synthetic validator call, and fixed SyncRun safe metadata/counts",
+    "Inngest fixed workspace/request/run metadata limited to identifier length, character class, SHA-256, timestamps, status, safe code, and logical dispatch count"
+  ],
+  "forbiddenRemoteOperations": [
+    "INSERT, UPDATE, DELETE, UPSERT, writable RPC, DDL, migration apply or repair",
+    "checkpoint_first_sync_run invocation",
+    "First Sync, Manual Resync, Webhook, Reconciliation, or Inngest function execution",
+    "deployment, alias/config/environment mutation, provider object creation, Push, PR, Merge, Promote, or Rollback",
+    "Production or any project/repository outside the fixed objects"
+  ],
+  "redactionPolicy": {
+    "neverReadOrPersist": [
+      "token",
+      "Cookie",
+      "Authorization",
+      "database password or DSN",
+      "service-role key",
+      "Inngest event/signing key",
+      "raw cursor",
+      "raw provider payload",
+      "event body"
+    ],
+    "functionBodies": "May exist transiently only for in-memory normalization/diff; evidence stores hashes and the first safe structural difference only.",
+    "cursor": "If non-null, retain only JSON type, exact top-level keys, serialized UTF-8 byte length, and SHA-256.",
+    "providerIdentifiers": "Retain only length, character-class label, SHA-256, and logical counts unless the identifier is explicitly fixed in this authorization."
+  },
+  "protectedHashes": {
+    "package.json": "f9a6ab717fa98c452d290a69374e30b00b09b23f5253699d9900c935dd349468",
+    "pnpm-lock.yaml": "a087993aad1ff9993627e09050e70d61d22fcc2e9c33909074b52b00528c8eef",
+    "next-env.d.ts": "4e4da12aa061aac172fb1bcb48e9b6e4b293080d2f494327925fdba8f39632ac",
+    "supabase/migrations/20260806100000_create_first_sync_support.sql": "c309bffc9d7ffe613622fcff07df1c2d817d86c733c96fd5efba1ca0de47a64d",
+    "src/domain/synchronization/first-sync.ts": "b8ee70ed85e1250f9efb0fc0c344314d176468024a4fc5bd8f3c50693b24b301",
+    "src/application/synchronization/first-sync-use-cases.ts": "afc07312bb274920eb352d33639db83991977cc8117f0f334f573c4b0f6ab30e",
+    "src/infrastructure/synchronization/supabase-first-sync-store.ts": "110ed74ae3b747121d235a5167375c24a8a3f098199b457bef941df121751846",
+    "src/infrastructure/jobs/inngest-job-dispatcher.ts": "478c82419c15e0b3a250a9d72a2a976fe6298d091bad5222f8cca0e2a4ec914d",
+    "tests/fixtures/synchronization/stage3-phase9-2-3-pre-run-freeze.json": "77931e78acf00d96d02b41913b02bf7648dbf1bd61789dfc7c93a5fb93251ac6",
+    "docs/runbooks/stage3-phase9-2-3-first-sync-cursor-evidence.md": "a6e87e2d945981069f786dca61c7fda524ebadd864449043fea74baf324760cb"
+  },
+  "exactAllowedPaths": [
+    "tests/fixtures/synchronization/stage3-phase9-2-4-staging-readonly-freeze.json",
+    "docs/runbooks/stage3-phase9-2-4-staging-readonly-evidence.md"
+  ],
+  "evidenceDenominator": {
+    "deploymentBinding": 1,
+    "migrationLedger": 1,
+    "functionDefinitionHashes": 2,
+    "syntheticRemoteValidator": 1,
+    "failedSyncRunSafeState": 1,
+    "providerMetadataBoundaries": 2,
+    "remoteWriteCalls": 0,
+    "requiredSkipped": 0
+  },
+  "sideEffectAccounting": {
+    "remoteWritesBeforeFreeze": 0,
+    "remoteWritesAllowedAfterFreeze": 0,
+    "localSupabaseMayStartAndStop": true,
+    "temporaryFilesMustBeDeletedByExactPath": true
+  },
+  "commitStrategy": {
+    "maximumCommits": 1,
+    "pushAllowed": false,
+    "message": "docs(sync): capture staging cursor forensic evidence"
+  }
+}

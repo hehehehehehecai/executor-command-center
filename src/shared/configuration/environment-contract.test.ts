@@ -15,6 +15,10 @@ const approvedNames = [
   "INNGEST_EVENT_KEY",
   "INNGEST_SIGNING_KEY",
   "DEEPSEEK_API_KEY",
+  "STAGING_VERIFICATION_ENABLED",
+  "STAGING_VERIFICATION_PROJECT_ID",
+  "STAGING_VERIFICATION_INSTALLATION_ID",
+  "STAGING_VERIFICATION_REPOSITORY",
 ] as const;
 
 const serverOnlyNames = approvedNames.filter(
@@ -86,6 +90,21 @@ describe("environment-validation.v1", () => {
     expect(parseEnvironment(validAppOrigin)).toMatchObject(validAppOrigin);
     expect(parseEnvironment({ APP_ORIGIN: "http://127.0.0.1:3000" }))
       .toMatchObject({ APP_ORIGIN: "http://127.0.0.1:3000" });
+  });
+
+  test("accepts only a complete narrowly bound Staging verification group", async () => {
+    const { parseEnvironment } = await loadContract();
+    const group = {
+      STAGING_VERIFICATION_ENABLED: "1",
+      STAGING_VERIFICATION_PROJECT_ID: "22222222-2222-4222-8222-222222222222",
+      STAGING_VERIFICATION_INSTALLATION_ID: "157171025",
+      STAGING_VERIFICATION_REPOSITORY: "hecaitest1/executor-stage6-staging-fixture",
+    };
+    expect(parseEnvironment(group)).toMatchObject(group);
+    expect(() => parseEnvironment({ STAGING_VERIFICATION_ENABLED: "1" }))
+      .toThrow(/STAGING_VERIFICATION_PROJECT_ID/);
+    expect(() => parseEnvironment({ ...group, STAGING_VERIFICATION_ENABLED: "0" }))
+      .toThrow(/STAGING_VERIFICATION_ENABLED/);
   });
 
   test("rejects an untrusted application origin shape", async () => {

@@ -1,0 +1,130 @@
+{
+  "contractVersion": "stage3-phase9-2-7-token-permissions-freeze.v1",
+  "immutable": true,
+  "recordedAt": "2026-08-11T07:07:09.768Z",
+  "batchId": "explorer-stage3-phase9-2-7-token-permissions-c507acbe",
+  "promptInstanceId": "explorer-stage3-phase9-2-7-installation-token-permissions-c507acbe",
+  "authorizationPolicy": "workflow-authorization.v1",
+  "authorizationEnvelopeId": "workflow-authorization.v1:c507acbeefd8dd5e",
+  "sourceReviewTicketSha256": "c507acbeefd8dd5e0c3a666307d799caff88f42749296a47e4e87e815e5f2783",
+  "sourceBlocker": {
+    "sha256": "b1c5c01511e4e68883cf107df1dd9845a04d39a209ff23c5b37b3772dff91d46",
+    "round": "1/5"
+  },
+  "baseline": {
+    "branch": "feature/stage3-phase8-data-freshness-ui",
+    "commit": "8e56ae8acea20ee5f556925a82064b32149aa4ab",
+    "tree": "fb7a96c9256b1d87aa54f99e1825d00f77a383ee",
+    "parent": "9e07c7bf288f6d0aaa3818a0cc2a9e81a557b220",
+    "message": "test(sync): record blocked staging synchronization smoke",
+    "worktreeClean": true,
+    "originStaging": "9e07c7bf288f6d0aaa3818a0cc2a9e81a557b220"
+  },
+  "sourceEvidence": {
+    "phase926FreezePath": "tests/fixtures/synchronization/stage3-phase9-2-6-staging-smoke-freeze.json",
+    "phase926FreezeSha256": "7d1c251a49d1f8a00e015616278861908d62858bad905cf38351c63de19dc5cf",
+    "phase926EvidencePath": "docs/runbooks/stage3-phase9-2-6-staging-smoke-evidence.md",
+    "phase926EvidenceSha256": "5bd119a1dfb8b33f29b202f37b1c6e5d82a309602e7e641b9db3f4a4475aa179",
+    "rootCause": "GitHubInstallationTokenClient.create requests only metadata:read while activity synchronization subsequently reads commits and other activity resources."
+  },
+  "permissionProfiles": {
+    "metadataOnly": {
+      "metadata": "read"
+    },
+    "activityRead": {
+      "metadata": "read",
+      "contents": "read",
+      "issues": "read",
+      "pull_requests": "read",
+      "actions": "read"
+    },
+    "forbidden": [
+      "administration",
+      "members",
+      "workflows",
+      "contents:write",
+      "issues:write",
+      "pull_requests:write",
+      "actions:write",
+      "repositories",
+      "repository_ids"
+    ]
+  },
+  "dataFlow": {
+    "metadataOnly": "authorized repository list -> GitHubAuthorizedRepositoryGatewayAdapter -> GitHubInstallationTokenClient.create",
+    "activityRead": "First Sync, Project Sync and Reconciliation -> GitHubFirstSyncTokenProvider -> dedicated GitHubInstallationTokenClient activity method",
+    "applicationLayerOwnsPermissionStrings": false,
+    "repositoryScope": "installation selected repositories; token request does not add repositories or repository_ids"
+  },
+  "tdd": {
+    "redCommand": "vitest run src/infrastructure/github/github-installation-token-client.test.ts src/infrastructure/github/github-first-sync-token-provider.test.ts",
+    "focusedRedDenominator": 1,
+    "requiredBehaviorCases": [
+      "metadata-only request remains exact",
+      "activity request contains exact five read permissions",
+      "activity response missing each required read permission is rejected",
+      "First Sync provider selects activity profile",
+      "authorized repository gateway remains metadata-only",
+      "no write permission, repositories or repository_ids"
+    ],
+    "requiredSkipped": 0,
+    "greenFiles": 2,
+    "regressionFamilies": [
+      "installation token client",
+      "First Sync token provider",
+      "authorized repository gateway",
+      "Phase 4 activity reader",
+      "Phase 5 First Sync",
+      "Project Sync",
+      "Reconciliation"
+    ]
+  },
+  "allowedPaths": [
+    "src/infrastructure/github/github-installation-token-client.ts",
+    "src/infrastructure/github/github-installation-token-client.test.ts",
+    "src/infrastructure/github/github-first-sync-token-provider.ts",
+    "src/infrastructure/github/github-first-sync-token-provider.test.ts",
+    "tests/fixtures/synchronization/stage3-phase9-2-7-token-permissions-freeze.json",
+    "docs/runbooks/stage3-phase9-2-7-token-permissions-evidence.md"
+  ],
+  "protected": {
+    "packageJsonSha256": "f9a6ab717fa98c452d290a69374e30b00b09b23f5253699d9900c935dd349468",
+    "pnpmLockSha256": "a087993aad1ff9993627e09050e70d61d22fcc2e9c33909074b52b00528c8eef",
+    "nextEnvSha256": "4e4da12aa061aac172fb1bcb48e9b6e4b293080d2f494327925fdba8f39632ac",
+    "migrationTree": "f28fb75265d04f66347b4eca72061dceb327be3d",
+    "sourceHashesBefore": {
+      "src/infrastructure/github/github-installation-token-client.ts": "75221fee5a2b985cfb656ccbbc133458f7d02195f9a34d1107085248ce15b018",
+      "src/infrastructure/github/github-installation-token-client.test.ts": "75f1898f5bda33f16897d8300e334021789e5d4ef8010cc35911a3b273dc9818",
+      "src/infrastructure/github/github-first-sync-token-provider.ts": "ecaf8f7fd89234d629b7bbef736c2c19958e69599c18de8abff29dfc82578a82",
+      "src/infrastructure/github/github-first-sync-token-provider.test.ts": "ee58a6f7f8002ddcb8065c38738f54c7923826a243b7bab384ae31abb69e9faf"
+    }
+  },
+  "forbiddenScope": [
+    "remote Provider or database access",
+    "Push, PR, Release, workflow or deployment",
+    "Supabase migration, schema, RLS, RPC or generated type change",
+    "Activity Reader, synchronization state machine, Inngest or UI refactor",
+    "real token, secret, Cookie, Authorization value, raw payload or response body persistence",
+    "paid capability or Trial"
+  ],
+  "remoteSideEffectBudget": {
+    "total": 0,
+    "github": 0,
+    "vercel": 0,
+    "supabaseRemote": 0,
+    "inngest": 0,
+    "gitPush": 0
+  },
+  "tools": {
+    "node": "v24.14.0",
+    "pnpm": "11.16.0",
+    "git": "2.54.0.windows.1",
+    "vitest": "4.1.10",
+    "supabaseCli": "2.109.1"
+  },
+  "commit": {
+    "count": 1,
+    "message": "fix(github): request activity read permissions for sync",
+    "push": false
+  }
+}

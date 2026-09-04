@@ -1,0 +1,148 @@
+{
+  "version": "stage3-phase9-2-16-staging-smoke-freeze.v1",
+  "recordedAt": "2026-08-12T10:21:54.7531935Z",
+  "batchId": "explorer-stage3-phase9-2-16-staging-smoke-a3fae4d6",
+  "promptInstanceId": "explorer-stage3-phase9-2-16-post-release-coalescing-smoke-a3fae4d6",
+  "authorizationEnvelope": "workflow-authorization.v1:a3fae4d623a278dc",
+  "sourceReviewTicket": "sha256:812c94b9135a86b7c5885ec4c97489d6919598a7600bb76c6d580ad81d400d5d",
+  "runId": "stage3-phase9-smoke-20260812T102108Z-63197518",
+  "baseline": {
+    "branch": "feature/stage3-phase8-data-freshness-ui",
+    "commit": "a3fae4d623a278dcd12fdbf4a24491f4d3f961ad",
+    "tree": "685307f7b12e8d8fa117a7cc2e69532052cd5706",
+    "parent": "9d40fd841f42769e94873a920a540c4a18a98fe8",
+    "message": "fix(sync): retry coalesced webhook deliveries",
+    "worktree": "clean",
+    "originStagingBefore": "2a430601ff4796927291006b483abfc797806b88",
+    "originStagingAfter": "a3fae4d623a278dcd12fdbf4a24491f4d3f961ad"
+  },
+  "sourceArtifacts": {
+    "phase9_2_15FreezeSha256": "8c515040adb52dc56451a033fb5f35f098bf4c43ad8697536b088dc45af8ea64",
+    "phase9_2_15EvidenceSha256": "f7dcdccd579c2dfffc2d28c0f566d41fe6012565697a9052875c611cedf30702"
+  },
+  "providers": {
+    "github": {
+      "account": "hehehehehehecai",
+      "repositoryFullName": "hehehehehehecai/explorer-staging-private-test-20260804",
+      "repositoryId": 1322569219,
+      "appId": 4480141,
+      "installationId": 151329457,
+      "repositorySelection": "selected-only:1",
+      "permissions": ["actions:read", "checks:read", "contents:read", "issues:read", "metadata:read", "pull_requests:read"],
+      "events": ["issues", "pull_request", "push", "release", "repository", "workflow_run"],
+      "webhookActive": true,
+      "sslVerification": true
+    },
+    "vercel": {
+      "plan": "Hobby",
+      "projectId": "prj_vRfWcuvLYn240SSuKyNH0g4ShpW8",
+      "deploymentId": "dpl_G5gJ16ZP2JULDVuYLxD7CF6XDvxs",
+      "deploymentUrl": "https://executor-command-center-jf6apemv0-hehehehehehecais-projects.vercel.app",
+      "stableAlias": "https://executor-command-center-git-staging-hehehehehehecais-projects.vercel.app",
+      "state": "READY",
+      "target": "Preview",
+      "branch": "staging",
+      "commit": "a3fae4d623a278dcd12fdbf4a24491f4d3f961ad"
+    },
+    "supabase": {
+      "projectRef": "gsnuorsqdcdszjxtymhs",
+      "name": "executor-command-center-staging",
+      "status": "ACTIVE_HEALTHY",
+      "plan": "Free",
+      "migrationLedger": "16/16"
+    },
+    "inngest": {
+      "environment": "staging-7050a935",
+      "plan": "Free",
+      "app": "executor-command-center",
+      "endpoint": "https://executor-command-center-jf6apemv0-hehehehehehecais-projects.vercel.app/api/inngest",
+      "sdkVersion": "4.15.0",
+      "functions": ["executor-project-sync-consumer", "executor-github-webhook-consumer", "executor-daily-reconciliation"],
+      "dailyCron": "0 2 * * *",
+      "coalescedError": "github_webhook_sync_coalesced",
+      "webhookRetries": 5
+    }
+  },
+  "projectId": "81630aa3-a101-421c-b31e-dc16d1592c31",
+  "requestIdentities": {
+    "firstSync": "stage3-phase9-smoke-20260812T102108Z-63197518-first-sync",
+    "manualResync": "stage3-phase9-smoke-20260812T102108Z-63197518-reconciliation"
+  },
+  "objectNames": {
+    "releaseTag": "stage3-phase9-smoke-20260812T102108Z-63197518",
+    "pushBranch": "stage3-phase9-smoke-20260812T102108Z-63197518",
+    "normalIssueTitle": "stage3-phase9-smoke-20260812T102108Z-63197518 issue",
+    "pullRequestTitle": "stage3-phase9-smoke-20260812T102108Z-63197518 pull request",
+    "workflowInput": "stage3-phase9-smoke-20260812T102108Z-63197518",
+    "missedIssueTitle": "stage3-phase9-smoke-20260812T102108Z-63197518 missed-issue"
+  },
+  "initialCounts": {
+    "syncRuns": 12,
+    "projectDispatches": 6,
+    "webhookDeliveries": 12,
+    "repositorySnapshots": 1,
+    "commits": 2,
+    "issues": 1,
+    "pullRequests": 1,
+    "releases": 1,
+    "workflowRuns": 0
+  },
+  "denominators": {
+    "deploymentBinding": "1/1",
+    "firstSync": "1/1",
+    "firstSyncReplay": "1/1",
+    "firstSyncGroups": "6/6",
+    "normalEventTypes": "5/5",
+    "actualReleaseDeliveries": "all terminal",
+    "duplicateReplay": "1/1",
+    "controlledMissedIssue": "1/1",
+    "webhookConfigurationRestore": "1/1",
+    "reconciliationRepair": "1/1",
+    "freshnessConvergence": "1/1",
+    "requiredSkipped": 0,
+    "secretScanMatches": 0
+  },
+  "polling": {
+    "releaseIntervalSeconds": 10,
+    "releaseMaximumAttempts": 30,
+    "hardStopOnAnyNonterminalSupportedDelivery": true
+  },
+  "remoteSideEffectBudget": {
+    "applicationStagingFastForward": 1,
+    "firstSync": 1,
+    "firstSyncReplay": 1,
+    "releaseOperation": 1,
+    "normalPush": 1,
+    "normalIssue": 1,
+    "normalPullRequest": 1,
+    "normalWorkflow": 1,
+    "duplicateRedelivery": 1,
+    "controlledMissedIssue": 1,
+    "issuesEventDisableRestore": 1,
+    "reconciliationOrManualResync": 1
+  },
+  "hardStops": [
+    "First Sync failure",
+    "any supported Release delivery nonterminal after five minutes",
+    "Release snapshot exact tag count not equal to one",
+    "webhook configuration cannot be restored exactly",
+    "provider identity or deployment binding changes",
+    "payment or Trial requirement",
+    "Production or other repository access"
+  ],
+  "cleanup": "retain this batch's reversible test objects for independent audit; do not merge PR, promote Production, delete non-batch objects, or perform destructive cleanup",
+  "allowedLocalFiles": [
+    "tests/fixtures/synchronization/stage3-phase9-2-16-staging-smoke-freeze.json",
+    "docs/runbooks/stage3-phase9-2-16-staging-smoke-evidence.md"
+  ],
+  "forbidden": [
+    "Production",
+    "other repositories or providers",
+    "force push or merge",
+    "manual database mutation",
+    "raw secrets, cookies, authorization headers, or provider payload persistence",
+    "paid or Trial features",
+    "product code changes during smoke"
+  ],
+  "commitPolicy": "one local Freeze plus evidence commit; never push the evidence commit"
+}

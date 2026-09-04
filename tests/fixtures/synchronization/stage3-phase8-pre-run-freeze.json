@@ -1,0 +1,136 @@
+{
+  "recordType": "stage3-phase8-pre-run-freeze",
+  "recordedAt": "2026-08-06T07:49:39.874Z",
+  "batchId": "explorer-stage3-phase8-freshness-5dd6f120",
+  "promptInstanceId": "explorer-stage3-phase8-data-freshness-ui-5dd6f120",
+  "authorization": {
+    "policy": "workflow-authorization.v1",
+    "envelopeId": "workflow-authorization.v1:5dd6f120b4823e3e"
+  },
+  "source": {
+    "planVersion": "fe5902",
+    "reviewTicket": "sha256:6a637c27396cc6e885567e12b0354b67afc721b296615d408b6235b1ff9d2754",
+    "independentEvidence": "sha256:7053a21a3631b8f7ebc5f1a9fe6cf5a1033409107a45220d7339257953a18fd4"
+  },
+  "baseline": {
+    "branch": "fix/stage3-phase7-1-1-manual-resync-http",
+    "commit": "1d0f7b428a5e9de3061d1ca3d66170667efd6266",
+    "tree": "841a71c4d080c4a4a50d14aa67a3953abfeb32aa",
+    "parent": "2978781562f06f67c29afd7dd18064a36a5ecb06",
+    "worktree": "clean"
+  },
+  "baselineFingerprints": {
+    "package.json": "sha256:f9a6ab717fa98c452d290a69374e30b00b09b23f5253699d9900c935dd349468",
+    "pnpm-lock.yaml": "sha256:a087993aad1ff9993627e09050e70d61d22fcc2e9c33909074b52b00528c8eef",
+    "synchronization-state.ts": "sha256:ef9950e5f5760449c6ca03a7ef35bd5c146c5f8d08a074d936e3b92fa9a525a8",
+    "synchronization-state.test.ts": "sha256:af85f676b2078bbca1f976839df3add3674d6ba11f86c66dff1ddc46a4eacab4",
+    "phase7Freeze": "sha256:731ed3191cdf49a19653ce4430deb9d81c7c2e22594a932c9cf64fdb6ff2094e",
+    "phase7_1_1Freeze": "sha256:499dab7ff3e0b8e636a9bf9af9cfa33b1464c355e28c2e180d6c99f4cae212a8"
+  },
+  "contracts": {
+    "ui": "project-data-freshness-ui.v1",
+    "synchronizationState": "synchronization-state.v1",
+    "freshness": "freshness-status.v1"
+  },
+  "surfaceDecision": {
+    "surface": "Command Deck preview",
+    "reason": "The repository has no authenticated project-detail UI or existing project freshness query boundary; Phase 8 therefore remains a demo-only presentation integration.",
+    "provenance": "demo",
+    "requiredDisclosure": "演示数据 · 完全虚构",
+    "network": "forbidden"
+  },
+  "presentationInputs": [
+    "authorizationRevoked",
+    "latestRun.id",
+    "latestRun.status",
+    "latestRun.finishedAt",
+    "latestRun.errorCode",
+    "lastSuccessfulAt",
+    "coverageComplete",
+    "now",
+    "provenance"
+  ],
+  "freshnessCases": [
+    "fresh",
+    "exactly_24h_fresh",
+    "24h_plus_1ms_stale",
+    "never_synced_stale",
+    "queued_syncing",
+    "running_syncing",
+    "partial",
+    "failed_safe_code",
+    "failed_unknown_code",
+    "authorization_revoked",
+    "demo_provenance",
+    "time_semantics",
+    "non_color_semantics",
+    "narrow_viewport"
+  ],
+  "rules": {
+    "derivation": "Call deriveFreshnessStatus from freshness-status.v1; do not reproduce the 24-hour algorithm in UI code.",
+    "staleBoundary": "exactly 24 hours is fresh; strictly greater than 24 hours is stale",
+    "currentRunVisibility": "Show a truncated non-authority run identifier only for queued or running runs.",
+    "time": "Render a deterministic absolute UTC value in a semantic time element using the explicit now/input timestamps.",
+    "color": "Color is supplementary; every state has visible text.",
+    "unknownError": "Unknown or unsafe error codes render as sync_error.",
+    "errorSummary": "Forbidden from presentation inputs and DOM."
+  },
+  "safeErrorCodeAllowlist": [
+    "github_activity_authorization_revoked",
+    "github_activity_rate_limited",
+    "github_activity_not_found",
+    "github_activity_timeout",
+    "github_activity_invalid_response",
+    "github_activity_pagination_invalid",
+    "github_activity_unavailable",
+    "github_activity_snapshot_write_failed"
+  ],
+  "allowedPaths": [
+    "src/features/project-galaxy/SyncStatusBadge.tsx",
+    "src/features/project-galaxy/freshness-presentation.ts",
+    "src/features/project-galaxy/*.test.ts",
+    "src/features/project-galaxy/*.test.tsx",
+    "src/features/command-deck/command-deck-page.tsx",
+    "src/features/command-deck/command-deck-page.test.tsx",
+    "src/content/demo-data/command-deck-preview-fixture.ts",
+    "src/app/globals.css",
+    "tests/fixtures/synchronization/stage3-phase8-pre-run-freeze.json"
+  ],
+  "forbidden": [
+    "sync domain changes",
+    "SQL, RPC, migrations, RLS or generated database type changes",
+    "package or lockfile changes",
+    "backend or authenticated project query expansion",
+    "errorSummary or provider payload rendering",
+    "client wall-clock derivation",
+    "Phase 9 smoke implementation",
+    "real GitHub, Inngest or Supabase access",
+    "push, merge or deployment"
+  ],
+  "visualAcceptance": {
+    "desktopViewport": "1280x900",
+    "narrowViewport": "360x800",
+    "checks": [
+      "no horizontal overflow",
+      "no overlap or clipping",
+      "visible demo provenance",
+      "visible textual state",
+      "readable semantic timestamp"
+    ]
+  },
+  "testDenominator": {
+    "requiredNewSkipped": 0,
+    "mappingAndComponentCases": 14,
+    "commandDeckIntegration": true,
+    "domainRegression": true,
+    "applicationRegression": true,
+    "databaseRegression": true,
+    "fullRegression": true
+  },
+  "toolVersions": {
+    "git": "2.54.0.windows.1",
+    "node": "24.14.0",
+    "pnpm": "11.9.0"
+  },
+  "commitPolicy": "Exactly one independent local Phase 8 commit with parent 1d0f7b428a5e9de3061d1ca3d66170667efd6266."
+}

@@ -9,14 +9,14 @@ import {
 } from "@/infrastructure/github/github-installation-http";
 import { SupabaseGitHubInstallationRepository } from "@/infrastructure/github/supabase-github-installation-repository";
 import { parseServerEnvironment } from "@/shared/configuration/server-environment";
+import { writeSafeSecurityWarning } from "@/shared/security/safe-log-redaction";
 
 function copyHeaders(source: Headers, target: Headers) {
   source.forEach((value, name) => target.set(name, value));
 }
 
 function logFailure(code: string, sessionValid?: boolean | null) {
-  console.warn(
-    JSON.stringify(
+  writeSafeSecurityWarning(
       createGitHubInstallationFailureRecord({
         failureId: crypto.randomUUID(),
         stage: "installation_start",
@@ -35,7 +35,6 @@ function logFailure(code: string, sessionValid?: boolean | null) {
         ownershipMatch: null,
         installationPersisted: false,
       }),
-    ),
   );
 }
 

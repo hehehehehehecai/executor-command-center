@@ -1,0 +1,160 @@
+{
+  "recordType": "stage3-phase9-1-3-pre-run-freeze",
+  "recordedAt": "2026-08-07T05:46:44.4068962Z",
+  "batchId": "explorer-stage3-phase9-1-3-runtime-5d2ab8ed-r2",
+  "promptInstanceId": "explorer-stage3-phase9-1-3-inngest-runtime-5d2ab8ed-r2",
+  "authorization": {
+    "policy": "workflow-authorization.v1",
+    "envelopeId": "workflow-authorization.v1:e3b6bf3df867d8ac",
+    "sourceReviewTicket": "sha256:6540dcc5a593ab3041efbf010b5d6dd12fc2467cb3c89a4c3fa79faac1cf573d",
+    "sourcePrompt": "sha256:17a61077c7f8870a5f55facc27601bf9dd66947a3edc45795a9007b58657c826",
+    "sourceExecutionReport": "sha256:33d8178292d1d725dd43de89179cbfe489009df55a898d7a4c89cc25413a9c1c",
+    "sourceIndependentEvidence": "sha256:e2b69b9f7e5b8e9e89add5934235842a9a86b2a8fa9fece1f627703df8bc2065",
+    "restoredBlockerFingerprint": "sha256:5d2ab8edd44bcd131b9d9401c38adbe84ebd5be89159390eb6519b10e12529d2",
+    "blockerRound": "2/5",
+    "planVersion": "fe5902"
+  },
+  "baseline": {
+    "branch": "feature/stage3-phase8-data-freshness-ui",
+    "commit": "d23a654b43214f657d3f112477ae64bb01120e1f",
+    "tree": "f395b8ec4801d00601ea7f1bb89d626b67a3bdf5",
+    "parent": "c2e56bb4c14bad37d82e2334864c9cb65f4f51c6",
+    "worktree": "clean",
+    "gitDirectoryMode": "normal repository"
+  },
+  "runtimeGaps": {
+    "inngestReceivingRouteCount": 0,
+    "createFunctionProductionReferenceCount": 0,
+    "serveProductionReferenceCount": 0,
+    "dailySchedulerProductionReferenceCount": 0,
+    "nonFirstSyncExecutorReferenceCount": 0
+  },
+  "databaseBoundary": {
+    "contract": "github-webhook-delivery-processing.v1",
+    "migrationSha256": "3271701d63f5688c495ec3bf7335c3ecca056b94415971549070189d6e7ba948",
+    "pgtap0017Sha256": "799f903e8a7c761e590f17909c375b7f936117dd5f0cf6a6591f080bb6747176",
+    "phase9_1_2FreezeSha256": "7a5f4684a4f37d00298222400237552b48b83f92b31804f22bf6764fef1700f2",
+    "rpcs": [
+      "claim_github_webhook_processing(uuid,uuid,bigint,timestamptz)",
+      "complete_github_webhook_processing(uuid,uuid,bigint,timestamptz)",
+      "fail_github_webhook_processing(uuid,uuid,bigint,text,timestamptz)"
+    ],
+    "versionSource": "register_github_webhook_delivery duplicate receipt reads the trusted current persisted version; consumers never guess expectedVersion",
+    "providerReceiptRule": "retained from dispatched through processing, failed and completed"
+  },
+  "installedInngestApi": {
+    "version": "4.15.0",
+    "nextHandlerMethods": ["GET", "POST", "PUT"],
+    "serveImport": "inngest/next",
+    "createFunction": "Inngest.createFunction(options, handler)",
+    "eventTrigger": "{ event: string }",
+    "cronTrigger": "cron(schedule)",
+    "stepRun": "step.run(idOrOptions, fn)",
+    "signingKeyLocation": "Inngest ClientOptions.signingKey",
+    "eventKeyLocation": "Inngest ClientOptions.eventKey",
+    "apiFingerprints": {
+      "nextDts": "f595436a71f366ca41e7e3d31d1b54f3bcefbb54f64d5915fe1f88d959b49e6d",
+      "inngestDts": "a3fdb6b16da48a43046fb0822b3e7a7ecd58833ce1b68b9776f66877af45ac5c",
+      "triggersDts": "1139d84b831cbcf0960cce21ab2e8559dfb4e22702aefa363448fb1f40d9a085",
+      "stepToolsDts": "24ccd0411413264bfef674df1b89e9bb6ac1f8218ab6d4888c19e6630a69b0ec"
+    }
+  },
+  "architecture": {
+    "backgroundJobCompatibility": "legacy exact v1 payload parses as first_sync; current exact v1 payload carries triggerSource and nullable webhookDelivery lineage",
+    "firstSyncExecution": "existing ExecuteFirstRepositorySync remains the only cursor consumer",
+    "nonFirstSyncExecution": "webhook, reconciliation and manual use a cursor-free 90-day project synchronization executor with real reader, writer and SyncRun transitions",
+    "webhookRequest": "strict internal event -> trusted delivery observation -> durable webhook SyncRun -> delivery claim -> stable project job dispatch",
+    "webhookCompletion": "project job -> real sync -> processing complete or allowlisted fail; retries observe the current database version before reclaim",
+    "dailySchedule": "0 2 * * * UTC; scheduled timer timestamp is canonicalized and existing daily window derives the UTC-day request identity",
+    "route": "Next App Router Node.js route exports the Inngest 4.15.0 GET, POST and PUT handlers"
+  },
+  "contracts": {
+    "preserved": [
+      "background-job.v1",
+      "inngest-job-dispatcher.v1",
+      "github-webhook-event.v1",
+      "github-webhook-dispatcher.v1",
+      "github-webhook-delivery-processing.v1",
+      "github-activity-reader.v1",
+      "github-activity-snapshot-writer.v1",
+      "synchronization-state.v1",
+      "sync-runs.v1",
+      "repository-reconciliation.v1",
+      "reconciliation-schedule.v1",
+      "freshness-status.v1"
+    ],
+    "runtime": "inngest-synchronization-runtime.v1"
+  },
+  "functionDenominator": {
+    "receivingMethods": 3,
+    "functions": ["project-sync", "github-webhook", "daily-reconciliation"],
+    "triggerFamilies": ["first_sync", "webhook", "reconciliation", "manual"],
+    "replayCases": ["background-job", "webhook-delivery", "daily-utc-day"],
+    "deliveryTransitions": ["claim", "active-lease", "fail", "reclaim", "complete", "duplicate-complete"],
+    "negativeCases": [
+      "wrong-event",
+      "wrong-version",
+      "extra-field",
+      "missing-signing-key",
+      "cross-project-run",
+      "reader-failure",
+      "writer-failure",
+      "authorization-revoked",
+      "concurrency-conflict",
+      "consumer-retry"
+    ],
+    "requiredSkipped": 0,
+    "remoteCalls": 0
+  },
+  "exactAllowedPaths": [
+    "tests/fixtures/synchronization/stage3-phase9-1-3-pre-run-freeze.json",
+    "src/app/api/inngest/route.ts",
+    "src/app/api/inngest/route.test.ts",
+    "src/app/api/inngest/inngest-route-dependencies.ts",
+    "src/app/api/inngest/inngest-route-dependencies.test.ts",
+    "src/domain/jobs/background-job.ts",
+    "src/domain/jobs/background-job.test.ts",
+    "src/application/synchronization/project-sync-use-cases.ts",
+    "src/application/synchronization/project-sync-use-cases.test.ts",
+    "src/application/synchronization/webhook-sync-use-cases.ts",
+    "src/application/synchronization/webhook-sync-use-cases.test.ts",
+    "src/application/synchronization/first-sync-use-cases.ts",
+    "src/application/synchronization/first-sync-use-cases.test.ts",
+    "src/application/synchronization/reconciliation-use-cases.ts",
+    "src/application/synchronization/reconciliation-use-cases.test.ts",
+    "src/application/webhooks/ingest-github-webhook.ts",
+    "src/application/webhooks/ingest-github-webhook.test.ts",
+    "src/infrastructure/jobs/inngest-runtime.ts",
+    "src/infrastructure/jobs/inngest-runtime.test.ts",
+    "src/infrastructure/synchronization/github-project-repository-metadata-reader.ts",
+    "src/infrastructure/synchronization/github-project-repository-metadata-reader.test.ts",
+    "tests/integration/synchronization/inngest-runtime-boundaries.test.ts"
+  ],
+  "protectedFingerprints": {
+    "packageJsonSha256": "f9a6ab717fa98c452d290a69374e30b00b09b23f5253699d9900c935dd349468",
+    "pnpmLockSha256": "a087993aad1ff9993627e09050e70d61d22fcc2e9c33909074b52b00528c8eef",
+    "nextEnvSha256": "4e4da12aa061aac172fb1bcb48e9b6e4b293080d2f494327925fdba8f39632ac",
+    "migrationTree": "f28fb75265d04f66347b4eca72061dceb327be3d",
+    "sourceTree": "be8e2d9db82c91fc8dbd8bf727dd050741404d8f"
+  },
+  "tddRed": {
+    "expected": [
+      "current background job rejects trigger and delivery lineage",
+      "non-first-sync executor is absent",
+      "Webhook durable request consumer is absent",
+      "three Inngest functions are absent",
+      "Next receiving route is absent",
+      "daily scheduler has no production reference"
+    ]
+  },
+  "forbidden": [
+    "database migration, schema, RLS, RPC or generated database type changes",
+    "historical Freeze, manifest or evidence changes",
+    "package, lock, next-env, UI, Auth, Onboarding or CI changes",
+    "direct delivery table writes or guessed expectedVersion",
+    "secret, signing key, token, raw payload, Authorization or Cookie persistence/logging",
+    "remote provider, deployment, database or repository access"
+  ],
+  "remoteActionsPermitted": false,
+  "commitPolicy": "exactly one independent local commit after every required gate passes"
+}

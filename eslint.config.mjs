@@ -16,6 +16,9 @@ export default defineConfig([
             "next",
             "supabase",
             "octokit",
+            "@octokit/rest",
+            "undici",
+            "node-fetch",
             "inngest",
             "ai",
             "openai",
@@ -40,6 +43,39 @@ export default defineConfig([
               ],
               message:
                 "Domain modules must remain pure TypeScript and cannot import frameworks or external SDKs.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/application/**/*.{ts,tsx,js,jsx,mts,cts}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            "inngest",
+            "next",
+            "supabase",
+            "@supabase/supabase-js",
+            "octokit",
+            "@octokit/rest",
+            "undici",
+            "node-fetch",
+          ].map(
+            (name) => ({
+              name,
+              message:
+                "Application modules own provider-neutral ports and cannot import framework or provider SDK types.",
+            }),
+          ),
+          patterns: [
+            {
+              group: ["inngest/*", "next/*", "@supabase/*"],
+              message:
+                "Application modules own provider-neutral ports and cannot import framework or provider SDK types.",
             },
           ],
         },

@@ -1,0 +1,118 @@
+{
+  "contract": "stage3-phase9-2-redo-daily-reconciliation-freeze.v1",
+  "recordedAt": "2026-08-13T08:31:42.5546400Z",
+  "batchId": "explorer-stage3-phase9-2-reconciliation-redo-e138bd29",
+  "promptInstanceId": "explorer-stage3-phase9-2-daily-reconciliation-redo-e138bd29",
+  "authorizationPolicy": "workflow-authorization.v1",
+  "authorizationEnvelope": "workflow-authorization.v1:e138bd297aec7759",
+  "reviewTicket": "sha256:e138bd297aec77591dd27b5033d673f2d1f8c2f9fcc919582051cc77c5809779",
+  "baseline": {
+    "head": "8faf8e726a383e681d3a27cebc4f8a324c4fcac1",
+    "tree": "f7a278ffc7e33d0a66e3be24580997b03e270f18",
+    "parent": "dd23af38757cc2671162d05971a6878c4a82790d",
+    "branch": "feature/stage3-phase8-data-freshness-ui",
+    "deployedProductCommit": "dd23af38757cc2671162d05971a6878c4a82790d",
+    "originStaging": "dd23af38757cc2671162d05971a6878c4a82790d",
+    "worktreeClean": true
+  },
+  "deployment": {
+    "vercelProjectId": "prj_vRfWcuvLYn240SSuKyNH0g4ShpW8",
+    "deploymentId": "dpl_4hdm9r5F58PTQKcvkTmtwXyNhvsW",
+    "deploymentUrl": "executor-command-center-ik7pwb2d0-hehehehehehecais-projects.vercel.app",
+    "stableAlias": "executor-command-center-git-staging-hehehehehehecais-projects.vercel.app",
+    "branch": "staging",
+    "target": "preview",
+    "status": "READY"
+  },
+  "supabase": {
+    "projectRef": "gsnuorsqdcdszjxtymhs",
+    "projectName": "executor-command-center-staging",
+    "status": "ACTIVE_HEALTHY",
+    "migrationCount": 16
+  },
+  "inngest": {
+    "environmentId": "staging-7050a935",
+    "app": "executor-command-center",
+    "functionIds": [
+      "executor-daily-reconciliation",
+      "executor-github-webhook-consumer",
+      "executor-project-sync-consumer"
+    ],
+    "dailyCron": "0 2 * * *",
+    "dailyStep": "run-daily-reconciliation",
+    "baselineRunCountToday": 1,
+    "baselineDailyRunId": "c0e116be-9d45-4af9-b804-5864f9167295",
+    "baselineDailyFinishedAt": "2026-08-13T02:01:39.852Z",
+    "baselineDailyOccurredBeforeControlledDifference": true
+  },
+  "githubApp": {
+    "appId": 4480141,
+    "installationId": 151329457,
+    "repositoryAccess": "selected",
+    "repositoryId": 1322569219,
+    "repositoryFullName": "hehehehehehecai/explorer-staging-private-test-20260804",
+    "webhookActive": true,
+    "sslVerificationEnabled": true,
+    "webhookUrlSha256": "4855c1121b756ca49b7145b51e797e86007de3c29cf7f2d373ac639b8fd7567e",
+    "permissions": {
+      "actions": "read",
+      "checks": "read",
+      "contents": "read",
+      "issues": "read",
+      "metadata": "read",
+      "pull_requests": "read"
+    },
+    "events": [
+      "issues",
+      "pull_request",
+      "push",
+      "release",
+      "repository",
+      "workflow_run"
+    ],
+    "normalizedConfigSha256": "pending-local-hash-in-freeze-by-design"
+  },
+  "targetIssue": {
+    "number": 5,
+    "githubObjectId": "5130138227",
+    "nodeId": "I_kwDOTtTOA88AAAABMceycw",
+    "initialRemoteState": "closed",
+    "initialRemoteUpdatedAt": "2026-08-12T12:22:38Z",
+    "initialSnapshotState": "closed",
+    "initialSnapshotSourceVersion": "2026-08-12T12:22:38.000Z",
+    "initialSnapshotSourceUpdatedAt": "2026-08-12T12:22:38Z",
+    "initialSnapshotUpdatedAt": "2026-08-13T02:01:43.001284Z",
+    "initialSnapshotCount": 1
+  },
+  "databaseBaseline": {
+    "activeSyncRunCount": 0,
+    "issueDeliveryCount": 3,
+    "latestIssueDeliveryId": "4a8b10a8-963d-11f1-988b-1834615680d5",
+    "latestIssueDeliveryReceivedAt": "2026-08-12T11:02:22.316Z",
+    "utcDay": "2026-08-13",
+    "reconciliationRequestIdentity": "reconciliation:2026-08-13",
+    "reconciliationRunCountToday": 1
+  },
+  "controlledAction": {
+    "onlyProviderConfigChange": "temporarily remove and restore issues event",
+    "onlyRepositoryWrite": "reopen existing Issue #5 from closed to open exactly once",
+    "observationSeconds": 90,
+    "checkpointsSeconds": [30, 60, 90],
+    "onlySchedulerEntry": "Inngest executor-daily-reconciliation",
+    "manualResyncForbidden": true,
+    "directDatabaseWriteForbidden": true,
+    "redeliveryForbidden": true
+  },
+  "allowedRepositoryFiles": [
+    "tests/fixtures/synchronization/stage3-phase9-2-redo-daily-reconciliation-freeze.json",
+    "docs/runbooks/stage3-phase9-2-redo-daily-reconciliation-evidence.md"
+  ],
+  "remoteWriteBudget": {
+    "githubAppIssuesDisable": 1,
+    "githubIssueStateChange": 1,
+    "githubAppIssuesRestore": 1,
+    "inngestDailyRun": 1
+  },
+  "costBoundary": "free-or-existing-plan-only",
+  "productionActions": 0
+}

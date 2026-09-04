@@ -1,0 +1,114 @@
+{
+  "batch_id": "explorer-stage3-phase3-d66b4c12",
+  "authorization_envelope_id": "workflow-authorization.v1:d66b4c1244a9848c",
+  "recorded_at": "2026-08-05T19:55:19.9457128+08:00",
+  "baseline": {
+    "branch": "feature/stage3-task2-persisted-sync-state",
+    "commit": "4df8af1ba6164ee85c5508d13c2a90cf70905674",
+    "tree": "089ee9b865d5a90889668ba22cec6a1459de4c9f",
+    "worktree": "clean"
+  },
+  "package_fingerprints": {
+    "package_json_sha256": "713dab045fdf8991d4d07259ba69601de2aa5d91b232c9849fbbc786ee8a1901",
+    "pnpm_lock_sha256": "2c69de866d92ab9c180c360594174a095e66a31773c00c65158f567ef71985be"
+  },
+  "pre_existing_state": {
+    "jobs_files": [],
+    "inngest_dependency": false,
+    "inngest_environment_pair_contract": true
+  },
+  "contracts": {
+    "background_job": "background-job.v1",
+    "job_dispatcher": "job-dispatcher.v1",
+    "inngest_adapter": "inngest-job-dispatcher.v1",
+    "synchronization_state": "synchronization-state.v1",
+    "sync_runs": "sync-runs.v1",
+    "freshness": "freshness-status.v1"
+  },
+  "background_job_fields": [
+    "version",
+    "jobType",
+    "jobId",
+    "projectId",
+    "syncRunId",
+    "idempotencyKey",
+    "correlationId",
+    "requestedAt"
+  ],
+  "supported_job_types": ["project.sync.requested.v1"],
+  "job_dispatcher_signature": "dispatch(job: BackgroundJob): Promise<{ providerJobId: string }>",
+  "event_name_mapping": {
+    "project.sync.requested.v1": "executor/project.sync.requested.v1"
+  },
+  "event_id_mapping": "job:{projectId}:{idempotencyKey}",
+  "event_data_fields": [
+    "version",
+    "jobType",
+    "jobId",
+    "projectId",
+    "syncRunId",
+    "idempotencyKey",
+    "correlationId",
+    "requestedAt"
+  ],
+  "provider_receipt_mapping": "exactly one safe non-empty ids[] entry becomes providerJobId",
+  "allowed_payload_fields": [
+    "version",
+    "jobType",
+    "jobId",
+    "projectId",
+    "syncRunId",
+    "idempotencyKey",
+    "correlationId",
+    "requestedAt"
+  ],
+  "forbidden_payload_fields": [
+    "token",
+    "secret",
+    "authorization",
+    "authorizationHeader",
+    "cookie",
+    "serviceRoleKey",
+    "rawPayload",
+    "rawResponse",
+    "githubPayload",
+    "sourceCode",
+    "diff"
+  ],
+  "safe_error_codes": [
+    "background_job_invalid_request",
+    "background_job_unsupported_type",
+    "inngest_dispatch_receipt_invalid",
+    "inngest_dispatch_rejected",
+    "inngest_transport_failed"
+  ],
+  "network_boundary": "All adapter tests inject an in-memory fake send client; no real Inngest or GitHub network is allowed.",
+  "forbidden_scope": [
+    "GitHub Reader",
+    "First Sync",
+    "Webhook",
+    "Reconciliation",
+    "Manual Sync",
+    "Freshness UI",
+    "Staging Smoke Test"
+  ],
+  "test_checklist": [
+    "BackgroundJob validation and JSON serialization",
+    "provider-neutral JobDispatcher application port",
+    "deterministic event name/data/id mapping",
+    "same-job replay and cross-project id isolation",
+    "single/zero/multiple/invalid provider receipt handling",
+    "provider and transport error redaction",
+    "fake client proves zero real network",
+    "application/module dependency boundary",
+    "package and lockfile consistency",
+    "Phase 1-2 regression and full suite"
+  ],
+  "tool_versions": {
+    "git": "2.54.0.windows.1",
+    "node": "24.14.0",
+    "pnpm_runtime": "11.9.0",
+    "package_manager_declared": "pnpm@11.5.0",
+    "typescript": "5.9.3"
+  }
+}

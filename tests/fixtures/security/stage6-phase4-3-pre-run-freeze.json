@@ -1,0 +1,90 @@
+{
+  "contractVersion": "beta-security-boundary.v1",
+  "batchId": "explorer-stage6-phase4.3-b5896ae3de1b1466",
+  "promptInstanceId": "explorer-stage6-phase4.3-5bd133038ca2999a",
+  "reviewTicketId": "review-ticket-5bd133038ca2999a",
+  "baselineHead": "43e56095e54bbecc640ebd189a68d55794287faa",
+  "baselineStatusSha256": "dd6a96a12c64c5595fd9bf43795d5aa86fbd54712df000fe5642065dc91a93be",
+  "baselineStatusCharacters": 375840,
+  "trackedManifestSha256": "1ab8b55efa5b7629487a94feaf20b995b62d1356475d43e64264f5f842603751",
+  "trackedFileDenominator": 674,
+  "phase41": {
+    "packageJsonSha256": "9acba67c23264d1f9b27c428c8fa51aaa569342157473ed8810c8df5b1a7d4f2",
+    "lockfileSha256": "486860816c0dd48be09d62711cb35350703601c7c4c4a64b72fa89fe6ed5ea05",
+    "nextVersion": "16.3.0",
+    "productionDependencies": 244,
+    "high": 0,
+    "critical": 0
+  },
+  "phase42": {
+    "concurrencyTestSha256": "4376225eddc898b974ced449c3f0b52ea48a36ea1fc50df094f0647036226edb",
+    "databaseTypesSha256": "69178a2d7ebf745873cc63e3f68ad54a5006e72f0f0ce673a725a8e62e341fb2"
+  },
+  "pnpmStore": {
+    "classification": "pre-existing-untracked-cache-noise",
+    "statusLines": 2064,
+    "contentRead": false,
+    "excludedFromScan": true,
+    "excludedFromDiffAndCommit": true
+  },
+  "contracts": [
+    "beta-security-boundary.v1",
+    "github-minimum-permissions.v1",
+    "github-webhook-verification.v1",
+    "service-role-boundary.v1",
+    "secret-scan.v1",
+    "dependency-audit.v1",
+    "safe-log-redaction.v1",
+    "rate-limit.v1",
+    "untrusted-repository-prompt-input.v1",
+    "http-security-headers.v1",
+    "safe-http-error.v1"
+  ],
+  "attackCases": [
+    "WH-MISSING-SIGNATURE",
+    "WH-MALFORMED-SIGNATURE",
+    "WH-RAW-BYTE-REWRITE",
+    "WH-OVERSIZE",
+    "WH-DELIVERY-REPLAY",
+    "WH-OUT-OF-ORDER",
+    "DB-CROSS-TENANT-RPC",
+    "SR-CLIENT-EXPOSURE",
+    "LOG-NESTED-SENSITIVE",
+    "RATE-WINDOW-BOUNDARY",
+    "RATE-CONCURRENT",
+    "RATE-CROSS-SUBJECT",
+    "RATE-FORGED-FORWARDING",
+    "PROMPT-INJECTION",
+    "PROMPT-OVERSIZE",
+    "PROMPT-BINARY",
+    "HTTP-CSP",
+    "COOKIE-HTTPS",
+    "HTTP-SAFE-ERROR"
+  ],
+  "testFileInitialSha256": {
+    "src/shared/security/safe-log-redaction.test.ts": "5420daf3cb69154257d0564e94e577a44a554576893d1128a6ce30f8525271e7",
+    "src/shared/security/safe-http-error.test.ts": "72fb2786ddad1954ae9a0bf33fa31ddde86c115b3fe22388c427b02c9edf3e19",
+    "src/shared/security/github-minimum-permissions.test.ts": "072765485afe1c0fc7a2fb8cb38d95195bc5265eaf6e552410a348a9599efdd3",
+    "src/shared/security/rate-limit-policy.test.ts": "1fdf5914d0a397c74d9654ddd09bdbae1f148313a27f4ff7ae80f244c802f647",
+    "src/shared/security/http-security-headers.test.ts": "857859eda06b11812eab0dc0c52363166223429585582667a30ff5946b9427ad",
+    "scripts/secret-scan.test.mjs": "5fdd0a13c85cce404b483de1f5110be32224848dd13c53c5986001012d7ba0e9",
+    "src/infrastructure/webhooks/github-webhook-http.test.ts": "699431602d0275b5fa7f2174028c1fb2f38711f260f9e74c201e81985cc9b642",
+    "src/domain/project-brief/project-brief-prompt.test.ts": "e300cddbf835c086a1ef1d5c7019cb41832b8530fb2c97eb67c8d5d85954f595",
+    "src/infrastructure/auth/update-session.test.ts": "72b2ea78283ff2b942d5deca47bebec6e926b7d0fb685b2c98a6e8224373f108",
+    "supabase/tests/0042_beta_security_boundary_test.sql": "a9d153f5f0aa4206f5e7efa5098311bec049f6d83237b151322d081ef2fe9642"
+  },
+  "rateLimitCases": {
+    "project_brief_generate": { "windowSeconds": 60, "limit": 5, "requests": 6, "allowed": 5, "denied": 1 },
+    "project_brief_follow_up": { "windowSeconds": 60, "limit": 20 },
+    "project_sync_mutation": { "windowSeconds": 60, "limit": 10 },
+    "destructive_mutation": { "windowSeconds": 3600, "limit": 3 },
+    "github_expensive_read": { "windowSeconds": 60, "limit": 30 }
+  },
+  "expectedSideEffects": {
+    "invalidWebhookDispatches": 0,
+    "rateLimitedRouteExecutions": 0,
+    "promptInjectionToolCalls": 0,
+    "promptInjectionSecretPropagation": 0,
+    "crossTenantRateInterference": 0
+  }
+}

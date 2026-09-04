@@ -113,6 +113,82 @@ function isForbiddenDomainImport(specifier: string) {
   );
 }
 
+function isPanelQueryContractPath(filePath: string) {
+  return normalizePath(path.resolve(filePath)).includes(
+    "/src/shared/panel-query/",
+  );
+}
+
+function isConnectedPanelHarnessPath(filePath: string) {
+  const normalizedPath = normalizePath(path.resolve(filePath));
+  return (
+    normalizedPath.includes("/src/testing/connected-panels/") &&
+    !normalizedPath.endsWith(".test.ts") &&
+    !normalizedPath.endsWith(".test.tsx")
+  );
+}
+
+const providerNeutralFeatures = new Set([
+  "copilot",
+  "decision-archive",
+  "flight-log",
+  "mission-control",
+  "project-galaxy",
+]);
+
+function isProviderNeutralFeaturePath(filePath: string) {
+  const featureName = featureNameFromPath(filePath);
+  return featureName !== undefined && providerNeutralFeatures.has(featureName);
+}
+
+function isForbiddenProviderNeutralFeatureImport(specifier: string) {
+  const forbiddenProviderRoots = [
+    "@supabase",
+    "supabase",
+    "octokit",
+    "@octokit",
+    "inngest",
+    "ai",
+    "@ai-sdk",
+    "openai",
+    "@anthropic-ai/sdk",
+    "@google/generative-ai",
+    "deepseek",
+    "@deepseek",
+  ];
+
+  return (
+    forbiddenProviderRoots.some(
+      (root) => specifier === root || specifier.startsWith(`${root}/`),
+    ) ||
+    specifier === "server-only" ||
+    specifier.startsWith("@/content/demo-data/") ||
+    specifier.startsWith("@/infrastructure/")
+  );
+}
+
+function isForbiddenPanelQueryImport(specifier: string) {
+  return (
+    isForbiddenDomainImport(specifier) ||
+    specifier === "server-only" ||
+    specifier.startsWith("node:") ||
+    specifier.startsWith("@/application/") ||
+    specifier.startsWith("@/content/demo-data/") ||
+    specifier.startsWith("@/features/") ||
+    specifier.startsWith("@/infrastructure/") ||
+    specifier === "@/shared/configuration/server-environment"
+  );
+}
+
+function isForbiddenConnectedPanelHarnessImport(specifier: string) {
+  if (specifier.startsWith(".")) return false;
+  if (specifier === "next/headers") return false;
+
+  return !/^@\/features\/(?:copilot|decision-archive|flight-log|mission-control|project-galaxy)$/.test(
+    specifier,
+  );
+}
+
 function violationForReference(
   filePath: string,
   reference: ModuleReference,
@@ -127,6 +203,42 @@ function violationForReference(
       ...reference,
       filePath: normalizedFilePath,
       reason: "Domain modules must remain pure TypeScript and cannot import frameworks or external SDKs.",
+    };
+  }
+
+  if (
+    isPanelQueryContractPath(filePath) &&
+    isForbiddenPanelQueryImport(reference.specifier)
+  ) {
+    return {
+      ...reference,
+      filePath: normalizedFilePath,
+      reason:
+        "Panel query contracts must remain provider-neutral pure TypeScript modules.",
+    };
+  }
+
+  if (
+    isConnectedPanelHarnessPath(filePath) &&
+    isForbiddenConnectedPanelHarnessImport(reference.specifier)
+  ) {
+    return {
+      ...reference,
+      filePath: normalizedFilePath,
+      reason:
+        "Connected panel test harness modules may depend only on local helpers, Next cookie access, and Feature public roots.",
+    };
+  }
+
+  if (
+    isProviderNeutralFeaturePath(filePath) &&
+    isForbiddenProviderNeutralFeatureImport(reference.specifier)
+  ) {
+    return {
+      ...reference,
+      filePath: normalizedFilePath,
+      reason:
+        "Provider-neutral Features must receive Preview and Connected data through injected loaders and ports.",
     };
   }
 
@@ -201,6 +313,8 @@ function scanCurrentSourceTree() {
   const roots = [
     path.join(process.cwd(), "src", "domain"),
     path.join(process.cwd(), "src", "features"),
+    path.join(process.cwd(), "src", "shared", "panel-query"),
+    path.join(process.cwd(), "src", "testing", "connected-panels"),
   ];
 
   return roots
@@ -214,6 +328,16 @@ const syntheticPath = (...segments: string[]) =>
   path.join(process.cwd(), "src", ...segments);
 
 const allowedExamples = [
+  {
+    name: "Connected panel harness imports a Feature public root",
+    filePath: syntheticPath("testing", "connected-panels", "fixture.ts"),
+    source: 'import type { FlightLogSource } from "@/features/flight-log";',
+  },
+  {
+    name: "Panel query contract imports only its local pure TypeScript module",
+    filePath: syntheticPath("shared", "panel-query", "index.ts"),
+    source: 'export type { PanelQuery } from "./panel-query";',
+  },
   {
     name: "Domain imports its own pure TypeScript module",
     filePath: syntheticPath("domain", "projects", "service.ts"),
@@ -262,6 +386,195 @@ const allowedExamples = [
 ] as const;
 
 const rejectedExamples = [
+  {
+    name: "Connected panel harness imports a Feature internal file",
+    filePath: syntheticPath("testing", "connected-panels", "fixture.ts"),
+    source: 'import type { Secret } from "@/features/flight-log/internal/secret";',
+    specifier: "@/features/flight-log/internal/secret",
+    kind: "import",
+  },
+  {
+    name: "Connected panel harness imports infrastructure",
+    filePath: syntheticPath("testing", "connected-panels", "fixture.ts"),
+    source: 'import { client } from "@/infrastructure/supabase/client";',
+    specifier: "@/infrastructure/supabase/client",
+    kind: "import",
+  },
+  {
+    name: "Copilot imports its Preview fixture directly",
+    filePath: syntheticPath("features", "copilot", "query.ts"),
+    source:
+      'import { fixture } from "@/content/demo-data/copilot-workspace-preview-fixture";',
+    specifier: "@/content/demo-data/copilot-workspace-preview-fixture",
+    kind: "import",
+  },
+  {
+    name: "Copilot imports infrastructure directly",
+    filePath: syntheticPath("features", "copilot", "query.ts"),
+    source: 'import { client } from "@/infrastructure/ai/client";',
+    specifier: "@/infrastructure/ai/client",
+    kind: "import",
+  },
+  {
+    name: "Copilot imports an AI provider SDK directly",
+    filePath: syntheticPath("features", "copilot", "query.ts"),
+    source: 'import OpenAI from "openai";',
+    specifier: "openai",
+    kind: "import",
+  },
+  {
+    name: "Copilot imports server-only directly",
+    filePath: syntheticPath("features", "copilot", "query.ts"),
+    source: 'import "server-only";',
+    specifier: "server-only",
+    kind: "import",
+  },
+  {
+    name: "Decision Archive imports its Preview fixture directly",
+    filePath: syntheticPath("features", "decision-archive", "query.ts"),
+    source:
+      'import { fixture } from "@/content/demo-data/decision-archive-preview-fixture";',
+    specifier: "@/content/demo-data/decision-archive-preview-fixture",
+    kind: "import",
+  },
+  {
+    name: "Decision Archive imports infrastructure directly",
+    filePath: syntheticPath("features", "decision-archive", "query.ts"),
+    source: 'import { client } from "@/infrastructure/database/client";',
+    specifier: "@/infrastructure/database/client",
+    kind: "import",
+  },
+  {
+    name: "Decision Archive imports an AI provider SDK directly",
+    filePath: syntheticPath("features", "decision-archive", "query.ts"),
+    source: 'import OpenAI from "openai";',
+    specifier: "openai",
+    kind: "import",
+  },
+  {
+    name: "Decision Archive imports server-only directly",
+    filePath: syntheticPath("features", "decision-archive", "query.ts"),
+    source: 'import "server-only";',
+    specifier: "server-only",
+    kind: "import",
+  },
+  {
+    name: "Mission Control imports its Preview fixture directly",
+    filePath: syntheticPath("features", "mission-control", "query.ts"),
+    source:
+      'import { fixture } from "@/content/demo-data/mission-control-preview-fixture";',
+    specifier: "@/content/demo-data/mission-control-preview-fixture",
+    kind: "import",
+  },
+  {
+    name: "Mission Control imports infrastructure directly",
+    filePath: syntheticPath("features", "mission-control", "query.ts"),
+    source: 'import { client } from "@/infrastructure/github/client";',
+    specifier: "@/infrastructure/github/client",
+    kind: "import",
+  },
+  {
+    name: "Mission Control imports a GitHub provider SDK directly",
+    filePath: syntheticPath("features", "mission-control", "query.ts"),
+    source: 'import { Octokit } from "octokit";',
+    specifier: "octokit",
+    kind: "import",
+  },
+  {
+    name: "Mission Control imports server-only directly",
+    filePath: syntheticPath("features", "mission-control", "query.ts"),
+    source: 'import "server-only";',
+    specifier: "server-only",
+    kind: "import",
+  },
+  {
+    name: "Flight Log imports its Preview fixture directly",
+    filePath: syntheticPath("features", "flight-log", "query.ts"),
+    source:
+      'import { fixture } from "@/content/demo-data/flight-log-preview-fixture";',
+    specifier: "@/content/demo-data/flight-log-preview-fixture",
+    kind: "import",
+  },
+  {
+    name: "Flight Log imports infrastructure directly",
+    filePath: syntheticPath("features", "flight-log", "query.ts"),
+    source: 'import { client } from "@/infrastructure/github/client";',
+    specifier: "@/infrastructure/github/client",
+    kind: "import",
+  },
+  {
+    name: "Flight Log imports a provider SDK directly",
+    filePath: syntheticPath("features", "flight-log", "query.ts"),
+    source: 'import { Octokit } from "octokit";',
+    specifier: "octokit",
+    kind: "import",
+  },
+  {
+    name: "Flight Log imports server-only directly",
+    filePath: syntheticPath("features", "flight-log", "query.ts"),
+    source: 'import "server-only";',
+    specifier: "server-only",
+    kind: "import",
+  },
+  {
+    name: "Project Galaxy imports its Preview fixture directly",
+    filePath: syntheticPath("features", "project-galaxy", "query.ts"),
+    source:
+      'import { fixture } from "@/content/demo-data/project-galaxy-preview-fixture";',
+    specifier: "@/content/demo-data/project-galaxy-preview-fixture",
+    kind: "import",
+  },
+  {
+    name: "Project Galaxy imports infrastructure directly",
+    filePath: syntheticPath("features", "project-galaxy", "query.ts"),
+    source: 'import { client } from "@/infrastructure/supabase/client";',
+    specifier: "@/infrastructure/supabase/client",
+    kind: "import",
+  },
+  {
+    name: "Project Galaxy imports a provider SDK directly",
+    filePath: syntheticPath("features", "project-galaxy", "query.ts"),
+    source: 'import { createClient } from "@supabase/supabase-js";',
+    specifier: "@supabase/supabase-js",
+    kind: "import",
+  },
+  {
+    name: "Project Galaxy imports server-only directly",
+    filePath: syntheticPath("features", "project-galaxy", "query.ts"),
+    source: 'import "server-only";',
+    specifier: "server-only",
+    kind: "import",
+  },
+  {
+    name: "Panel query contract imports a Supabase SDK",
+    filePath: syntheticPath("shared", "panel-query", "adapter.ts"),
+    source: 'import { createClient } from "@supabase/supabase-js";',
+    specifier: "@supabase/supabase-js",
+    kind: "import",
+  },
+  {
+    name: "Panel query contract imports a Feature internal module",
+    filePath: syntheticPath("shared", "panel-query", "adapter.ts"),
+    source:
+      'import { internalValue } from "@/features/project-galaxy/internal/value";',
+    specifier: "@/features/project-galaxy/internal/value",
+    kind: "import",
+  },
+  {
+    name: "Panel query contract imports a Demo fixture",
+    filePath: syntheticPath("shared", "panel-query", "adapter.ts"),
+    source:
+      'import { fixture } from "@/content/demo-data/panel-fixture";',
+    specifier: "@/content/demo-data/panel-fixture",
+    kind: "import",
+  },
+  {
+    name: "Panel query contract imports server-only infrastructure",
+    filePath: syntheticPath("shared", "panel-query", "adapter.ts"),
+    source: 'import "server-only";',
+    specifier: "server-only",
+    kind: "import",
+  },
   {
     name: "Domain static import of React",
     filePath: syntheticPath("domain", "projects", "service.ts"),
