@@ -2,13 +2,13 @@
 
 ## 支持范围
 
-当前安全支持范围是本仓库 `Unreleased` 公开 Beta 候选的最新受支持提交。尚未发布、已归档、非维护者分支或第三方修改副本不在承诺范围内。Phase 9 未完成前，本仓库没有可宣称的 Production 版本、tag 或固定安全维护周期。
+当前安全支持范围是 `v0.1.0-beta.1` 及其 Production 对应提交。未发布、已归档、非维护者分支或第三方修改副本不在承诺范围内。该版本是公开 Beta，不承诺固定安全维护周期、首次响应时间或修复时间。
 
 ## 私密报告渠道
 
 目标渠道是 GitHub Private Vulnerability Reporting / Repository Security Advisory：进入仓库 **Security** 页面并选择 **Report a vulnerability**。
 
-该仓库设置是否已启用此入口属于 **Phase 8 外部待确认项**。如果入口不可见，请不要改用公开 Issue、Discussion、Pull Request 或 Commit 披露；备用私密联系人目前为**待确认**，不得猜测邮箱或 SLA。
+如果该入口不可见，请不要改用公开 Issue、Discussion、Pull Request 或 Commit 披露；备用私密联系人目前为**待确认**，不得猜测邮箱或 SLA。
 
 普通 Bug 和不含敏感信息的产品反馈可以提交公开 Issue。
 
@@ -28,7 +28,7 @@
 
 ## 当前安全边界
 
-- GitHub 调用由代码合同固定为 `metadata/contents/issues/pull_requests/actions/checks: read`，不申请 write/admin；控制台实际权限仍需 Phase 8 回读。
+- GitHub 调用由代码合同固定为 `metadata/contents/issues/pull_requests/actions/checks: read`，不申请 write/admin；Production GitHub App 已按最小只读权限和单仓库安装回读。
 - Webhook 在解析、数据库与 dispatch 前执行原始字节大小/header/HMAC 校验；delivery ID 只用于幂等。
 - public 表启用 RLS，敏感写入经受限 RPC；Service Role 只允许 server-side composition 使用。
 - server-only secret 禁止进入 `NEXT_PUBLIC_*`、客户端 bundle、日志或 HTTP 错误。
@@ -50,7 +50,7 @@
 
 - 依赖变更必须保持 lockfile、运行 `pnpm audit --prod --audit-level high --json` 和完整回归，不得用 ignore 或降级严重度掩盖发现。
 - GitHub App private key、Webhook secret、Supabase Service Role、Inngest signing/event key 与 AI key 必须按 Provider 的先增后切换/撤销能力制定窗口；仓库只保存变量名。
-- 是否配置 Dependabot、平台 Secret scanning、WAF 和密钥轮换日历需在 Phase 8–9 回读；当前文档不声称外部设置已经完成。
+- Dependabot、平台 Secret scanning、WAF、长期告警和密钥轮换日历的完整自动化状态不在本 Beta 的已确认范围内；不得据此声称外部安全控制全部完成。
 
 ## 安全事件最低记录
 

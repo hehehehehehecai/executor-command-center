@@ -4,7 +4,7 @@
 
 EXECUTOR 是面向个人开发者和 AI 创作者的 GitHub 项目指挥中心。它把用户主动授权的仓库转化为可追溯的项目状态、近期进展、候选行动、决策记录和有 Evidence 边界的 AI 项目简报。
 
-当前仓库处于**公开 Beta 候选（Unreleased）**。Preview 使用合成数据；Connected 模式才会读取用户明确授权的 GitHub 仓库。尚未完成 Phase 8–9 的外部平台配置、Staging/Production 发布与 Smoke Test，因此不能把本地绿灯理解为已经上线。
+当前仓库的首个公开 Beta 版本为 **`v0.1.0-beta.1`**。Preview 使用合成数据；Connected 模式只读取用户明确授权的 GitHub 仓库。Production 运行时、OAuth、GitHub App 单仓库安装、数据库 migration 与核心只读面板已经过发布 smoke；具体 deployment、回滚与证据边界见阶段 6 发布执行报告和 [Beta 发布回滚与监控 Runbook](docs/runbooks/阶段6/阶段6_Beta发布回滚与监控_Runbook.md)。
 
 ## 已实现能力
 
@@ -22,7 +22,7 @@ EXECUTOR 是面向个人开发者和 AI 创作者的 GitHub 项目指挥中心�
 - GitHub 权限是只读；不创建或修改真实 Issue、PR、源码或仓库设置。Issue Draft 只是草稿，不会自动发布。
 - 系统建议、Candidate 和 AI 输出不是已确认事实；正式状态与关键决策由用户确认。
 - 不实现团队、支付、BYOK、多模型、完整源码/Diff 扫描、公开项目页或自动修改仓库。
-- GitHub App、Vercel、Supabase Cloud、Inngest 和 AI Provider 的真实外部配置仍需在 Phase 8–9 按 Runbook 回读和验证。
+- 外部平台可用性、配额与成本受对应账户计划约束；当前 Beta 不承诺 Production SLA，长期趋势告警与成本自动化仍待后续运维增强。
 - 请求级 CSP nonce 使 HTML 路由动态渲染；这是当前严格 CSP 的已接受性能成本。
 - 安全与隐私文档描述的是当前代码和本地证据，不构成“生产绝对安全”或法律合规承诺。
 

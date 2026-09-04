@@ -1,8 +1,12 @@
 # Changelog
 
-本文件记录 EXECUTOR 的可审计仓库能力。Phase 9 完成前不声明 Production release、tag、正式版本号或发布日期。
+本文件记录 EXECUTOR 的可审计仓库能力。每个版本只记录已经进入对应发布候选的能力；外部平台状态以发布执行报告的权威回读为准。
 
-## [Unreleased] — Public Beta candidate
+## [Unreleased]
+
+当前没有已承诺的后续版本内容。
+
+## [v0.1.0-beta.1] — 2026-09-04
 
 ### Added
 
@@ -33,7 +37,9 @@
 
 ### Known limitations
 
-- GitHub App、Vercel、Supabase Cloud、Inngest、AI Provider 的真实 Staging/Production 配置、WAF/匿名 OAuth 限流、监控与告警仍需 Phase 8–10 验证。
+- 当前是个人开发者公开 Beta，不承诺 Production SLA、固定首次响应时间或修复时间。
+- GitHub、Supabase、Vercel、Inngest 与 AI Provider 的可用性和配额受各平台状态与账户计划约束；本版本不新增付费计划或第三方服务。
+- WAF、匿名 OAuth 限流、长期趋势告警与成本自动化仍属于后续运维增强项；当前发布依赖平台基础保护、应用侧限流与人工观察窗口。
 - GitHub 能力只读；Issue Draft 不自动发布，不修改源码或仓库。
 - 不支持团队、支付、BYOK、多模型、完整源码/Diff 扫描或公开项目页。
-- 没有已确认的正式版本、发布日期、Production SLA、隐私/安全联系人或通用数据保留期限。
+- 私密安全报告备用联系人、固定安全维护周期与通用数据保留期限仍待确认。

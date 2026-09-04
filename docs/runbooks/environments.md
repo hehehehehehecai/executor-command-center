@@ -7,8 +7,8 @@ Local、Staging、Production 必须使用不同的 Supabase project、GitHub App
 | 环境 | 当前证据状态 | 允许的数据 | 目的 |
 | --- | --- | --- | --- |
 | Local | 可由本仓库和 Docker 重建 | seed 与合成 fixture | 开发、测试、恢复验证 |
-| Staging | Phase 8 待创建/回读 | 专用合成账号与仓库 | migration、E2E、Smoke、回滚验证 |
-| Production | Phase 9 待门禁 | 用户主动授权数据 | 公开 Beta |
+| Staging | Phase 8 已完成独立资源与验收；本次 Beta 发布不访问或修改 | 专用合成账号与仓库 | migration、E2E、Smoke、回滚验证 |
+| Production | `v0.1.0-beta.1` 发布范围；精确 RC runtime 已通过，main/tag/Release 按发布门禁闭环 | 用户主动授权数据 | 公开 Beta |
 
 ## 2. Local
 
@@ -85,9 +85,9 @@ pnpm run db:stop
 
 `pnpm exec supabase stop --no-backup` 会删除本项目 Local volume，只能在确认数据为可重建合成数据时执行；不得使用 `--all --no-backup`。
 
-## 3. Staging（Phase 8 执行）
+## 3. Staging（Phase 8 已执行）
 
-以下是可执行清单，不代表已完成：
+以下清单保留为环境重建和后续发布复验要求；历史完成状态以 Phase 8 执行报告为准：
 
 1. 创建专用 Supabase/Vercel/Inngest/AI 环境和专用 GitHub App；记录 owner、region、project/ref 的安全 fingerprint，不记录 secret。
 2. 配置独立域名和 callback：Supabase Auth callback、GitHub App setup/callback、Webhook URL、Inngest serve endpoint；逐项验证 HTTPS 与精确 origin。
@@ -100,7 +100,7 @@ pnpm run db:stop
 
 Staging 现有 Onboarding 证据模板见 [Staging Connected Onboarding Smoke Test](staging-onboarding-smoke-test.md)。
 
-## 4. Production（Phase 9 执行）
+## 4. Production（Phase 9 发布门禁）
 
 ### 4.1 发布前门禁
 
@@ -118,6 +118,8 @@ Staging 现有 Onboarding 证据模板见 [Staging Connected Onboarding Smoke Te
 5. 部署绑定的不可变 commit/build；验证环境变量存在性而不回显值。
 6. 执行最小 Production Smoke：登录、授权读取、一个合成/受控项目读取、同步/Brief 安全边界、Webhook HMAC、CSP/cookie 和错误映射。
 7. 观察日志、延迟、错误率、queue/retry、Energy/refund 和 database health；满足观察窗口后才 tag/release。
+
+`v0.1.0-beta.1` 的精确 RC runtime、OAuth、Installation 和核心只读面板已通过 Phase 9.1 验证。Git-integrated `main` deployment、tag、GitHub Release、回滚切换与恢复必须在 Phase 9.2 以平台回读为准，不得用先前 CLI deployment 代替。
 
 ### 4.3 回滚
 
