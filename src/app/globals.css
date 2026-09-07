@@ -54,6 +54,23 @@ body {
   background-position: 0 0;
 }
 
+/* 只让大面板背景透出星点，文字与交互控件保持原有不透明度。 */
+:root[data-executor-theme="deep-space"] .project-metadata,
+:root[data-executor-theme="deep-space"] .freshness-card,
+:root[data-executor-theme="deep-space"] .auth-state-list {
+  background-color: rgb(8 19 33 / 40%);
+}
+
+:root[data-executor-theme="deep-space"] .workspace-navigation,
+:root[data-executor-theme="deep-space"] .workspace-inspector {
+  background-color: rgb(8 19 33 / 60%);
+}
+
+/* 入口卡片保留更多底色，维持蓝色链接及细边界的对比。 */
+:root[data-executor-theme="deep-space"] .command-panel {
+  background-color: rgb(8 19 33 / 85%);
+}
+
 :root[data-executor-theme="deep-space"] .freshness-badge--stale,
 :root[data-executor-theme="deep-space"] .freshness-badge--partial,
 :root[data-executor-theme="deep-space"] .freshness-warning {
