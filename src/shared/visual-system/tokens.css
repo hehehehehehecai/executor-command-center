@@ -1,0 +1,15 @@
+:root {
+  --space-bg: #030711;
+  --space-surface: #081321;
+  --space-surface-raised: #0d1b2c;
+  --space-foreground: #f3f7ff;
+  --space-muted: #a9b8ca;
+  --space-border: #46688f;
+  --space-primary: #2f7dff;
+  --space-cyan: #3ad8ff;
+  --space-warning: #f3a526;
+  --space-success: #2ed68f;
+  --space-danger: #ff6b73;
+  --space-ai: #9a7cff;
+  --space-focus: #66b3ff;
+}
