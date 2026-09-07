@@ -1,9 +1,14 @@
 import { cleanup, render, screen } from "@testing-library/react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   getUser: vi.fn(),
   getAll: vi.fn(),
+}));
+
+vi.mock("next/server", () => ({
+  connection: vi.fn(async () => undefined),
 }));
 
 vi.mock("next/headers", () => ({
@@ -24,6 +29,29 @@ vi.mock("@/shared/configuration/server-environment", () => ({
 }));
 
 import Home from "./page";
+import RootLayout from "./layout";
+
+describe("根布局的主题属性", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it.each([
+    { label: "缺省主题", value: undefined, expected: "deep-space" },
+    { label: "显式深空主题", value: "deep-space", expected: "deep-space" },
+    { label: "legacy 回退", value: "legacy", expected: "legacy" },
+    { label: "未知主题回退", value: " DEEP-SPACE ", expected: "legacy" },
+  ])("将$label写入真实 html 根节点并保留子内容", async ({ value, expected }) => {
+    vi.stubEnv("NEXT_PUBLIC_EXECUTOR_THEME", value);
+    const markup = renderToStaticMarkup(
+      await RootLayout({ children: <main id="main-content">主题测试内容</main> }),
+    );
+    const document = new DOMParser().parseFromString(markup, "text/html");
+
+    expect(document.documentElement.getAttribute("data-executor-theme")).toBe(expected);
+    expect(document.documentElement.getAttribute("lang")).toBe("zh-CN");
+    expect(document.querySelector("main")?.textContent).toBe("主题测试内容");
+    expect(document.querySelector(".skip-link")?.getAttribute("href")).toBe("#main-content");
+  });
+});
 
 describe("Home", () => {
   beforeEach(() => {

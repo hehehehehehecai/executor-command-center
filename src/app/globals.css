@@ -1,15 +1,6 @@
 @import "tailwindcss";
-
-:root {
-  --background: #f2f4f1;
-  --foreground: #151918;
-  --surface: #ffffff;
-  --surface-muted: #e9ede9;
-  --muted: #5f6763;
-  --border: #747f79;
-  --accent: #245b49;
-  --focus: #1f6b52;
-}
+@import "../shared/visual-system/tokens.css";
+@import "../shared/visual-system/theme.css";
 
 * {
   box-sizing: border-box;
@@ -28,6 +19,32 @@ body {
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
+}
+
+:root[data-executor-theme="deep-space"] body {
+  color-scheme: dark;
+  background-image:
+    radial-gradient(circle at 1px 1px, rgb(169 184 202 / 24%) 0.7px, transparent 1px),
+    radial-gradient(circle at 1px 1px, rgb(58 216 255 / 13%) 0.6px, transparent 1px),
+    linear-gradient(rgb(70 104 143 / 6%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(70 104 143 / 6%) 1px, transparent 1px);
+  background-size: 173px 199px, 263px 281px, 64px 64px, 64px 64px;
+  background-position: 19px 31px, 83px 117px, -1px -1px, -1px -1px;
+}
+
+:root[data-executor-theme="deep-space"] .freshness-badge--stale,
+:root[data-executor-theme="deep-space"] .freshness-badge--partial,
+:root[data-executor-theme="deep-space"] .freshness-warning {
+  color: var(--space-warning);
+}
+
+:root[data-executor-theme="deep-space"] .freshness-warning {
+  border-color: var(--space-warning);
+}
+
+:root[data-executor-theme="deep-space"] .freshness-badge--failed,
+:root[data-executor-theme="deep-space"] .freshness-badge--authorization_revoked {
+  color: var(--space-danger);
 }
 
 .command-deck-shell {
