@@ -63,12 +63,18 @@ body {
 
 :root[data-executor-theme="deep-space"] .workspace-navigation,
 :root[data-executor-theme="deep-space"] .workspace-inspector {
-  background-color: rgb(8 19 33 / 60%);
+  background-color: rgb(8 19 33 / 30%);
+  border-color: var(--space-focus);
 }
 
-/* 入口卡片保留更多底色，维持蓝色链接及细边界的对比。 */
+/* 降低入口卡片底色遮挡，以局部浅蓝链接和边线保持对比。 */
 :root[data-executor-theme="deep-space"] .command-panel {
-  background-color: rgb(8 19 33 / 85%);
+  background-color: rgb(8 19 33 / 20%);
+  border-color: var(--space-focus);
+}
+
+:root[data-executor-theme="deep-space"] .command-panel .panel-link {
+  color: var(--space-focus);
 }
 
 :root[data-executor-theme="deep-space"] .freshness-badge--stale,
