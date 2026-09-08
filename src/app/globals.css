@@ -754,6 +754,31 @@ h1 {
 }
 
 @media (min-width: 64rem) {
+  /* 仅在桌面首页放大原有星点，保留星位、颜色与重复周期。 */
+  :root[data-executor-theme="deep-space"] body:has(.command-deck-shell .panel-navigation > .panel-grid) {
+    background-image:
+      radial-gradient(circle at 19px 43px, rgb(243 247 255 / 22%) 0.675px, transparent 1.5px),
+      radial-gradient(circle at 137px 167px, rgb(169 184 202 / 18%) 0.825px, transparent 1.65px),
+      radial-gradient(circle at 61px 127px, rgb(243 247 255 / 20%) 0.9px, transparent 1.8px),
+      radial-gradient(circle at 223px 59px, rgb(169 184 202 / 24%) 0.675px, transparent 1.5px),
+      radial-gradient(circle at 109px 307px, rgb(58 216 255 / 16%) 0.975px, transparent 1.8px),
+      radial-gradient(circle at 307px 211px, rgb(243 247 255 / 22%) 0.75px, transparent 1.65px),
+      radial-gradient(circle at 43px 389px, rgb(169 184 202 / 18%) 0.675px, transparent 1.5px),
+      radial-gradient(circle at 251px 83px, rgb(243 247 255 / 20%) 0.9px, transparent 1.8px),
+      radial-gradient(circle at 283px 347px, rgb(243 247 255 / 26%) 1.275px, transparent 2.25px),
+      radial-gradient(circle at 157px 97px, rgb(169 184 202 / 30%) 1.05px, transparent 2.1px),
+      radial-gradient(circle at 71px 461px, rgb(243 247 255 / 26%) 1.35px, transparent 2.4px),
+      radial-gradient(circle at 349px 239px, rgb(58 216 255 / 25%) 1.125px, transparent 2.25px),
+      radial-gradient(circle at 191px 641px, rgb(169 184 202 / 32%) 1.05px, transparent 2.1px),
+      radial-gradient(circle at 431px 373px, rgb(243 247 255 / 26%) 1.35px, transparent 2.4px),
+      radial-gradient(circle at 97px 769px, rgb(58 216 255 / 24%) 1.2px, transparent 2.25px),
+      radial-gradient(circle at 563px 157px, rgb(243 247 255 / 26%) 1.125px, transparent 2.25px),
+      radial-gradient(circle at 331px 523px, rgb(169 184 202 / 36%) 1.65px, transparent 3px),
+      radial-gradient(circle at 173px 877px, rgb(243 247 255 / 26%) 1.8px, transparent 3.3px),
+      radial-gradient(circle at 701px 307px, rgb(58 216 255 / 30%) 1.5px, transparent 2.85px),
+      radial-gradient(circle at 457px 1103px, rgb(169 184 202 / 34%) 1.725px, transparent 3.15px);
+  }
+
   .command-deck-shell {
     width: min(100%, 96rem);
   }
