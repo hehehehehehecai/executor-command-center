@@ -5,6 +5,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { featureRegistry } from "@/shared/features/feature-registry";
 
+import styles from "./command-deck.module.css";
+
 function NavigationLinks({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <>
@@ -107,7 +109,7 @@ export function CommandDeckNavigation() {
         菜单
       </button>
 
-      <nav className="workspace-navigation" aria-label="桌面主导航">
+      <nav className={`workspace-navigation ${styles.navigation}`} aria-label="桌面主导航">
         <NavigationLinks />
       </nav>
 
@@ -122,7 +124,7 @@ export function CommandDeckNavigation() {
           <aside
             ref={drawerRef}
             id="mobile-command-navigation"
-            className="mobile-navigation-drawer"
+            className={`mobile-navigation-drawer ${styles.drawer}`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="mobile-command-navigation-title"

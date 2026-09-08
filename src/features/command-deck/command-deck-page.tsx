@@ -5,12 +5,13 @@ import { SyncStatusBadge } from "@/features/project-galaxy";
 import { featureRegistry } from "@/shared/features/feature-registry";
 
 import { CommandDeckNavigation } from "./command-deck-navigation";
+import styles from "./command-deck.module.css";
 
 export function CommandDeckPage(input: { readonly authenticated?: boolean } = {}) {
   const { project } = commandDeckPreviewFixture;
 
   return (
-    <div className="command-deck-shell">
+    <div className="command-deck-shell" data-visual-zone="command-deck-shell">
       <header className="command-deck-header">
         <div className="brand-intro">
           <p className="brand-kicker">舰桥预览</p>
@@ -40,7 +41,7 @@ export function CommandDeckPage(input: { readonly authenticated?: boolean } = {}
         <div className="workspace-shell">
         <CommandDeckNavigation />
 
-        <section className="workspace-main" aria-label="Command Deck 工作区">
+        <section className={`workspace-main ${styles.workspaceMain}`} aria-label="Command Deck 工作区" data-visual-zone="command-deck-main">
           <section
             className="project-summary"
             aria-labelledby="command-deck-title"
@@ -78,7 +79,7 @@ export function CommandDeckPage(input: { readonly authenticated?: boolean } = {}
                 return (
                   <li key={feature.id}>
                     <article
-                      className="command-panel"
+                      className={`command-panel ${styles.panel}`}
                       data-feature-id={feature.id}
                       aria-labelledby={titleId}
                     >
@@ -117,7 +118,7 @@ export function CommandDeckPage(input: { readonly authenticated?: boolean } = {}
           </p>
         </section>
 
-        <aside className="workspace-inspector" aria-label="舰桥上下文">
+        <aside className={`workspace-inspector ${styles.support}`} aria-label="舰桥上下文" data-visual-zone="command-deck-support">
           <p className="section-kicker">Context inspector</p>
           <h2>舰桥上下文</h2>
           <dl>
