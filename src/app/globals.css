@@ -122,6 +122,9 @@ body > div:has(.next-error-h1) {
 
 h1 {
   margin: 0.75rem 0 0;
+  font-family:
+    "STXingkai", "华文行楷", "Noto Sans SC", "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
   font-size: clamp(3rem, 12vw, 7rem);
   font-weight: 700;
   letter-spacing: -0.06em;
