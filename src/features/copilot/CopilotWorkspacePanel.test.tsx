@@ -162,3 +162,103 @@ describe("CopilotWorkspacePanel", () => {
     expect(screen.getByText("未知面板，未改变当前上下文。")).toBeVisible();
   });
 });
+
+
+describe("Copilot evidence navigation", () => {
+  it("links every available Evidence to its focusable detail without changing path or query", async () => {
+    const { syntheticProjectBrief, syntheticBriefId } = await import(
+      "@/testing/project-brief/project-brief-fixture"
+    );
+    for (const mode of ["preview", "connected"] as const) {
+      const brief = createCopilotProjectBriefViewModel(syntheticProjectBrief(), {
+        briefId: syntheticBriefId, mode, selectedEvidence: null,
+      });
+      const { unmount } = render(<CopilotWorkspacePanel viewModel={viewModel({ mode, projectBrief: { status: "ready", value: brief } })} />);
+      const expected = [
+        ["摘要", "github_issue", "issue:42"],
+        ["官方状态", "project_profile", "profile:odyssey"],
+        ["已完成变更", "github_issue", "issue:42"],
+        ["进行中工作", "github_issue", "issue:42"],
+        ["Freshness", "freshness", "freshness:odyssey"],
+      ];
+      for (const [name, kind, id] of expected) {
+        const link = within(screen.getByRole("region", { name })).getByRole("link", { name: `查看证据 · ${kind} · ${id}` });
+        const selection = JSON.stringify([kind, id, "20000000-0000-4000-8000-000000000002"]);
+        const href = `/copilot?mode=${mode}&projectId=20000000-0000-4000-8000-000000000002&selectedEvidence=${encodeURIComponent(selection)}#copilot-selected-evidence`;
+        expect(link).toHaveAttribute("href", href);
+      }
+      unmount();
+    }
+  });
+
+  it("exposes the selected Evidence as a programmatically focusable fragment target", async () => {
+    const { syntheticProjectBrief, syntheticBriefId } = await import(
+      "@/testing/project-brief/project-brief-fixture"
+    );
+    const brief = createCopilotProjectBriefViewModel(syntheticProjectBrief(), {
+      briefId: syntheticBriefId, mode: "preview",
+      selectedEvidence: '["github_issue","issue:42","20000000-0000-4000-8000-000000000002"]',
+    });
+    render(<CopilotWorkspacePanel viewModel={viewModel({ projectBrief: { status: "ready", value: brief } })} />);
+    const target = screen.getByRole("complementary", { name: "已聚焦 Evidence" });
+    expect(target).toHaveAttribute("id", "copilot-selected-evidence");
+    expect(target).toHaveAttribute("tabindex", "-1");
+    expect([...target.querySelectorAll("dd")].map((node) => node.textContent)).toEqual([
+      "github_issue", "issue:42", "20000000-0000-4000-8000-000000000002",
+    ]);
+    target.focus();
+    expect(target).toHaveFocus();
+  });
+
+  it("keeps unavailable Evidence non-navigable and omits a target for unknown selection", async () => {
+    const { syntheticProjectBrief, syntheticBriefId } = await import(
+      "@/testing/project-brief/project-brief-fixture"
+    );
+    const brief = createCopilotProjectBriefViewModel(syntheticProjectBrief(), {
+      briefId: syntheticBriefId, mode: "preview", selectedEvidence: "unknown-reference",
+    });
+    render(<CopilotWorkspacePanel viewModel={viewModel({ projectBrief: { status: "ready", value: {
+      ...brief, summary: { ...brief.summary, evidence: brief.summary.evidence.map((reference) => ({ ...reference, href: null })) },
+    } } })} />);
+    const summary = screen.getByRole("region", { name: "摘要" });
+    expect(within(summary).getByText("不可导航 · github_issue")).toBeVisible();
+    expect(within(summary).queryByRole("link")).not.toBeInTheDocument();
+    expect(screen.queryByRole("complementary", { name: "已聚焦 Evidence" })).not.toBeInTheDocument();
+    expect(document.getElementById("copilot-selected-evidence")).toBeNull();
+    expect(screen.getByRole("note", { name: "Brief 边界" })).toBeVisible();
+  });
+});
+
+
+describe("Copilot Evidence fragment focus", () => {
+  it("restores focus on fragment mount and page restoration without taking focus at other fragments", async () => {
+    const { syntheticProjectBrief, syntheticBriefId } = await import(
+      "@/testing/project-brief/project-brief-fixture"
+    );
+    const brief = createCopilotProjectBriefViewModel(syntheticProjectBrief(), {
+      briefId: syntheticBriefId, mode: "preview",
+      selectedEvidence: '["github_issue","issue:42","20000000-0000-4000-8000-000000000002"]',
+    });
+    const originalUrl = window.location.href;
+    try {
+      window.history.replaceState(null, "", "#copilot-selected-evidence");
+      const first = render(<CopilotWorkspacePanel viewModel={viewModel({ projectBrief: { status: "ready", value: brief } })} />);
+      const target = screen.getByRole("complementary", { name: "已聚焦 Evidence" });
+      expect(target).toHaveFocus();
+      target.blur();
+      expect(target).not.toHaveFocus();
+      window.dispatchEvent(new Event("pageshow"));
+      expect(target).toHaveFocus();
+      first.unmount();
+
+      window.history.replaceState(null, "", "#main-content");
+      render(<CopilotWorkspacePanel viewModel={viewModel({ projectBrief: { status: "ready", value: brief } })} />);
+      const otherFragmentTarget = screen.getByRole("complementary", { name: "已聚焦 Evidence" });
+      expect(otherFragmentTarget).not.toHaveFocus();
+      window.dispatchEvent(new Event("pageshow"));
+      expect(otherFragmentTarget).not.toHaveFocus();
+    } finally {
+      window.history.replaceState(null, "", originalUrl);
+    }
+  });
+});

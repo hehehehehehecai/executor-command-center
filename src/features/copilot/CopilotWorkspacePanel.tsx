@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useRef } from "react";
 
 import { PanelDemoDisclosure } from "@/shared/demo-disclosure";
 import { featureRegistry } from "@/shared/features/feature-registry";
@@ -49,9 +52,9 @@ function EvidenceLinks({ evidence }: { readonly evidence: readonly CopilotEviden
           {ref.href === null ? (
             <span>不可导航 · {ref.sourceKind}</span>
           ) : (
-            <Link href={ref.href}>
+            <a href={`${ref.href}#copilot-selected-evidence`}>
               查看证据 · {ref.sourceKind} · {ref.sourceId}
-            </Link>
+            </a>
           )}
         </li>
       ))}
@@ -60,6 +63,25 @@ function EvidenceLinks({ evidence }: { readonly evidence: readonly CopilotEviden
 }
 
 function ProjectBriefRegion({ state }: { readonly state: CopilotProjectBriefState }) {
+  const selectedEvidenceTarget = useRef<HTMLElement>(null);
+  const selectedReferenceId = state.status === "ready"
+    ? state.value.selectedEvidence?.referenceId
+    : undefined;
+
+  useEffect(() => {
+    if (!selectedReferenceId) return;
+
+    const focusSelectedEvidence = () => {
+      if (window.location.hash === "#copilot-selected-evidence") {
+        selectedEvidenceTarget.current?.focus({ preventScroll: true });
+      }
+    };
+
+    focusSelectedEvidence();
+    window.addEventListener("pageshow", focusSelectedEvidence);
+    return () => window.removeEventListener("pageshow", focusSelectedEvidence);
+  }, [selectedReferenceId]);
+
   if (state.status !== "ready") {
     return (
       <section className={styles.briefRegion} aria-label="Brief 状态">
@@ -131,7 +153,7 @@ function ProjectBriefRegion({ state }: { readonly state: CopilotProjectBriefStat
       </section>
 
       {brief.selectedEvidence ? (
-        <aside className={styles.selectedEvidence} aria-label="已聚焦 Evidence">
+        <aside ref={selectedEvidenceTarget} id="copilot-selected-evidence" className={styles.selectedEvidence} aria-label="已聚焦 Evidence" tabIndex={-1}>
           <h3>已聚焦 Evidence</h3>
           <dl>
             <div><dt>sourceKind</dt><dd>{brief.selectedEvidence.sourceKind}</dd></div>
