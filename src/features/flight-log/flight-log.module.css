@@ -1,4 +1,7 @@
 .shell {
+  --flight-card-surface: color-mix(in srgb, var(--surface) 80%, transparent);
+  --flight-stale-surface: color-mix(in srgb, var(--surface-muted) 80%, transparent);
+  --flight-stale-border: color-mix(in srgb, var(--foreground) 60%, var(--space-warning));
   width: min(100% - 2rem, 80rem);
   min-width: 0;
   margin: 0 auto;
@@ -50,13 +53,13 @@
   margin: 1.5rem 0 1rem;
   border: 1px solid var(--border);
   border-left: 4px solid var(--accent);
-  background: var(--surface);
+  background: var(--flight-card-surface);
   padding: 1rem;
 }
 
 .freshness[data-freshness-status="stale"] {
-  border-left-color: #9b6709;
-  background: #fffbf2;
+  border-left-color: var(--flight-stale-border);
+  background: var(--flight-stale-surface);
 }
 
 .freshness p,
@@ -75,7 +78,7 @@
   gap: 1rem;
   margin-bottom: 1rem;
   border: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--flight-card-surface);
   padding: 1rem;
 }
 
@@ -141,14 +144,14 @@
 .filters button:focus-visible,
 .eventCard a:focus-visible,
 .footer a:focus-visible {
-  outline: 3px solid var(--accent);
+  outline: 3px solid var(--focus);
   outline-offset: 3px;
 }
 
 .timelineSection {
   min-width: 0;
   border: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--flight-card-surface);
   padding: 1rem;
 }
 
