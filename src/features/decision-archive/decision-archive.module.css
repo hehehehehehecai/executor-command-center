@@ -1,4 +1,8 @@
 .shell {
+  --archive-surface: color-mix(in srgb, var(--surface) 80%, transparent);
+  --archive-warning: color-mix(in srgb, var(--foreground) 60%, var(--space-warning));
+  --archive-danger: color-mix(in srgb, var(--foreground) 60%, var(--space-danger));
+  --archive-success: color-mix(in srgb, var(--foreground) 60%, var(--space-success));
   width: min(1440px, calc(100% - 32px));
   margin: 0 auto;
   padding: 40px 0 64px;
@@ -10,7 +14,7 @@
 .region {
   border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
   border-radius: 22px;
-  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  background: var(--archive-surface);
 }
 
 .header {
@@ -51,7 +55,7 @@
   padding: 16px;
   border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
   border-radius: 15px;
-  background: var(--background);
+  background: transparent;
 }
 
 .feedback {
@@ -59,7 +63,7 @@
   padding: 14px 18px;
   border-left: 4px solid var(--accent);
   border-radius: 10px;
-  background: var(--surface);
+  background: var(--archive-surface);
 }
 
 .manualSection {
@@ -187,7 +191,7 @@
   padding: 18px;
   border: 1px solid color-mix(in srgb, var(--foreground) 13%, transparent);
   border-radius: 17px;
-  background: var(--background);
+  background: transparent;
 }
 
 .candidateCard h3,
@@ -303,4 +307,22 @@
     grid-template-columns: 1fr;
     gap: 4px;
   }
+}
+
+.candidateCard[data-candidate-status="pending"] .cardMeta {
+  color: var(--archive-warning);
+}
+
+.candidateCard[data-candidate-status="confirmed"] .cardMeta {
+  color: var(--archive-success);
+}
+
+.feedback[data-feedback-kind="success"] {
+  color: var(--archive-success);
+  border-left-color: var(--archive-success);
+}
+
+.feedback[data-feedback-kind="error"] {
+  color: var(--archive-danger);
+  border-left-color: var(--archive-danger);
 }
