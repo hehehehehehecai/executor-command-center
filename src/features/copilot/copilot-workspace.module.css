@@ -1,4 +1,8 @@
 .shell {
+  --copilot-surface: color-mix(in srgb, var(--surface) 80%, transparent);
+  --copilot-ai: color-mix(in srgb, var(--foreground) 35%, var(--space-ai));
+  --copilot-danger: color-mix(in srgb, var(--foreground) 60%, var(--space-danger));
+  --copilot-success: color-mix(in srgb, var(--foreground) 60%, var(--space-success));
   width: min(1180px, calc(100% - 32px));
   margin: 0 auto;
   padding: 40px 0 64px;
@@ -14,7 +18,7 @@
   min-width: 0;
   border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
   border-radius: 22px;
-  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  background: var(--copilot-surface);
 }
 
 .briefRegion,
@@ -54,7 +58,7 @@
   min-width: 0;
   border: 1px solid var(--border);
   border-radius: 14px;
-  background: var(--background);
+  background: transparent;
   padding: 18px;
 }
 
@@ -193,7 +197,7 @@
   padding: 16px;
   border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
   border-radius: 15px;
-  background: var(--background);
+  background: transparent;
 }
 
 .feedback {
@@ -201,11 +205,12 @@
   padding: 14px 18px;
   border-left: 4px solid var(--accent);
   border-radius: 10px;
-  background: var(--surface);
+  background: var(--copilot-surface);
 }
 
 .feedback[data-feedback-kind="error"] {
-  border-left-color: #8b2b2b;
+  color: var(--copilot-danger);
+  border-left-color: var(--copilot-danger);
 }
 
 .workspace {
@@ -258,7 +263,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   margin: 24px 0;
   border: 1px solid var(--border);
-  background: var(--background);
+  background: transparent;
 }
 
 .contextDetails div {
@@ -351,7 +356,7 @@
   overflow-wrap: anywhere;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: var(--background);
+  background: transparent;
   padding: 12px;
 }
 
@@ -442,4 +447,18 @@
     border-top: 1px solid var(--border);
     border-left: 0;
   }
+}
+
+.briefState {
+  background: transparent;
+}
+
+.header > div > p:first-child,
+.followUpRegion .metaLabel {
+  color: var(--copilot-ai);
+}
+
+.feedback[data-feedback-kind="success"] {
+  color: var(--copilot-success);
+  border-left-color: var(--copilot-success);
 }
