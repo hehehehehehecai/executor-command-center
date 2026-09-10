@@ -333,6 +333,11 @@
   cursor: pointer;
 }
 
+:global(:root[data-executor-theme="deep-space"]) .form button {
+  border-color: #2469dc;
+  background: #2469dc;
+}
+
 .form input:focus-visible,
 .form select:focus-visible,
 .form textarea:focus-visible,

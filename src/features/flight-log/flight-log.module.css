@@ -242,6 +242,12 @@
   text-underline-offset: 0.2em;
 }
 
+@media (max-width: 47.999rem) {
+  .footer a {
+    scroll-margin-block: 0.75rem;
+  }
+}
+
 .unavailableLink {
   display: inline-block;
   margin-top: 0.75rem;
