@@ -1,3 +1,35 @@
+# 探索者号美术视觉系统发布就绪报告：原审核已签署 PASS
+
+当前有效裁决为 **GATE-ART-002 PASS**，原审核工程评级 **A**。原审核任务 `01a07a43-b195-7622-b8f3-0e8b6fbcb63f` 于 `2026-09-19T17:21:33.214537+08:00` 签署裁决。本次同批补充真实审核引用；`execution_authorization=NOT_GRANTED` 保持，尚未进入06-03，也未执行外部发布。
+
+## 当前裁决与真实签字来源
+
+- launch：`explorer-art-f806c8b8fd4891ef`。
+- batch：`explorer-art-task06-02-2-167124cc2a50eb2c`。
+- prompt_instance：`explorer-art-task06-02-2-167124cc2a50eb2c-development-indicator-occlusion-repair`。
+- 当前有效门禁结果：`PASS`；工程评级：`A`；发布许可：`NOT_GRANTED`。
+- 真实裁决时间：`2026-09-19T17:21:33.214537+08:00`，直接读取已封存Gate字段。
+- Gate裁决：[explorer-art-task06-02-2-167124cc2a50eb2c-gate-art-002-pass.json](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-2-167124cc2a50eb2c-gate-art-002-pass.json>)（SHA-256 `18fdc5217e44559a062b487a7c20351263810a24cdf946fe138cfed412df6f82`）。
+- 原审核独立报告：[explorer-art-task06-02-2-167124cc2a50eb2c-independent-review.json](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-2-167124cc2a50eb2c-independent-review.json>)（SHA-256 `4872a68567458b7f846fa42e1151052e0d426020ddfcc8f3a2929fe789093f17`）。
+
+PASS和工程A均来自上述原审核文件，本作者仅补引用。审核没有替代用户审美判断；原用户批准图保持。旧FAIL与候选阶段“待独审”状态仍保留在下方明确标记的历史快照中，不再代表当前有效裁决。
+
+## 审核候选与补签文档的版本关系
+
+原Gate的 `report_binding_kind=REVIEWED_CANDIDATE_BEFORE_SIGNATURE_AMENDMENT`，绑定候选HEAD `79d2ab65fe8cb748d7ae517aa3190d1122fd1a36` 与候选就绪报告SHA-256 `4a169b6059bc777b596095e6d6c45f53d2ec9bfa07ed57cbace038deef2acfcd`。完整候选原bytes另外保存为 [reviewed-candidate-readiness.md](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-2-167124cc2a50eb2c-evidence/signature/reviewed-candidate-readiness.md>)（SHA-256 `4a169b6059bc777b596095e6d6c45f53d2ec9bfa07ed57cbace038deef2acfcd`）；下方也逐字保留相同内容，便于核对。
+
+本补签仅在候选原bytes前增加本节真实审核引用，产品、Next配置、测试、批准PNG与旧证据均不变。补签后文档hash必然不同，其准确值与单文档commit记录在本批signature证据和独立的签字补充执行报告中；本文件不嵌入自身新hash，原Gate也不改写，避免自引用循环。原审核签的是上述候选hash，不冒称已签本补签后hash；补签的单文档差异由原审核另核。
+
+## 有效验证与补签边界
+
+原审核已核1138产物、187命令、17helpers，33项完整Phase6全部通过、1400焦点采样无遮挡、4个旧遮挡点关闭、12张视觉全部0差异；一次生产构建、类型/规范/资产检查及保护通过。上述结果沿用已封存原执行证据，本次只补文档，没有重跑测试、构建或生产回退。
+
+原完整执行报告：[explorer-art-task06-02-2-167124cc2a50eb2c-execution-report.md](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-2-167124cc2a50eb2c-execution-report.md>)（SHA-256 `1c4edbae25673579509c4c91974e16df3534ac3b7081b094a1e71df9d60c75f9`）。它与本次新增签字补充执行报告共同构成本批交付。补签范围仅本报告；原执行报告、旧索引、helpers与原Gate均保持原bytes。继续保持原用户dirty与未跟踪文件，不push/merge/deploy、不新任务/代理/定时监控、不写Ledger/知识库/业务日志。后续入口由原审核补签检查完成后另行派发。
+
+以下为**补签前的已审核候选历史快照**。从分隔线开始，其全部内容逐字保留；其中“当前候选”“等待原审核”“最近FAIL”“PENDING_INDEPENDENT_REVIEW”等均描述原审核签字前的历史时间点。当前有效裁决以上文真实PASS为准。
+
+---
+
 # 探索者号美术视觉系统发布就绪报告：TASK-ART-06-02.2 当前候选
 
 本批已关闭开发浮标，原完整Phase6 33项全部通过；12张用户批准图逐像素比较全部为0差异，默认深空生产构建、类型、规范和资产检查通过。当前为作者候选，等待原审核独立裁决；旧GATE-ART-002 FAIL仍是最近一次已签裁决。`new_review_status=PENDING_INDEPENDENT_REVIEW`，`execution_authorization=NOT_GRANTED`，未进入06-03或执行发布。
