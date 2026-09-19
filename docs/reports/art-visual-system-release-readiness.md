@@ -1,3 +1,61 @@
+# 探索者号美术视觉系统发布就绪报告：TASK-ART-06-02.2 当前候选
+
+本批已关闭开发浮标，原完整Phase6 33项全部通过；12张用户批准图逐像素比较全部为0差异，默认深空生产构建、类型、规范和资产检查通过。当前为作者候选，等待原审核独立裁决；旧GATE-ART-002 FAIL仍是最近一次已签裁决。`new_review_status=PENDING_INDEPENDENT_REVIEW`，`execution_authorization=NOT_GRANTED`，未进入06-03或执行发布。
+
+## 当前批次与精确范围
+
+launch `explorer-art-f806c8b8fd4891ef`；batch `explorer-art-task06-02-2-167124cc2a50eb2c`；prompt_instance `explorer-art-task06-02-2-167124cc2a50eb2c-development-indicator-occlusion-repair`。仓库 `D:/AI workplace/探索者号`，分支 `feature/stage4-bridge-five-panels`，输入HEAD `049eaa65e714394aa68722f6f5708ebba19b9ccb`。授权 `workflow-authorization.v1`，仅 `next.config.ts` 与本报告。本地固定工具和原合成fixture验证、辅助证据及精确本地提交已授权；外部push/merge/deploy未授权且未执行。
+
+配置唯一增加 `devIndicators: false,`。原allowedDevOrigins、logging、安全headers及所有其他bytes保持，原混合换行保持。[config-edit.json](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-2-167124cc2a50eb2c-evidence/config-edit.json>)（SHA-256 `d4f2e77d950452a187b774cedda88e8d448c5e9046702d586e0b49efbc3dee67`）；[config-change.patch](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-2-167124cc2a50eb2c-evidence/config-change.patch>)（SHA-256 `17211c0fa9c2d304742064607d01fbdfd2ea068fc11f001df5939ecf1b422c7a`）。
+
+[Next.js官方devIndicators文档](https://nextjs.org/docs/app/api-reference/config/next-config-js/devIndicators)说明false只关闭开发指示器，编译和运行时错误仍会显示。本机Next16.3.0类型接受false，编译映射和HotReloader错误分派/边界代码已读取并保存：[dev-indicator-mechanism.json](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-2-167124cc2a50eb2c-evidence/dev-indicator-mechanism.json>)（SHA-256 `2fd864c488d0caa663d002222ef548091a91a7de53bd566ba74126e5176cfe01`）。未修改产品布局、字体、主题、测试或错误处理，未通过遮罩/移除DOM处理遮挡。
+
+## 旧失败与本批修复证据
+
+原.1完整33项为31通过2失败，normal/reduced两模式、deep-space/legacy两主题共4个返回导航采样点在x47.89375/y820.328125命中NEXTJS-PORTAL。原结果[phase6-results.json](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-1-93ccfc3c1a80fd6d-evidence/phase6-results.json>)（SHA-256 `b67ee1649de6855347f74fbacc18774619345b9f9cef3698dd4b5502ae432430`），原独审[explorer-art-task06-02-1-93ccfc3c1a80fd6d-independent-review.json](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-1-93ccfc3c1a80fd6d-independent-review.json>)（SHA-256 `1ce2517c12b8c8ada74d504f2409ffe49839bcddcf01732e43b88a0388f587ed`），原Gate FAIL[explorer-art-task06-02-1-93ccfc3c1a80fd6d-gate-art-002-fail.json](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-1-93ccfc3c1a80fd6d-gate-art-002-fail.json>)（SHA-256 `c776b066fe39960a78f4419c21c4cfbc328a9ff1efac4152352af0c4e54c91ff`）。本批沿用同一33用例集合及真实键盘焦点/中心和四内侧点判断，0跳过、0重试；四处相同位置现在命中链接，全部五点无遮挡。
+
+| 主题/模式 | 采样路径 | 旧结果 | 本次结果 | 五点核验 |
+| --- | --- | --- | --- | --- |
+| ART-A11Y-flight-log-deep-space-mobile / no-preference | `observations[0].navigation.returnHome.focus.points[1]` | NEXTJS-PORTAL，遮挡 | A，无遮挡 | 5/5无遮挡，同坐标 |
+| ART-A11Y-flight-log-deep-space-mobile / reduce | `observations[1].navigation.returnHome.focus.points[1]` | NEXTJS-PORTAL，遮挡 | A，无遮挡 | 5/5无遮挡，同坐标 |
+| ART-A11Y-flight-log-legacy-mobile / no-preference | `observations[0].navigation.returnHome.focus.points[1]` | NEXTJS-PORTAL，遮挡 | A，无遮挡 | 5/5无遮挡，同坐标 |
+| ART-A11Y-flight-log-legacy-mobile / reduce | `observations[1].navigation.returnHome.focus.points[1]` | NEXTJS-PORTAL，遮挡 | A，无遮挡 | 5/5无遮挡，同坐标 |
+
+完整对照含原/新附件、模式、坐标及全部采样：[phase6-focus-comparison.json](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-2-167124cc2a50eb2c-evidence/phase6-focus-comparison.json>)（SHA-256 `3999c82306871819a92be0cef581d2dc206692d77a255c54e9e31414a74515a0`）。旧RED保留，没有机械重复旧RED或仅重跑两项代替完整33。
+
+## 本批实际验证与批准图
+
+| 检查 | 本批结果 | 证据 |
+| --- | --- | --- |
+| 完整Phase6 | 33通过，0失败/跳过/重试 | [phase6-summary.json](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-2-167124cc2a50eb2c-evidence/phase6-summary.json>)（SHA-256 `53de0a01c0b69f70b3f3e74a860f9aee71a936d94200ac7fcdd25bc23eecae76`） |
+| 原视觉比较 | 12通过，每张像素差0，更新none、遮罩空 | [visual-summary.json](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-2-167124cc2a50eb2c-evidence/visual-summary.json>)（SHA-256 `1e514b3634956426194bab2880b49d7745e88b71c36854c4a29d1be3567a7b2c`） |
+| 生产构建 | deep-space一次，退出0 | [build-summary.json](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-2-167124cc2a50eb2c-evidence/build-summary.json>)（SHA-256 `5146d5a3ed30560318e00243532d58ba163e13f77b33aa1522d53e442914fc66`） |
+| 类型/规范/资产/差异 | 全部通过 | [static-summary.json](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-2-167124cc2a50eb2c-evidence/static-summary.json>)（SHA-256 `8e402da4395a46a54491fb2be6d28a9abfadb841cb2073e73ddee8ee382d811a`） |
+| 合成fixture | 本run前后计数均0 | [phase6-fixture-after.json](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-2-167124cc2a50eb2c-evidence/phase6-fixture-after.json>)（SHA-256 `e6747bb9d1d39082f7ad6bf6ae6bdbe23856a0ca7f4eca855cf3893c92ead1ef`） |
+| 服务及保护 | 共享容器/镜像/卷保持；自有端口释放 | [shared-service-final.json](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-2-167124cc2a50eb2c-evidence/shared-service-final.json>)（SHA-256 `5c67c99ae051fc464267c7a92b401c297bfc23d6ced9e06a3afc33dc216db054`） |
+
+12张视觉使用原普通入口和正式基线，updateSnapshots=none，阈值0、maxDiffPixels=0、遮罩空、0跳过/重试。原PNG和用户逐图批准链均保持：[approved-baseline-chain.json](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-17dbdc7432c17b60-evidence/approved-baseline-chain.json>)（SHA-256 `63976ff21f96dcdc8ecc079709788ed8eed46e6e5dde764dba61d73b9b66ecb3`），[explorer-art-task05-03-all-12-user-approvals.json](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task05-03-all-12-user-approvals.json>)（SHA-256 `e73fcd189c7ac1d62d5b2ef248298af564d0227d9c6532f1a44a05ec5f24312e`）。本次逐图图像、实际字体、尺寸、像素计数和运行时记录：[visual-original-01-audit.json](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-2-167124cc2a50eb2c-evidence/visual-original-01-audit.json>)（SHA-256 `7bdafd91984de51810a94ee39da1a578d5f8fd8f4196d5b89bc4c679d229a1ca`）。未新增审美批准要求，也未由作者替代用户审美判断。
+
+一次deep-space生产build通过；favicon保持动态且没有被静态预渲染，preview字段仅保存hash。代码来源与批准素材仍是冻结输入。[build-summary.json](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-2-167124cc2a50eb2c-evidence/build-summary.json>)（SHA-256 `5146d5a3ed30560318e00243532d58ba163e13f77b33aa1522d53e442914fc66`）。
+
+## 历史有效验证引用与保护
+
+原六核心UI90、合同/主题52、58负向拒绝及1正确对照均按文件hash引用，本批没有重跑，也不与33和12混为一次测试。原06-01.1非作者deep-space/legacy回退A引用原证据；主题开关、回退Runbook和产品源码保持，未另跑生产回退。[historical-validation-reuse.json](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-2-167124cc2a50eb2c-evidence/historical-validation-reuse.json>)（SHA-256 `a9c753d091766ab76747e57c9af046da848a4b12a8170d11598ca3f2c7aecac2`）。
+
+本批冻结786tracked、46untracked；除两目标外784tracked逐字保持，原用户dirty阶段6报告、所有原untracked与D:/AI既有文件保持。固定Supabase2.109.1、Chromium149和华文行楷/Noto字体hash匹配，无下载或安装。[freeze.json](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-2-167124cc2a50eb2c-evidence/freeze.json>)（SHA-256 `4ac2647ee172c11a837c1413ac249e636d1d57285b31b72c8798f1fbc83c4e9f`）；[tools-fixed.json](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-2-167124cc2a50eb2c-evidence/tools-fixed.json>)（SHA-256 `16ef9a94cdffaa1ae4ee9f0e098f3d0df30b113d807f6ba978270226f8585ce6`）；[after-static-protection.json](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-2-167124cc2a50eb2c-evidence/after-static-protection.json>)（SHA-256 `452a0cf4367a837b9f503d5ccf80f3ec46d1cfbf33153cd167a1122462fef38e`）。
+
+仅本run合成身份及原对应数值ID参与fixture，运行前后五类计数均0。[phase6-fixture-before.json](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-2-167124cc2a50eb2c-evidence/phase6-fixture-before.json>)（SHA-256 `e6747bb9d1d39082f7ad6bf6ae6bdbe23856a0ca7f4eca855cf3893c92ead1ef`）；[phase6-fixture-after.json](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-2-167124cc2a50eb2c-evidence/phase6-fixture-after.json>)（SHA-256 `e6747bb9d1d39082f7ad6bf6ae6bdbe23856a0ca7f4eca855cf3893c92ead1ef`）。已知next-env生成模式CAS恢复，原last-run备份恢复；本run生成附件先归档核hash再精确逐文件清理。[phase6-next-env-restoration.json](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-2-167124cc2a50eb2c-evidence/phase6-next-env-restoration.json>)（SHA-256 `60baada53e282adbca4b58bc0fc5e1e8e57613a025814f06670fb1dd83d8c540`）；[phase6-owned-output-cleanup.json](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-2-167124cc2a50eb2c-evidence/phase6-owned-output-cleanup.json>)（SHA-256 `c0abc391fb66fb15118c3a51e68a610d68ba5110fb54d96ca8ca515ee732e6f4`）。自有3016/3017/3021端口释放，共享Docker容器ID/状态、镜像及卷保持。
+
+## 失败记录与待独审边界
+
+本批准备辅助首次受限写入发生PermissionError，随后精确单脚本系统审批成功；没有自动审批拒绝。初次视觉名单收集缺少原配置要求的输出目录，退出1且未运行测试；新辅助补本批独占输出目录后收集12项通过，未改原配置。两次真实辅助失败及原堆栈完整保留。[sandbox-write-failure.json](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-2-167124cc2a50eb2c-evidence/sandbox-write-failure.json>)（SHA-256 `b4efc4a9b2f449dd443cb201106d31e6013de4006d3d4fd9777aca08b85505e9`）；[readonly-diagnostics.json](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-2-167124cc2a50eb2c-evidence/readonly-diagnostics.json>)（SHA-256 `2f94e8d850f037181b0e2552ab1a9ac9602d86586735a2fd46e0592b4dbe76a3`）。原.1的换行辅助失败、合同RED与31/2失败均继续保留为历史，不冒充本批新失败。
+
+[gate-evidence-index.json](<D:/AI workplace/outputs/stage-pair-launches/explorer-art-task06-02-2-167124cc2a50eb2c-evidence/gate-evidence-index.json>)（SHA-256 `afab4ed6f756b4a6a11df3b0590e760f8e90c4c65f858b67102461a829351505`）记录新裁决/时间/文件/hash均null。作者所需验证已完成，仍不能自行签Gate PASS或工程A。后续仅由原审核核完整证据、两目标提交和保护，出具稳定裁决后按授权补引用。本批未创建任务/代理/worktree/定时监控，未写Ledger/知识库/更新日志，未进入06-03。
+
+以下完整保留上批就绪报告原字节作为历史快照。下文所有“本轮”“当前”“尚未通过”等称谓均属于TASK-ART-06-02.1及其所引用旧批，不覆盖上文本批状态。历史原SHA为 `0715e864c8806bb4d300952f8cb17f586941ab70f83957dd8948ce1037217bec`。
+
+---
+
 # 美术与视觉系统发布就绪证据索引
 
 ```text

@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import { buildHttpSecurityHeaders } from "./src/shared/security/http-security-headers";
 
 const nextConfig: NextConfig = {
+  devIndicators: false,
   allowedDevOrigins: ["127.0.0.1"],
   logging: {
     incomingRequests: {
