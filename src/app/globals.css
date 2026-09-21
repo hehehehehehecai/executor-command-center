@@ -1,15 +1,6 @@
 @import "tailwindcss";
-
-:root {
-  --background: #f2f4f1;
-  --foreground: #151918;
-  --surface: #ffffff;
-  --surface-muted: #e9ede9;
-  --muted: #5f6763;
-  --border: #747f79;
-  --accent: #245b49;
-  --focus: #1f6b52;
-}
+@import "../shared/visual-system/tokens.css";
+@import "../shared/visual-system/theme.css";
 
 * {
   box-sizing: border-box;
@@ -26,8 +17,84 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+    "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI",
+    "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
+}
+
+
+/* Keep the framework error shell on the shared application font. */
+body > div:has(.next-error-h1) {
+  font-family: inherit !important;
+}
+:root[data-executor-theme="deep-space"] body {
+  color-scheme: dark;
+  /* 固定星位与错开的重复周期，保留静态、分层的星空。 */
+  background-image:
+    radial-gradient(circle at 19px 43px, rgb(243 247 255 / 22%) 0.45px, transparent 1px),
+    radial-gradient(circle at 137px 167px, rgb(169 184 202 / 18%) 0.55px, transparent 1.1px),
+    radial-gradient(circle at 61px 127px, rgb(243 247 255 / 20%) 0.6px, transparent 1.2px),
+    radial-gradient(circle at 223px 59px, rgb(169 184 202 / 24%) 0.45px, transparent 1px),
+    radial-gradient(circle at 109px 307px, rgb(58 216 255 / 16%) 0.65px, transparent 1.2px),
+    radial-gradient(circle at 307px 211px, rgb(243 247 255 / 22%) 0.5px, transparent 1.1px),
+    radial-gradient(circle at 43px 389px, rgb(169 184 202 / 18%) 0.45px, transparent 1px),
+    radial-gradient(circle at 251px 83px, rgb(243 247 255 / 20%) 0.6px, transparent 1.2px),
+    radial-gradient(circle at 283px 347px, rgb(243 247 255 / 26%) 0.85px, transparent 1.5px),
+    radial-gradient(circle at 157px 97px, rgb(169 184 202 / 30%) 0.7px, transparent 1.4px),
+    radial-gradient(circle at 71px 461px, rgb(243 247 255 / 26%) 0.9px, transparent 1.6px),
+    radial-gradient(circle at 349px 239px, rgb(58 216 255 / 25%) 0.75px, transparent 1.5px),
+    radial-gradient(circle at 191px 641px, rgb(169 184 202 / 32%) 0.7px, transparent 1.4px),
+    radial-gradient(circle at 431px 373px, rgb(243 247 255 / 26%) 0.9px, transparent 1.6px),
+    radial-gradient(circle at 97px 769px, rgb(58 216 255 / 24%) 0.8px, transparent 1.5px),
+    radial-gradient(circle at 563px 157px, rgb(243 247 255 / 26%) 0.75px, transparent 1.5px),
+    radial-gradient(circle at 331px 523px, rgb(169 184 202 / 36%) 1.1px, transparent 2px),
+    radial-gradient(circle at 173px 877px, rgb(243 247 255 / 26%) 1.2px, transparent 2.2px),
+    radial-gradient(circle at 701px 307px, rgb(58 216 255 / 30%) 1px, transparent 1.9px),
+    radial-gradient(circle at 457px 1103px, rgb(169 184 202 / 34%) 1.15px, transparent 2.1px);
+  background-size:
+    173px 239px, 229px 281px, 277px 331px, 313px 379px,
+    367px 419px, 401px 463px, 443px 503px, 487px 557px,
+    337px 431px, 419px 523px, 509px 617px, 593px 701px,
+    647px 773px, 719px 853px, 797px 929px, 881px 1009px,
+    617px 809px, 823px 1051px, 1031px 1217px, 1153px 1361px;
+  background-position: 0 0;
+}
+
+/* 只让大面板背景透出星点，文字与交互控件保持原有不透明度。 */
+:root[data-executor-theme="deep-space"] .project-metadata,
+:root[data-executor-theme="deep-space"] .freshness-card,
+:root[data-executor-theme="deep-space"] .auth-state-list {
+  background-color: rgb(8 19 33 / 40%);
+}
+
+:root[data-executor-theme="deep-space"] .workspace-navigation,
+:root[data-executor-theme="deep-space"] .workspace-inspector {
+  background-color: rgb(8 19 33 / 30%);
+  border-color: var(--space-focus);
+}
+
+/* 降低入口卡片底色遮挡，以局部浅蓝链接和边线保持对比。 */
+:root[data-executor-theme="deep-space"] .command-panel {
+  background-color: rgb(8 19 33 / 20%);
+  border-color: var(--space-focus);
+}
+
+:root[data-executor-theme="deep-space"] .command-panel .panel-link {
+  color: var(--space-focus);
+}
+
+:root[data-executor-theme="deep-space"] .freshness-badge--stale,
+:root[data-executor-theme="deep-space"] .freshness-badge--partial,
+:root[data-executor-theme="deep-space"] .freshness-warning {
+  color: var(--space-warning);
+}
+
+:root[data-executor-theme="deep-space"] .freshness-warning {
+  border-color: var(--space-warning);
+}
+
+:root[data-executor-theme="deep-space"] .freshness-badge--failed,
+:root[data-executor-theme="deep-space"] .freshness-badge--authorization_revoked {
+  color: var(--space-danger);
 }
 
 .command-deck-shell {
@@ -55,6 +122,9 @@ body {
 
 h1 {
   margin: 0.75rem 0 0;
+  font-family:
+    "STXingkai", "华文行楷", "Noto Sans SC", "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
   font-size: clamp(3rem, 12vw, 7rem);
   font-weight: 700;
   letter-spacing: -0.06em;
@@ -692,6 +762,31 @@ h1 {
 }
 
 @media (min-width: 64rem) {
+  /* 仅在桌面首页放大原有星点，保留星位、颜色与重复周期。 */
+  :root[data-executor-theme="deep-space"] body:has(.command-deck-shell .panel-navigation > .panel-grid) {
+    background-image:
+      radial-gradient(circle at 19px 43px, rgb(243 247 255 / 22%) 0.675px, transparent 1.5px),
+      radial-gradient(circle at 137px 167px, rgb(169 184 202 / 18%) 0.825px, transparent 1.65px),
+      radial-gradient(circle at 61px 127px, rgb(243 247 255 / 20%) 0.9px, transparent 1.8px),
+      radial-gradient(circle at 223px 59px, rgb(169 184 202 / 24%) 0.675px, transparent 1.5px),
+      radial-gradient(circle at 109px 307px, rgb(58 216 255 / 16%) 0.975px, transparent 1.8px),
+      radial-gradient(circle at 307px 211px, rgb(243 247 255 / 22%) 0.75px, transparent 1.65px),
+      radial-gradient(circle at 43px 389px, rgb(169 184 202 / 18%) 0.675px, transparent 1.5px),
+      radial-gradient(circle at 251px 83px, rgb(243 247 255 / 20%) 0.9px, transparent 1.8px),
+      radial-gradient(circle at 283px 347px, rgb(243 247 255 / 26%) 1.275px, transparent 2.25px),
+      radial-gradient(circle at 157px 97px, rgb(169 184 202 / 30%) 1.05px, transparent 2.1px),
+      radial-gradient(circle at 71px 461px, rgb(243 247 255 / 26%) 1.35px, transparent 2.4px),
+      radial-gradient(circle at 349px 239px, rgb(58 216 255 / 25%) 1.125px, transparent 2.25px),
+      radial-gradient(circle at 191px 641px, rgb(169 184 202 / 32%) 1.05px, transparent 2.1px),
+      radial-gradient(circle at 431px 373px, rgb(243 247 255 / 26%) 1.35px, transparent 2.4px),
+      radial-gradient(circle at 97px 769px, rgb(58 216 255 / 24%) 1.2px, transparent 2.25px),
+      radial-gradient(circle at 563px 157px, rgb(243 247 255 / 26%) 1.125px, transparent 2.25px),
+      radial-gradient(circle at 331px 523px, rgb(169 184 202 / 36%) 1.65px, transparent 3px),
+      radial-gradient(circle at 173px 877px, rgb(243 247 255 / 26%) 1.8px, transparent 3.3px),
+      radial-gradient(circle at 701px 307px, rgb(58 216 255 / 30%) 1.5px, transparent 2.85px),
+      radial-gradient(circle at 457px 1103px, rgb(169 184 202 / 34%) 1.725px, transparent 3.15px);
+  }
+
   .command-deck-shell {
     width: min(100%, 96rem);
   }

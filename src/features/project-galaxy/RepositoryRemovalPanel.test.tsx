@@ -151,3 +151,66 @@ describe("RepositoryRemovalPanel", () => {
     expect(bodies[1].idempotencyKey).toBe("phase6-ui:retry-1");
   });
 });
+
+
+describe("RepositoryRemovalPanel theme contract", () => {
+  it.each([
+    ["REMOVE_REPOSITORY_DATA", "移除仓库数据", "REMOVE", "DELETE"],
+    ["DELETE_PROJECT_SUBTREE", "删除整个项目", "DELETE", "REMOVE"],
+  ] as const)("rejects mismatched confirmation for %s", (_mode, action, verb, wrongVerb) => {
+    const fetcher = vi.fn();
+    render(<RepositoryRemovalPanel projectId={projectId} fetcher={fetcher} />);
+    fireEvent.click(screen.getByRole("button", { name: action }));
+    const dialog = screen.getByRole("dialog", { name: `确认${action}` });
+    const input = within(dialog).getByRole("textbox", { name: "确认文本" });
+    const submit = within(dialog).getByRole("button", { name: `确认${action}` });
+
+    for (const text of [`${wrongVerb} ${projectId}`, `${verb} 99999999-9999-4999-8999-999999999999`, ` ${verb} ${projectId}`]) {
+      fireEvent.change(input, { target: { value: text } });
+      expect(submit).toBeDisabled();
+      fireEvent.click(submit);
+    }
+    expect(fetcher).not.toHaveBeenCalled();
+    fireEvent.change(input, { target: { value: `${verb} ${projectId}` } });
+    expect(submit).toBeEnabled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "取消" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("exposes a non-retryable authorization failure without success", async () => {
+    const fetcher = vi.fn().mockResolvedValue(Response.json(
+      { error: { code: "repository_removal_not_found", message: "safe" } },
+      { status: 404 },
+    ));
+    render(<RepositoryRemovalPanel projectId={projectId} fetcher={fetcher} />);
+    fireEvent.click(screen.getByRole("button", { name: "删除整个项目" }));
+    fireEvent.change(screen.getByLabelText("确认文本"), { target: { value: `DELETE ${projectId}` } });
+    fireEvent.click(screen.getByRole("button", { name: "确认删除整个项目" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("项目不存在、已删除，或当前账户无权操作");
+    expect(screen.queryByRole("button", { name: "重试" })).not.toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "确认文本" })).toHaveValue(`DELETE ${projectId}`);
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "确认删除整个项目" })).toBeVisible();
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
+
+  it("rejects an unverified completion for another project", async () => {
+    const payload = completed("REMOVE_REPOSITORY_DATA");
+    const fetcher = vi.fn().mockResolvedValue(Response.json({
+      ...payload,
+      operation: { ...payload.operation, projectId: "99999999-9999-4999-8999-999999999999" },
+    }));
+    render(<RepositoryRemovalPanel projectId={projectId} fetcher={fetcher} />);
+    fireEvent.click(screen.getByRole("button", { name: "移除仓库数据" }));
+    fireEvent.change(screen.getByLabelText("确认文本"), { target: { value: `REMOVE ${projectId}` } });
+    fireEvent.click(screen.getByRole("button", { name: "确认移除仓库数据" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("服务器返回了无法验证的结果，可以安全重试");
+    expect(screen.getByRole("button", { name: "重试" })).toBeEnabled();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByText("仓库数据已移除")).not.toBeInTheDocument();
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
+});

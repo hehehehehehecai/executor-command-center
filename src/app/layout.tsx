@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
+import { parseExecutorTheme } from "@/shared/visual-system";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -13,9 +14,10 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   await connection();
+  const theme = parseExecutorTheme(process.env.NEXT_PUBLIC_EXECUTOR_THEME);
 
   return (
-    <html lang="zh-CN">
+    <html lang="zh-CN" data-executor-theme={theme}>
       <body>
         <a className="skip-link" href="#main-content">
           跳到主要内容

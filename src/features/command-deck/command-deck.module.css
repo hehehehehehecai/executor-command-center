@@ -1,0 +1,20 @@
+.workspaceMain,
+.navigation,
+.support,
+.panel {
+  color: var(--foreground);
+}
+
+.support,
+.panel {
+  border-color: var(--border);
+}
+
+.navigation :global(.workspace-home-link[aria-current="page"]) {
+  background-color: var(--surface-muted);
+}
+
+.drawer {
+  background-color: var(--surface);
+  border-right-color: var(--border);
+}

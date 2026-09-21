@@ -21,6 +21,12 @@ const approvedNames = [
   "STAGING_VERIFICATION_REPOSITORY",
 ] as const;
 
+const approvedExampleNames = [
+  ...approvedNames.slice(0, 3),
+  "NEXT_PUBLIC_EXECUTOR_THEME",
+  ...approvedNames.slice(3),
+] as const;
+
 const serverOnlyNames = approvedNames.filter(
   (name) => !name.startsWith("NEXT_PUBLIC_"),
 );
@@ -318,10 +324,10 @@ describe("environment-validation.v1", () => {
       .map((line) => line.match(/^([A-Z][A-Z0-9_]*)=/)?.[1])
       .filter((name): name is string => Boolean(name));
 
-    expect(names).toEqual(approvedNames);
+    expect(names).toEqual(approvedExampleNames);
   });
 
-  test("keeps every .env.example assignment empty", async () => {
+  test("keeps integration .env.example assignments empty with the fixed public theme default", async () => {
     const contents = readFileSync(
       path.resolve(process.cwd(), ".env.example"),
       "utf8",
@@ -330,10 +336,13 @@ describe("environment-validation.v1", () => {
       .split(/\r?\n/)
       .filter((line) => /^[A-Z][A-Z0-9_]*=/.test(line));
 
-    expect(assignments).toHaveLength(approvedNames.length);
-    for (const assignment of assignments) {
-      expect(assignment).toMatch(/^[A-Z][A-Z0-9_]*=$/);
-    }
+    expect(assignments).toEqual(
+      approvedExampleNames.map((name) =>
+        name === "NEXT_PUBLIC_EXECUTOR_THEME"
+          ? "NEXT_PUBLIC_EXECUTOR_THEME=deep-space"
+          : `${name}=`,
+      ),
+    );
   });
 
   test("strips unapproved variables from the typed result", async () => {

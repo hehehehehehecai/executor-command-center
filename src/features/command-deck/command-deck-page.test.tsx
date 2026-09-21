@@ -92,6 +92,70 @@ describe("CommandDeckPage", () => {
     expect(panels.map((panel) => panel.dataset.featureId)).toEqual(
       featureRegistry.map((feature) => feature.id),
     );
+    expect(panels.map((panel) => panel.dataset.featureId)).toEqual([
+      "project-galaxy",
+      "flight-log",
+      "mission-control",
+      "decision-archive",
+      "copilot",
+    ]);
+  });
+
+  it("binds the unique command-deck-shell visual zone to the page shell", () => {
+    const { container } = render(<CommandDeckPage />);
+    const shell = container.querySelector(".command-deck-shell");
+    const banner = screen.getByRole("banner");
+    const main = screen.getByRole("main");
+
+    expect(shell).toContainElement(banner);
+    expect(shell).toContainElement(main);
+
+    const zones = container.querySelectorAll(
+      '[data-visual-zone="command-deck-shell"]',
+    );
+    expect(zones).toHaveLength(1);
+    expect(zones[0]).toBe(shell);
+  });
+
+  it("binds the unique command-deck-main visual zone to the main workspace", () => {
+    const { container } = render(<CommandDeckPage />);
+    const workspace = screen.getByRole("region", {
+      name: "Command Deck 工作区",
+    });
+
+    expect(workspace).toHaveClass("workspace-main");
+    expect(screen.getByRole("main")).toContainElement(workspace);
+    expect(
+      within(workspace).getByRole("heading", { level: 2, name: "Command Deck" }),
+    ).toBeInTheDocument();
+    const entries = within(workspace).getByRole("navigation", {
+      name: "Command Deck 面板入口",
+    });
+    expect(within(entries).getAllByRole("article")).toHaveLength(5);
+
+    const zones = container.querySelectorAll(
+      '[data-visual-zone="command-deck-main"]',
+    );
+    expect(zones).toHaveLength(1);
+    expect(zones[0]).toBe(workspace);
+  });
+
+  it("binds the unique command-deck-support visual zone to the context inspector", () => {
+    const { container } = render(<CommandDeckPage />);
+    const support = screen.getByRole("complementary", { name: "舰桥上下文" });
+
+    expect(support).toHaveClass("workspace-inspector");
+    expect(screen.getByRole("main")).toContainElement(support);
+    expect(
+      within(support).getByRole("heading", { level: 2, name: "舰桥上下文" }),
+    ).toBeInTheDocument();
+    expect(within(support).getByText("Preview Shell")).toBeInTheDocument();
+
+    const zones = container.querySelectorAll(
+      '[data-visual-zone="command-deck-support"]',
+    );
+    expect(zones).toHaveLength(1);
+    expect(zones[0]).toBe(support);
   });
 
   it("exposes the desktop workspace landmarks and a semantic current item", () => {

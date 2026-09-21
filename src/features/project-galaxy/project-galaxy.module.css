@@ -1,4 +1,9 @@
 .shell {
+  --project-card-surface: color-mix(in srgb, var(--surface) 80%, transparent);
+  --project-suggestion-surface: color-mix(in srgb, var(--surface-muted) 80%, transparent);
+  --project-suggestion-text: color-mix(in srgb, var(--foreground) 60%, var(--space-warning));
+  --project-suggestion-border: var(--project-suggestion-text);
+  --project-blocker-border: color-mix(in srgb, var(--foreground) 60%, var(--space-danger));
   width: min(100% - 2rem, 80rem);
   min-width: 0;
   margin: 0 auto;
@@ -43,7 +48,7 @@
   min-width: 0;
   margin: 1.5rem 0;
   border: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--project-card-surface);
 }
 
 .identity div {
@@ -83,7 +88,7 @@
 .activityCard {
   min-width: 0;
   border: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--project-card-surface);
   padding: 1.25rem;
 }
 
@@ -92,8 +97,8 @@
 }
 
 .suggestedStatus {
-  border-left: 4px dashed #9b6709;
-  background: #fffbf2;
+  border-left: 4px dashed var(--project-suggestion-border);
+  background: var(--project-suggestion-surface);
 }
 
 .officialStatus h2,
@@ -126,7 +131,7 @@
 }
 
 .suggestedStatus .statusValue {
-  color: #744900;
+  color: var(--project-suggestion-text);
 }
 
 .suggestedStatus time {
@@ -136,27 +141,27 @@
 }
 
 .suggestionBoundary {
-  border-top: 1px solid #dcc79f;
+  border-top: 1px solid var(--border);
   padding-top: 0.75rem;
   font-weight: 700;
 }
 
 .previewDetails {
   margin-top: 0.75rem;
-  border-top: 1px solid #dcc79f;
+  border-top: 1px solid var(--border);
   padding-top: 0.75rem;
 }
 
 .previewDetails summary {
   width: fit-content;
   cursor: pointer;
-  color: #744900;
+  color: var(--project-suggestion-text);
   font-weight: 750;
   text-underline-offset: 0.2em;
 }
 
 .previewDetails summary:focus-visible {
-  outline: 3px solid var(--accent);
+  outline: 3px solid var(--focus);
   outline-offset: 3px;
 }
 
@@ -175,7 +180,7 @@
 }
 
 .blockerList li {
-  border-left: 3px solid #8b2b2b;
+  border-left: 3px solid var(--project-blocker-border);
   padding-left: 0.75rem;
   line-height: 1.55;
 }

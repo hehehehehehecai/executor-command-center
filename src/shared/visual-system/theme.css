@@ -1,0 +1,21 @@
+:root[data-executor-theme="deep-space"] {
+  --background: var(--space-bg);
+  --foreground: var(--space-foreground);
+  --surface: var(--space-surface);
+  --surface-muted: var(--space-surface-raised);
+  --muted: var(--space-muted);
+  --border: var(--space-border);
+  --accent: var(--space-primary);
+  --focus: var(--space-focus);
+}
+
+:root[data-executor-theme="legacy"] {
+  --background: #f2f4f1;
+  --foreground: #151918;
+  --surface: #fff;
+  --surface-muted: #e9ede9;
+  --muted: #5f6763;
+  --border: #747f79;
+  --accent: #245b49;
+  --focus: #1f6b52;
+}

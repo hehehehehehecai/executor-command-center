@@ -180,3 +180,50 @@ describe("ProjectGalaxyPanel", () => {
     expect(screen.getByText("查看演示建议边界").closest("summary")).not.toBeNull();
   });
 });
+
+
+describe("ProjectGalaxyPanel theme contract", () => {
+  afterEach(cleanup);
+
+  it.each([
+    ["in_planning", "规划中"],
+    ["in_development", "开发中"],
+    ["polishing", "打磨中"],
+    ["dormant", "暂缓"],
+    ["completed", "已完成"],
+    ["archived", "已归档"],
+  ] as const)("exposes lifecycle %s as readable official text", (status, label) => {
+    const name = "星图导航与长期项目治理验证-ABCDEFGHIJKLMNOPQRSTUVWXYZ-0123456789-跨主题超长项目名称压力样本".repeat(2);
+    render(
+      <ProjectGalaxyPanel
+        viewModel={{ ...viewModel, project: { ...viewModel.project, name }, officialStatus: status }}
+      />,
+    );
+
+    const official = screen.getByRole("region", { name: "Official Status" });
+    expect(within(official).getByText(label, { exact: true })).toBeVisible();
+    expect(official).toHaveAttribute("data-status-kind", "fact");
+    expect(within(screen.getByLabelText("项目身份")).getByText(name, { exact: true })).toBeVisible();
+    expect(screen.getByRole("region", { name: "Suggested Status" })).toHaveTextContent("建议不会修改 Official Status");
+  });
+
+  it("keeps missing identity and status explicit", () => {
+    render(
+      <ProjectGalaxyPanel
+        viewModel={{
+          ...viewModel,
+          project: { ...viewModel.project, name: null, repositoryLabel: null },
+          officialStatus: null,
+          suggestedStatus: null,
+        }}
+      />,
+    );
+
+    const identity = screen.getByLabelText("项目身份");
+    expect(identity).toHaveTextContent("项目名称未提供");
+    expect(identity).toHaveTextContent("仓库信息未提供");
+    expect(identity).toHaveTextContent("project-aurora");
+    expect(screen.getByRole("region", { name: "Official Status" })).toHaveTextContent("尚未提供");
+    expect(screen.getByRole("region", { name: "Suggested Status" })).toHaveTextContent("暂无状态建议");
+  });
+});

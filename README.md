@@ -61,6 +61,12 @@ Windows 必须在 clone 时保持 LF；仓库包含字节级 SHA-256 治理 fixt
 
 完整步骤、环境隔离和清理见 [Local / Staging / Production Runbook](docs/runbooks/environments.md) 与 [Local Database Runbook](docs/runbooks/local-database.md)。
 
+## 主题开关与本地验证
+
+默认主题为“深空”（`NEXT_PUBLIC_EXECUTOR_THEME=deep-space`）；“晨曦”使用`legacy`。该变量在构建期固定，切换值后需要重新构建并重新启动实例。同类大标题使用华文行楷，正文保留Noto Sans SC。
+
+本地生产构建观察与一次值切换回退的精确步骤、证据目录及非作者复演入口见[美术主题发布与回退操作手册](docs/runbooks/art-theme-release-and-rollback.md)。该入口只授权本地演练，外部合并、推送或部署仍需独立授权。
+
 ## 质量门
 
 ```powershell
