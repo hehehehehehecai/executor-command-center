@@ -1,5 +1,18 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, screen, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { render } from "@/test/async-workspace-render";
+import { installWorkspaceEntryTransport } from "@/test/workspace-entry-transport";
+
+vi.mock("@supabase/ssr", async () => ({
+  createServerClient: (await import("@/test/workspace-entry-transport")).workspaceEntryClient,
+}));
+vi.mock("next/headers", async () => ({
+  cookies: async () => (await import("@/test/workspace-entry-transport")).workspaceEntryCookies(),
+}));
+
+beforeEach(() => installWorkspaceEntryTransport());
+afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
+
 
 import type { DecisionArchiveConnectedPort } from "@/features/decision-archive";
 
@@ -49,7 +62,7 @@ afterEach(() => {
 
 describe("/decision-archive Preview / Connected composition", () => {
   it("defaults explicitly to Preview and discloses fictional data", async () => {
-    render(await DecisionArchivePage({ searchParams: Promise.resolve({}) }));
+    await render(await DecisionArchivePage({ searchParams: Promise.resolve({ mode: "preview" }) }));
 
     expect(
       screen.getByRole("heading", { level: 1, name: "Decision Archive" }),
@@ -59,9 +72,10 @@ describe("/decision-archive Preview / Connected composition", () => {
   });
 
   it("creates a transient manual Record with normalized user input", async () => {
-    render(
+    await render(
       await DecisionArchivePage({
         searchParams: Promise.resolve({
+          mode: "preview",
           action: "manual",
           decision: "  采用虚构的每周复盘  ",
           reason: "  保持   依据可追溯  ",
@@ -80,9 +94,10 @@ describe("/decision-archive Preview / Connected composition", () => {
   });
 
   it("confirms a Candidate only with a nonblank reason and keeps Candidate visible", async () => {
-    render(
+    await render(
       await DecisionArchivePage({
         searchParams: Promise.resolve({
+          mode: "preview",
           action: "confirm",
           candidateId: "candidate-pending",
           reason: "用户明确确认虚构发布策略",
@@ -99,9 +114,10 @@ describe("/decision-archive Preview / Connected composition", () => {
   });
 
   it("rejects a blank confirmation reason without creating a Record", async () => {
-    render(
+    await render(
       await DecisionArchivePage({
         searchParams: Promise.resolve({
+          mode: "preview",
           action: "confirm",
           candidateId: "candidate-pending",
           reason: "   ",
@@ -121,7 +137,7 @@ describe("/decision-archive Preview / Connected composition", () => {
         records: [],
       })),
     };
-    const { rerender } = render(
+    const { rerender } = await render(
       await DecisionArchivePage({
         searchParams: Promise.resolve({ mode: "connected" }),
         connectedPort,
@@ -131,14 +147,14 @@ describe("/decision-archive Preview / Connected composition", () => {
     expect(screen.getByText("Connected Mode")).toBeVisible();
     expect(screen.getByText("Connected read stub")).toBeVisible();
 
-    rerender(
+    await rerender(
       await DecisionArchivePage({
         searchParams: Promise.resolve({ mode: "connected" }),
         connectedPort: { load: async () => Promise.reject(new Error("failed")) },
       }),
     );
 
-    expect(screen.getByText("Connected 数据暂时不可用。")).toBeVisible();
+    expect(screen.getByRole("alert")).toHaveTextContent(/^原因：Connected 数据暂时不可用。$/);
     expect(screen.queryByText("演示数据 · 完全虚构")).not.toBeInTheDocument();
   });
 
@@ -148,7 +164,7 @@ describe("/decision-archive Preview / Connected composition", () => {
       candidates: [],
       records: [],
     });
-    render(
+    await render(
       await DecisionArchivePage({
         searchParams: Promise.resolve({ mode: "connected", project: "22222222-2222-4222-8222-222222222222" }),
       }),
@@ -161,13 +177,13 @@ describe("/decision-archive Preview / Connected composition", () => {
   });
 
   it("rejects unknown modes rather than defaulting", async () => {
-    render(
+    await render(
       await DecisionArchivePage({
         searchParams: Promise.resolve({ mode: "surprise" }),
       }),
     );
 
-    expect(screen.getByText("面板模式无效。")).toBeVisible();
+    expect(screen.getByRole("alert")).toHaveTextContent(/^原因：面板模式无效。$/);
     expect(screen.queryByText("Preview Mode")).not.toBeInTheDocument();
   });
 });

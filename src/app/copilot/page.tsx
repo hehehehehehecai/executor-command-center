@@ -1,4 +1,6 @@
-import { loadCopilotWorkspacePreviewFixture } from "@/content/demo-data/copilot-workspace-preview-fixture";
+import { readWorkspaceEntry } from "@/infrastructure/workspace/workspace-entry";
+import { WorkspaceEntryStatus, WorkspacePanelFrame } from "@/features/command-deck/workspace-entry-frame";
+import { workspaceHref } from "@/shared/workspace-navigation";
 import {
   CopilotWorkspacePanel,
   createCopilotContext,
@@ -12,13 +14,11 @@ import {
   type CopilotWorkspaceViewModel,
 } from "@/features/copilot";
 import type { FeatureId } from "@/shared/features/feature-definition";
-import { parsePanelMode, type PanelMode } from "@/shared/panel-query";
-import { AccessibleStatusShell } from "@/shared/status-shell/AccessibleStatusShell";
-import { readConnectedPanelFixtureAccess } from "@/testing/connected-panels/connected-panel-fixture-session";
 
 export const dynamic = "force-dynamic";
 
 type CopilotSearchParams = {
+  readonly briefId?: string | string[];
   readonly action?: string | string[];
   readonly evidenceReferenceIds?: string | string[];
   readonly featureId?: string | string[];
@@ -26,6 +26,7 @@ type CopilotSearchParams = {
   readonly fromFeatureId?: string | string[];
   readonly fromProjectId?: string | string[];
   readonly mode?: string | string[];
+  readonly project?: string | string[];
   readonly projectId?: string | string[];
   readonly selectedEvidence?: string | string[];
 };
@@ -50,30 +51,7 @@ export function projectIdForConnectedLoad(searchParams: CopilotSearchParams) {
   return projectId(single(searchParams.projectId));
 }
 
-function requestedMode(
-  value: string | string[] | undefined,
-): PanelMode | "invalid" {
-  if (value === undefined) return "preview";
-  if (typeof value !== "string") return "invalid";
 
-  try {
-    return parsePanelMode(value);
-  } catch {
-    return "invalid";
-  }
-}
-
-function statusShell(message: string) {
-  return (
-    <AccessibleStatusShell
-      kicker="Copilot · AI 副驾驶"
-      title="Copilot Workspace"
-      state="failed"
-      reason={message}
-      nextStep="返回 Command Deck 核对当前项目与授权状态后重试。"
-    />
-  );
-}
 
 const unavailableConnectedPort: CopilotWorkspaceConnectedPort = {
   load: async () => {
@@ -178,19 +156,16 @@ export default async function CopilotPage(input: {
   readonly searchParams: Promise<CopilotSearchParams>;
   readonly connectedPort?: CopilotWorkspaceConnectedPort;
 }) {
-  const searchParams = await input.searchParams;
-  const mode = requestedMode(searchParams.mode);
-
-  if (mode === "invalid") {
-    return statusShell("面板模式无效。");
-  }
-
-  const fixtureAccess =
-    mode === "connected"
-      ? await readConnectedPanelFixtureAccess()
-      : ({ kind: "disabled" } as const);
-  const fixtureSession =
-    fixtureAccess.kind === "authorized" ? fixtureAccess.session : null;
+  const parameters = await input.searchParams;
+  const context = await readWorkspaceEntry("copilot", parameters);
+  const { entry, fixtureSession } = context;
+  if (entry.kind !== "ready" && entry.kind !== "preview") return <WorkspaceEntryStatus context={context} />;
+  const mode = entry.kind === "preview" ? "preview" : "connected";
+  const projectId = entry.kind === "ready" ? entry.project.id : null;
+  const searchParams = mode === "connected" ? { ...parameters, projectId: projectId ?? undefined } : parameters;
+  const previewFixture = mode === "preview" ? await import("@/content/demo-data/copilot-workspace-preview-fixture") : null;
+  const returnHref = workspaceHref("home", { projectId, mode: mode === "preview" ? "preview" : undefined });
+  const statusShell = (message: string) => <WorkspaceEntryStatus context={{ ...context, entry: { ...entry, kind: "unavailable", reason: message } }} />;
   let connectedPort: CopilotWorkspaceConnectedPort | null = null;
   if (mode === "connected") {
     if (input.connectedPort) {
@@ -200,7 +175,7 @@ export default async function CopilotPage(input: {
     } else {
       connectedPort = await import("./copilot-connected-dependencies")
         .then(({ createCopilotConnectedPort }) =>
-          createCopilotConnectedPort(projectIdForConnectedLoad(searchParams)))
+          createCopilotConnectedPort(projectId, single(searchParams.briefId)))
         .catch(() => unavailableConnectedPort);
     }
   }
@@ -208,7 +183,7 @@ export default async function CopilotPage(input: {
   const query =
     mode === "preview"
       ? createCopilotWorkspacePreviewQuery(
-          loadCopilotWorkspacePreviewFixture,
+          previewFixture!.loadCopilotWorkspacePreviewFixture,
           single(searchParams.selectedEvidence) ?? null,
         )
       : createCopilotWorkspaceConnectedQuery(
@@ -228,12 +203,16 @@ export default async function CopilotPage(input: {
     );
   }
 
+  if (mode === "connected" && result.viewModel.context.projectId !== projectId) return statusShell("没有可显示的项目");
+
   const actionResult = applyLocalAction(result.viewModel, searchParams);
 
   return (
-    <CopilotWorkspacePanel
+    <WorkspacePanelFrame context={context}><CopilotWorkspacePanel
+      returnHref={returnHref}
+      projects={entry.kind === "ready" ? entry.projects : undefined}
       viewModel={actionResult.viewModel}
       feedback={actionResult.feedback}
-    />
+    /></WorkspacePanelFrame>
   );
 }

@@ -1,0 +1,85 @@
+import { expect, test } from "@playwright/test";
+import path from "node:path";
+import { openOnboardingSection } from "../onboarding-ui-fixture-actions";
+
+test("T01 统一身份、键盘退出、失败重试及 A 到 B 的历史缓存隔离", async ({ page, request }, testInfo) => {
+  test.setTimeout(180_000);
+  const app = "http://127.0.0.1:3005";
+  const fixture = "http://127.0.0.1:54335";
+  const output = process.env.T01_SCREENSHOT_DIR ?? testInfo.outputPath("workspace-screenshots");
+  const external: string[] = [];
+  await page.context().route("**/*", async route => {
+    const origin = new URL(route.request().url()).origin;
+    if (![app, fixture].includes(origin)) { external.push(origin); await route.abort(); } else await route.continue();
+  });
+  const shot = async (name: string) => { await page.screenshot({ path: path.join(output, name + ".png"), fullPage: true }); };
+  await request.post(fixture + "/__fixture/active-user", { data: { user: "primary" } });
+  await page.goto("/"); await page.getByRole("link", { name: "使用 GitHub 登录" }).click();
+  const account = page.getByRole("complementary", { name: "当前账号" });
+  await expect(account).toContainText("@connected-primary");
+  await page.goto("/");
+  await expect(account).toContainText("我的项目（2）");
+  for (const route of ["/", "/onboarding", "/project-galaxy", "/mission-control", "/flight-log", "/decision-archive", "/copilot"]) {
+    await page.goto(route);
+    await expect(account).toContainText("@connected-primary");
+    await expect(account.getByRole("button", { name: "退出当前账号" })).toBeVisible();
+    if (route === "/onboarding") {
+      await expect(page.getByRole("region", { name: "进入已有项目" })).toBeVisible();
+      await expect(page.getByRole("combobox", { name: "选择要进入的项目" }).getByRole("option")).toHaveCount(3);
+      await openOnboardingSection(page, "添加仓库与授权管理");
+      await expect(page.getByRole("region", { name: "添加仓库与授权管理", exact: true })).toBeVisible();
+    } else await expect(account.getByRole("link", { name: "添加仓库", exact: true })).toHaveAttribute("href", "/onboarding#repositories");
+    await shot("account-a" + (route === "/" ? "-home" : route.replaceAll("/", "-")));
+  }
+  // Keep a second document and its history to exercise an old client cache.
+  const old = await page.context().newPage();
+  await old.goto(app + "/project-galaxy?project=18888888-8888-4888-8888-888888888888");
+  await expect(old.getByRole("complementary", { name: "当前账号" })).toContainText("@connected-primary");
+  await old.goto(app + "/mission-control");
+  await expect(old.getByRole("complementary", { name: "当前账号" })).toContainText("@connected-primary");
+  await page.bringToFront();
+  const snapshot = await (await request.get(fixture + "/__fixture/state")).json();
+  expect((await page.request.get("/api/auth/sign-out")).status()).toBe(405);
+  expect((await page.request.post("/api/auth/sign-out", { headers: { origin: "https://evil.invalid" } })).status()).toBe(403);
+  expect((await page.request.post("/api/auth/sign-out?userId=someone-else", { headers: { origin: app } })).status()).toBe(400);
+  await page.route("**/api/auth/sign-out", route => route.fulfill({ status: 503, json: { error: { code: "sign_out_failed" } } }));
+  const button = account.getByRole("button", { name: "退出当前账号" });
+  await button.focus(); await expect(button).toBeFocused(); await shot("sign-out-keyboard-focus");
+  await page.keyboard.press("Enter");
+  await expect(account.getByRole("alert")).toContainText("当前登录仍保留");
+  await expect(account).toContainText("@connected-primary"); await shot("sign-out-error");
+  await page.unroute("**/api/auth/sign-out");
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route("**/api/auth/sign-out", async route => { await gate; await route.continue(); });
+  await button.click();
+  await expect(account.getByRole("button", { name: "正在退出…" })).toBeDisabled(); await shot("sign-out-pending");
+  release();
+  await expect(page).toHaveURL(app + "/?signedOut=1");
+  await expect(page.getByRole("link", { name: "使用 GitHub 登录" })).toBeVisible(); await shot("sign-out-success");
+  await page.unroute("**/api/auth/sign-out");
+  const signedOut = await (await page.request.get("/api/auth/workspace")).json();
+  expect(signedOut.workspace.status).toBe("signed_out");
+  const after = await (await request.get(fixture + "/__fixture/state")).json();
+  expect(after.installations).toEqual(snapshot.installations); expect(after.projects).toEqual(snapshot.projects);
+  await request.post(fixture + "/__fixture/active-user", { data: { user: "secondary" } });
+  await page.getByRole("link", { name: "使用 GitHub 登录" }).click();
+  await expect(account).toContainText("@connected-secondary");
+  await page.goto("/");
+  await expect(account).toContainText("我的项目（0）");
+  await expect(account).not.toContainText("connected-primary");
+  await expect(account).not.toContainText("fixture-owner/connected-target");
+  const forbidden = await page.request.get("/api/auth/workspace?project=18888888-8888-4888-8888-888888888888&userId=17111111-1111-4111-8111-111111111111");
+  expect(forbidden.status()).toBe(404);
+  await page.reload(); await expect(account).toContainText("@connected-secondary"); await shot("account-b-refresh");
+  await old.bringToFront(); await old.goBack();
+  await expect(old.getByRole("complementary", { name: "当前账号" })).toContainText("@connected-secondary");
+  await expect(old).not.toHaveURL(/project=/);
+  await old.goForward();
+  await expect(old.getByRole("complementary", { name: "当前账号" })).toContainText("@connected-secondary");
+  await expect(old.getByRole("complementary", { name: "当前账号" })).not.toContainText("connected-primary");
+  await old.screenshot({ path: path.join(output, "account-b-history.png"), fullPage: true });
+  const storage = await page.evaluate(() => ({ local: Object.entries(localStorage), session: Object.entries(sessionStorage).filter(([key]) => !key.startsWith("__next_debug_channel:")) }));
+  expect(storage).toEqual({ local: [], session: [] }); expect(external).toEqual([]);
+  await old.close();
+});

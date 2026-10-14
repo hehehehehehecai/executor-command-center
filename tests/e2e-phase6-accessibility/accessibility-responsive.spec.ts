@@ -2,8 +2,9 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
+import { openOnboardingSection, openOptionalOnboardingBackground } from "../onboarding-ui-fixture-actions";
 
-import { expect, test, type BrowserContext, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import {
   cleanupPhase5Identity,
@@ -12,44 +13,17 @@ import {
 } from "../e2e-core-journeys/phase5-fixture";
 
 const routes = [
-  "/",
+  "/?mode=preview",
   "/onboarding",
-  "/mission-control",
-  "/project-galaxy",
-  "/copilot",
-  "/decision-archive",
-  "/flight-log",
+  "/mission-control?mode=preview",
+  "/project-galaxy?mode=preview",
+  "/copilot?mode=preview",
+  "/decision-archive?mode=preview",
+  "/flight-log?mode=preview",
   "/auth/error",
 ] as const;
 
 const viewports = [320, 375, 768, 1280] as const;
-
-const alphaIdentity = {
-  userId: "11111111-1111-4111-8111-111111111111",
-  projectId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-} as const;
-
-async function useConnectedIdentity(
-  context: BrowserContext,
-  identity = alphaIdentity,
-) {
-  await context.addCookies([
-    {
-      name: "connected-panel-verified-user",
-      value: identity.userId,
-      url: "http://127.0.0.1:3016",
-      httpOnly: true,
-      sameSite: "Strict",
-    },
-    {
-      name: "connected-panel-project",
-      value: identity.projectId,
-      url: "http://127.0.0.1:3016",
-      httpOnly: true,
-      sameSite: "Strict",
-    },
-  ]);
-}
 
 async function signIn(page: Page, identity: Phase5Identity) {
   const controlToken = process.env.PHASE5_E2E_CONTROL_TOKEN;
@@ -191,7 +165,7 @@ test("A11Y-LANDMARK-01 exposes a skip link, one named main and a continuous head
     expect(outlineIsContinuous, route).toBe(true);
   }
 
-  await page.goto("/");
+  await page.goto("/?mode=preview");
   await expect(page.getByRole("banner")).toHaveCount(1);
   await expect(page.getByRole("navigation", { name: "桌面主导航" })).toHaveCount(1);
   await expect(page.getByRole("banner").locator("xpath=ancestor::main")).toHaveCount(0);
@@ -202,16 +176,24 @@ test("A11Y-LANDMARK-01 exposes a skip link, one named main and a continuous head
   await page.keyboard.press("Enter");
   await expect(page.getByRole("main")).toBeFocused();
 
-  await useConnectedIdentity(page.context());
-  await page.goto(`/project-galaxy?mode=connected&project=${alphaIdentity.projectId}`);
-  const connectedMain = page.getByRole("main");
-  await expect(connectedMain.getByRole("button", { name: "启动首次同步" })).toBeVisible();
-  await expect(connectedMain.getByRole("button", { name: "移除仓库数据" })).toBeVisible();
+  let identity: Phase5Identity | undefined;
+  try {
+    identity = await seedPhase5Identity(62);
+    await signIn(page, identity);
+    await page.goto(`/project-galaxy?mode=connected&project=${identity.projectId}`);
+    const connectedMain = page.getByRole("main");
+    await expect(connectedMain.getByRole("button", { name: "启动首次同步" })).toBeVisible();
+    await expect(connectedMain.getByRole("button", { name: "移除仓库数据" })).toBeVisible();
+    // Unmount authenticated readers before revoking the native fixture session.
+    await page.goto("/auth/error");
+  } finally {
+    await cleanupPhase5Identity(identity);
+  }
 });
 
 test("A11Y-DRAWER-01 traps focus in mobile navigation and restores the trigger", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 800 });
-  await page.goto("/");
+  await page.goto("/?mode=preview");
 
   const trigger = page.getByRole("button", { name: "打开主导航" });
   await trigger.focus();
@@ -232,9 +214,13 @@ test("A11Y-DRAWER-01 traps focus in mobile navigation and restores the trigger",
   await expect(trigger).toBeFocused();
 });
 
-test("A11Y-CONFIRM-01 contains repository confirmation focus and background interaction", async ({ context, page }) => {
-  await useConnectedIdentity(context);
-  await page.goto(`/project-galaxy?mode=connected&project=${alphaIdentity.projectId}`);
+test("A11Y-CONFIRM-01 contains repository confirmation focus and background interaction", async ({ page }) => {
+  let identity: Phase5Identity | undefined;
+  try {
+    identity = await seedPhase5Identity(63);
+    await signIn(page, identity);
+    await page.goto(`/project-galaxy?mode=connected&project=${identity.projectId}`);
+    await expect(page.getByRole("button", { name: "启动首次同步" })).toBeVisible();
 
   const trigger = page.getByRole("button", { name: "移除仓库数据" });
   await trigger.click();
@@ -260,6 +246,10 @@ test("A11Y-CONFIRM-01 contains repository confirmation focus and background inte
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
   await expect(trigger).toBeFocused();
+    await page.goto("/auth/error");
+  } finally {
+    await cleanupPhase5Identity(identity);
+  }
 });
 
 test("A11Y-CONFIRM-02 contains account deletion focus and background interaction", async ({ page }) => {
@@ -268,6 +258,9 @@ test("A11Y-CONFIRM-02 contains account deletion focus and background interaction
     identity = await seedPhase5Identity(61);
     await signIn(page, identity);
     await page.goto("/onboarding");
+    await openOptionalOnboardingBackground(page);
+    await openOnboardingSection(page, "仓库诊断");
+    await openOnboardingSection(page, "账号操作");
     // Both project readers must settle before this test leaves the page.
     await expect(page.getByTestId("project-stable-id")).toContainText(identity.projectId);
     await expect(page.locator("dt").filter({ hasText: /^projects$/ }).locator("..").locator("dd")).toHaveText("1");
@@ -307,7 +300,7 @@ test("A11Y-CONFIRM-02 contains account deletion focus and background interaction
 });
 
 test("A11Y-CONTRAST-01 keeps text, controls and focus indicators at AA contrast", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/?mode=preview");
   const colors = await page.evaluate(() => {
     const root = getComputedStyle(document.documentElement);
     return {
@@ -332,7 +325,7 @@ test("A11Y-CONTRAST-01 keeps text, controls and focus indicators at AA contrast"
 
 test("A11Y-MOTION-01 reduces authored animation, transition and smooth scrolling", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/");
+  await page.goto("/?mode=preview");
   const reduced = await page.evaluate(() => {
     const probe = document.createElement("div");
     probe.style.animationDuration = "3s";
@@ -366,11 +359,11 @@ test("A11Y-STATE-01 exposes failed states with a reason, next step and alert sem
 });
 
 test("A11Y-CONTENT-KIND-01 distinguishes facts, suggestions, Candidates and confirmed records in text", async ({ page }) => {
-  await page.goto("/mission-control");
+  await page.goto("/mission-control?mode=preview");
   await expect(page.locator('[data-content-kind="recorded-fact"]').first()).toContainText("事实");
   await expect(page.locator('[data-content-kind="suggestion"]').first()).toContainText("建议");
 
-  await page.goto("/decision-archive");
+  await page.goto("/decision-archive?mode=preview");
   await expect(page.locator('[data-content-kind="candidate"]').first()).toContainText("Candidate");
   await expect(page.locator('[data-content-kind="confirmed-record"]').first()).toContainText("用户确认记录");
 });
@@ -397,12 +390,12 @@ const axeSource = readFileSync(axePath, "utf8");
 const axeSha256 = createHash("sha256").update(axeSource).digest("hex");
 
 const artPages = [
-  { id: "command-deck", route: "/", heading: "EXECUTOR", operation: "打开项目星图演示入口" },
-  { id: "project-galaxy", route: "/project-galaxy", heading: "Project Galaxy", operation: "查看演示建议边界" },
-  { id: "flight-log", route: "/flight-log", heading: "Flight Log", operation: "应用筛选" },
-  { id: "mission-control", route: "/mission-control", heading: "Mission Control", operation: "接受建议" },
-  { id: "decision-archive", route: "/decision-archive", heading: "Decision Archive", operation: "生成本地记录预览" },
-  { id: "copilot", route: "/copilot", heading: "Copilot Workspace", operation: "切换并校准上下文" },
+  { id: "command-deck", route: "/?mode=preview", heading: "EXECUTOR", operation: "打开项目星图演示入口" },
+  { id: "project-galaxy", route: "/project-galaxy?mode=preview", heading: "Project Galaxy", operation: "查看演示建议边界" },
+  { id: "flight-log", route: "/flight-log?mode=preview", heading: "Flight Log", operation: "应用筛选" },
+  { id: "mission-control", route: "/mission-control?mode=preview", heading: "Mission Control", operation: "接受建议" },
+  { id: "decision-archive", route: "/decision-archive?mode=preview", heading: "Decision Archive", operation: "生成本地记录预览" },
+  { id: "copilot", route: "/copilot?mode=preview", heading: "Copilot Workspace", operation: "切换并校准上下文" },
 ] as const;
 type ArtPage = (typeof artPages)[number];
 type ArtTheme = "deep-space" | "legacy";
@@ -627,7 +620,7 @@ async function exerciseArtPrimary(page: Page, definition: ArtPage, evidence: Art
       : page.getByRole("button", { name: definition.operation, exact: true }).first();
   await tabToArtOperation(page, operation, evidence);
   await page.keyboard.press("Enter");
-  if (definition.id === "command-deck") await expect(page).toHaveURL(/\/project-galaxy$/);
+  if (definition.id === "command-deck") await expect(page).toHaveURL(/\/project-galaxy\?mode=preview$/);
   if (definition.id === "project-galaxy") {
     await expect(operation.locator("..")).toHaveAttribute("open", "");
     await expect(page.getByText("此交互只展开本地说明；不会接受建议或修改 Official Status。", { exact: true })).toBeVisible();
@@ -656,11 +649,11 @@ async function exerciseArtNavigation(page: Page, definition: ArtPage, theme: Art
     const back: ArtEvidence = {};
     await tabToArtOperation(page, page.getByRole("link", { name: "返回 Command Deck", exact: true }), back);
     await page.keyboard.press("Enter");
-    await expect(page).toHaveURL("http://127.0.0.1:3016/");
+    await expect(page).toHaveURL("http://127.0.0.1:3016/?mode=preview");
     evidence.returnHome = back;
   }
   await expectArtTheme(page, theme);
-  const destination = definition.id === "command-deck" ? "/project-galaxy" : definition.route;
+  const destination = definition.id === "command-deck" ? "/project-galaxy?mode=preview" : definition.route;
   if (mobile) {
     const trigger = page.getByRole("button", { name: "打开主导航", exact: true });
     const open: ArtEvidence = {};
@@ -701,7 +694,7 @@ async function exerciseArtNavigation(page: Page, definition: ArtPage, theme: Art
   await expect(page).toHaveURL(`http://127.0.0.1:3016${destination}`);
   const browserHistory = { destination: page.url(), returned: "" };
   await page.goBack();
-  await expect(page).toHaveURL("http://127.0.0.1:3016/");
+  await expect(page).toHaveURL("http://127.0.0.1:3016/?mode=preview");
   browserHistory.returned = page.url();
   evidence.browserHistory = browserHistory;
 }

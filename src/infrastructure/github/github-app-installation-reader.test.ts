@@ -36,6 +36,11 @@ function createReader(
 }
 
 describe("GitHub App single-installation reader", () => {
+  it("preserves the optional official management address without changing old missing-field snapshots", async () => {
+    const url = "https://github.com/settings/installations/81001";
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ ...activeFixture, html_url: url }));
+    expect(await createReader(fetcher).getInstallation(81001)).toMatchObject({ managementUrl: url });
+  });
   it("calls only GET /app/installations/{id} with frozen headers and maps minimal fields", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(JSON.stringify(activeFixture), {
@@ -65,6 +70,7 @@ describe("GitHub App single-installation reader", () => {
     expect(init).toMatchObject({
       method: "GET",
       redirect: "error",
+      cache: "no-store",
       headers: {
         accept: "application/vnd.github+json",
         authorization: "Bearer synthetic-app-jwt",

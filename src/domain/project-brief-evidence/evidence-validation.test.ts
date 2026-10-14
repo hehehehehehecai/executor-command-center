@@ -7,10 +7,10 @@ import {
   projectBriefEvidenceValidationErrorPriority,
 } from "./evidence-validation";
 
-describe("project-brief-evidence-validation.v1", () => {
+describe("project-brief-evidence-validation.v2", () => {
   it("[phase6-C01] exposes the frozen version, error taxonomy, and priority", () => {
     expect(projectBriefEvidenceValidationContractVersion).toBe(
-      "project-brief-evidence-validation.v1",
+      "project-brief-evidence-validation.v2",
     );
     expect(projectBriefEvidenceValidationErrorCodes).toEqual([
       "evidence_source_not_found",
@@ -21,6 +21,7 @@ describe("project-brief-evidence-validation.v1", () => {
       "evidence_document_sha_mismatch",
       "evidence_fingerprint_mismatch",
       "evidence_artifact_invalid",
+      "evidence_profile_mismatch",
     ]);
     expect(projectBriefEvidenceValidationErrorPriority).toEqual([
       "evidence_artifact_invalid",
@@ -31,6 +32,7 @@ describe("project-brief-evidence-validation.v1", () => {
       "evidence_source_not_found",
       "evidence_outside_period",
       "evidence_document_sha_mismatch",
+      "evidence_profile_mismatch",
     ]);
   });
 

@@ -10,11 +10,12 @@ type Result = { readonly data: unknown; readonly error: unknown };
 
 class Query implements PromiseLike<Result> {
   readonly calls: Array<readonly unknown[]> = [];
-  constructor(private readonly result: Result) {}
+  constructor(private readonly result: Result | (() => Result)) {}
   from() { return this; }
   select(value: string) { this.calls.push(["select", value]); return this; }
   eq(column: string, value: unknown) { this.calls.push(["eq", column, value]); return this; }
   neq(column: string, value: unknown) { this.calls.push(["neq", column, value]); return this; }
+  or(filters: string) { this.calls.push(["or", filters]); return this; }
   in(column: string, value: readonly unknown[]) { this.calls.push(["in", column, value]); return this; }
   order(column: string, options: unknown) { this.calls.push(["order", column, options]); return this; }
   limit(value: number) { this.calls.push(["limit", value]); return this; }
@@ -22,7 +23,7 @@ class Query implements PromiseLike<Result> {
   then<TResult1 = Result, TResult2 = never>(
     onfulfilled?: ((value: Result) => TResult1 | PromiseLike<TResult1>) | null,
     onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
-  ) { return Promise.resolve(this.result).then(onfulfilled, onrejected); }
+  ) { return Promise.resolve(typeof this.result === "function" ? this.result() : this.result).then(onfulfilled, onrejected); }
 }
 
 function setup(results: readonly Result[]) {
@@ -48,6 +49,26 @@ const activeProject = {
 };
 
 describe("SupabaseProjectFreshnessReader", () => {
+  it("does not let an unfinished partial run hide a successful retry under Postgres descending null ordering", async () => {
+    const partial = { ...completedRun, id: "55555555-5555-4555-8555-555555555555", status: "partial", finished_at: null };
+    const successful: Query = new Query(() => {
+      const call = successful.calls.find(([method, column]) => method === "order" && column === "finished_at");
+      const options = call?.[2] as { nullsFirst?: boolean } | undefined;
+      return { data: [options?.nullsFirst === false ? completedRun : partial], error: null };
+    });
+    const queries = [new Query({ data: [activeProject], error: null }), new Query({ data: [completedRun], error: null }), successful];
+    let index = 0;
+    const reader = new SupabaseProjectFreshnessReader({ from: () => queries[index++]! });
+    await expect(reader.read({ userId, projectId, now: "2026-08-12T13:00:00.000Z" })).resolves.toMatchObject({
+      projectId, input: { lastSuccessfulAt: completedRun.finished_at, coverageComplete: true },
+    });
+  });
+
+  it("T05 资格查询明确包含 null 状态，同时保留所有权和精确项目过滤", async () => {
+    const f = setup([{ data: [activeProject], error: null }, { data: [completedRun], error: null }, { data: [completedRun], error: null }]);
+    await expect(f.reader.read({ userId, projectId, now: "2026-08-12T13:00:00.000Z" })).resolves.toMatchObject({ projectId, input: { latestRun: { id: completedRun.id } } });
+    expect(f.queries[0]?.calls).toEqual(expect.arrayContaining([["eq", "user_id", userId], ["eq", "id", projectId], ["or", "status.neq.archived,status.is.null"]]));
+  });
   it("selects the most recently updated active project owned by the verified user", async () => {
     const f = setup([
       { data: [activeProject], error: null },
@@ -59,7 +80,7 @@ describe("SupabaseProjectFreshnessReader", () => {
       .resolves.toMatchObject({ projectId, input: { provenance: "real" } });
     expect(f.queries[0]?.calls).toEqual(expect.arrayContaining([
       ["eq", "user_id", userId],
-      ["neq", "status", "archived"],
+      ["or", "status.neq.archived,status.is.null"],
       ["order", "updated_at", { ascending: false }],
       ["limit", 1],
     ]));

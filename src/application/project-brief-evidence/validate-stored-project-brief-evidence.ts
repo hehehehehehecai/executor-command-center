@@ -6,6 +6,9 @@ import {
   type ProjectBriefEvidenceValidationSuccess,
 } from "@/domain/project-brief-evidence/evidence-validation";
 import type { ProjectBrief } from "@/domain/project-brief/project-brief-contract";
+import { projectBriefActivePromptVersion } from "@/domain/project-brief/project-brief-contract";
+import { briefMatchesHistoricalBackground, projectBriefSourceRecords } from "@/domain/project-brief/project-background-brief";
+import type { EvidenceSourceRef } from "@/domain/project-brief-evidence/evidence-snapshot";
 
 export interface ProjectBriefGenerationReceipt {
   readonly id: string;
@@ -184,6 +187,25 @@ export class ValidateStoredProjectBriefEvidenceUseCase {
         continue;
       }
       return evidenceValidationFailure("evidence_source_not_found");
+    }
+
+    if (input.brief.promptVersion === projectBriefActivePromptVersion) {
+      const ref = (sourceKind: EvidenceSourceRef["sourceKind"], sourceId: string): EvidenceSourceRef => ({
+        contractVersion: "project-brief-evidence-source-ref.v1", sourceKind, sourceId, projectId: input.projectId,
+        occurredAt: null, sourceUpdatedAt: null, sourceVersion: null, sourceSha: null,
+      });
+      const records = projectBriefSourceRecords({
+        githubActivities: sources.githubActivities.filter(source => source.userId === input.actorUserId && source.projectId === input.projectId).map(source => ({
+          sourceRef: ref(source.sourceKind, source.sourceId), activityKind: source.sourceKind, summary: source.summary, facts: source.facts,
+        })),
+        // Documents already fail closed above because v1 refs have no digest.
+        authorizedDocuments: [],
+        confirmedDecisions: { sourceAvailability: sources.confirmedDecisionsSourceAvailable ? "available" : "unavailable", items: sources.confirmedDecisions.filter(source => sources.confirmedDecisionsSourceAvailable && source.userId === input.actorUserId && source.projectId === input.projectId && source.status === "confirmed" && source.provenance === "connected").map(source => ({ sourceRef: ref("confirmed_decision", source.sourceId), decision: source.decision })) },
+        freshness: { ...input.brief.freshness, sourceRef: ref("freshness", input.brief.evidenceRefs.find(source => source.sourceKind === "freshness")?.sourceId ?? "") },
+      });
+      if (!briefMatchesHistoricalBackground(input.brief, ref("project_profile", sources.projectProfile.sourceId), records)) {
+        return evidenceValidationFailure("evidence_profile_mismatch");
+      }
     }
 
     return {

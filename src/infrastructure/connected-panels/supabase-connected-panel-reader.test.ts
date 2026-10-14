@@ -42,8 +42,8 @@ function clientFixture(input: {
                 call.filters.push(["eq", column, value]);
                 return query;
               },
-              neq(column: string, value: unknown) {
-                call.filters.push(["neq", column, value]);
+              or(filters: string) {
+                call.filters.push(["or", filters, null]);
                 return query;
               },
               order(column: string) {
@@ -103,6 +103,11 @@ function ownedProject(
 }
 
 describe("SupabaseConnectedPanelReader", () => {
+  it.each(["all", "core_goal", "current_stage_goal", "status"])("T05 未确认背景不抹掉项目身份与活动 %s", async field => {
+    const row = { ...ownedProject(), ...(field === "all" ? { core_goal: null, current_stage_goal: null, status: null } : { [field]: null }) };
+    const fixture = clientFixture({ projectRows: [row] });
+    await expect(new SupabaseConnectedPanelReader(fixture.client as never).read({ userId, projectId })).resolves.toMatchObject({ project: { id: projectId, coreGoal: row.core_goal, currentStageGoal: row.current_stage_goal, status: row.status } });
+  });
   it("reads only the verified user's owned project and project-scoped facts", async () => {
     const fixture = clientFixture({
       projectRows: [ownedProject()],
@@ -165,7 +170,7 @@ describe("SupabaseConnectedPanelReader", () => {
       table: "projects",
       filters: [
         ["eq", "user_id", userId],
-        ["neq", "status", "archived"],
+        ["or", "status.neq.archived,status.is.null", null],
         ["eq", "id", projectId],
       ],
       limit: 1,

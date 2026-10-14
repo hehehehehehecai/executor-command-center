@@ -7,7 +7,7 @@ const userId = "22222222-2222-4222-8222-222222222222";
 
 function client(result: { data: { id?: unknown } | null; error: unknown }) {
   const maybeSingle = vi.fn(async () => result);
-  const userEq = vi.fn(() => ({ maybeSingle }));
+  const userEq = vi.fn(() => ({ or: () => ({ maybeSingle }) }));
   const projectEq = vi.fn(() => ({ eq: userEq }));
   const select = vi.fn(() => ({ eq: projectEq }));
   const from = vi.fn(() => ({ select }));
@@ -15,6 +15,12 @@ function client(result: { data: { id?: unknown } | null; error: unknown }) {
 }
 
 describe("SupabaseFirstSyncProjectOwnershipReader", () => {
+  it("T04 excludes archived projects before allowing first-sync", async () => {
+    let activeOnly = false;
+    const query = { eq: () => query, or: (filter: string) => { activeOnly = filter === "status.neq.archived,status.is.null"; return query; }, maybeSingle: async () => ({ data: activeOnly ? null : { id: projectId }, error: null }) };
+    const reader = new SupabaseFirstSyncProjectOwnershipReader({ from: () => ({ select: () => query }) });
+    await expect(reader.isOwnedBy({ projectId, userId })).resolves.toBe(false);
+  });
   it("uses only the session-scoped projects RLS query and returns a boolean", async () => {
     const fake = client({ data: { id: projectId }, error: null });
     const reader = new SupabaseFirstSyncProjectOwnershipReader(fake.client);

@@ -1,3 +1,4 @@
+import { assertIsolatedApiUrl, verifiedContainerName } from "../../scripts/isolated-test-target.mjs";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { spawnSync } from "node:child_process";
 
@@ -21,7 +22,7 @@ function serviceClient(): SupabaseClient<Database> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("phase5_supabase_environment_missing");
-  return createClient<Database>(url, key, {
+  return createClient<Database>(assertIsolatedApiUrl(url), key, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }
@@ -170,7 +171,7 @@ export async function cleanupPhase5Identity(identity: Phase5Identity | undefined
     "docker",
     [
       "exec",
-      "supabase_db_executor-command-center",
+      verifiedContainerName(),
       "psql",
       "-U",
       "postgres",
@@ -311,7 +312,7 @@ export function advanceAccountDeletionDue(operationId: string) {
     "docker",
     [
       "exec",
-      "supabase_db_executor-command-center",
+      verifiedContainerName(),
       "psql",
       "-U",
       "postgres",

@@ -161,6 +161,8 @@ function selectionRow(repository, timestamps = {}) {
 let selectedRows = [selectionRow(githubRepositories[0])];
 let projectRows = [];
 let projectWriteCalls = 0;
+let t06WorkspaceReadFailed = false;
+let t06SavedState = null;
 
 function projectSelectionProjection(row) {
   return {
@@ -171,7 +173,7 @@ function projectSelectionProjection(row) {
     default_branch: row.default_branch,
     projects: projectRows.filter(
       (project) => project.selected_repository_id === row.id,
-    ),
+    ).map(project => Object.fromEntries(["id", "user_id", "selected_repository_id", "core_goal", "current_stage_goal", "status", "current_blocker", "created_at", "updated_at"].map(key => [key, project[key]]))),
   };
 }
 
@@ -212,6 +214,7 @@ function readBody(request) {
 }
 
 function installationResponse(select) {
+  if (select === "user_id,status") return [{ user_id: authUserId, status: installationStatus }];
   if (select === "status") {
     return [{ status: installationStatus }];
   }
@@ -294,6 +297,13 @@ function createFixtureServer() {
       return;
     }
 
+    if (request.method === "GET" && requestUrl.pathname === "/rest/v1/projects") {
+      if (t06WorkspaceReadFailed) return writeJson(response, 503, { code: "fixture_workspace_read_failed" });
+      const rows = requestUrl.searchParams.get("user_id") === `eq.${authUserId}` ? projectRows : [];
+      writeJson(response, 200, rows.map(row => ({ id: row.id, user_id: authUserId, status: row.status, selected_repositories: { user_id: authUserId, full_name: selectedRows.find(selected => selected.id === row.selected_repository_id)?.full_name, github_installations: { user_id: authUserId, status: installationStatus } } })));
+      return;
+    }
+
     if (
       request.method === "GET" &&
       requestUrl.pathname === "/rest/v1/selected_repositories"
@@ -312,6 +322,31 @@ function createFixtureServer() {
           : selectedRows.map(selectionProjection),
       );
       return;
+    }
+
+    // Test-only local control, same existing fixture HTTP server; never a product endpoint.
+    if (request.method === "POST" && requestUrl.pathname === "/__fixture/project-context-flag") {
+      const body = JSON.parse(await readBody(request));
+      if (!["", "1"].includes(body.value)) return writeJson(response, 400, { error: "fixture_invalid_flag" });
+      process.env.PROJECT_CONTEXT_WRITES_ENABLED = body.value;
+      return writeJson(response, 200, { enabled: body.value === "1", real_database_write: false });
+    }
+
+    // T10: existing project-context.v1 create / partial RPC fixture; native DB is verified separately.
+    if (request.method === "POST" && ["/rest/v1/rpc/create_project_from_repository", "/rest/v1/rpc/patch_project_context"].includes(requestUrl.pathname)) {
+      const body = JSON.parse(await readBody(request));
+      const creating = requestUrl.pathname.endsWith("create_project_from_repository");
+      const existing = projectRows.find(row => row.user_id === body.p_actor_user_id && (creating ? row.selected_repository_id === body.p_selected_repository_id && row.status !== "archived" : row.id === body.p_project_id));
+      const selected = selectedRows.find(row => row.user_id === body.p_actor_user_id && row.id === (creating ? body.p_selected_repository_id : existing?.selected_repository_id));
+      if (!selected) return writeJson(response, 400, { message: "project_context_not_found" });
+      if (!creating && existing.status === "archived") return writeJson(response, 400, { message: "project_context_archived" });
+      const row = existing ?? { id: projectRows.length === 0 ? "15555555-5555-4555-8555-555555555555" : "15555555-5555-4555-8555-555555555555", user_id: body.p_actor_user_id, selected_repository_id: selected.id, core_goal: null, current_stage_goal: null, status: null, current_blocker: null, created_at: fixtureTimestamp, updated_at: fixtureTimestamp };
+      if (!creating) {
+        for (const [key, value] of Object.entries(body.p_changes)) row[{ coreGoal: "core_goal", currentStageGoal: "current_stage_goal", status: "status", currentBlocker: "current_blocker" }[key]] = value;
+        row.updated_at = new Date().toISOString(); projectWriteCalls += 1;
+      }
+      if (!existing) projectRows.push(row);
+      return writeJson(response, 200, { ...row, repository_data_state: "connected", repository_data_version: 1, repository_removed_at: null });
     }
 
     if (
@@ -345,6 +380,9 @@ function createFixtureServer() {
         current_blocker: body.p_current_blocker,
         created_at: existing?.created_at ?? fixtureTimestamp,
         updated_at: new Date().toISOString(),
+        repository_data_state: "connected",
+        repository_data_version: 1,
+        repository_removed_at: null,
       };
       projectRows = [
         ...projectRows.filter((project) => project.id !== row.id),
@@ -438,6 +476,41 @@ function createFixtureServer() {
       return;
     }
 
+    // Explicit, loopback-only offline transport setup. Production readers and UI are unchanged.
+    if (request.method === "POST" && requestUrl.pathname === "/__fixture/t06/begin") {
+      if (t06SavedState) return writeJson(response, 409, { error: "fixture_t06_already_active" });
+      t06SavedState = { selectedRows, projectRows, installationStatus, t06WorkspaceReadFailed };
+      writeJson(response, 200, { registered: true, source_type: "synthetic", real_database_write: false });
+      return;
+    }
+    if (request.method === "POST" && requestUrl.pathname === "/__fixture/t06/state") {
+      if (!t06SavedState) return writeJson(response, 409, { error: "fixture_t06_not_registered" });
+      const body = JSON.parse(await readBody(request));
+      if (!["single", "multiple", "same_names", "empty"].includes(body.projects) || !["active", "suspended", "revoked"].includes(body.installation ?? "active")) return writeJson(response, 400, { error: "fixture_t06_invalid_state" });
+      const count = body.projects === "empty" ? 0 : body.projects === "single" ? 1 : 2;
+      selectedRows = githubRepositories.slice(0, count).map(repository => selectionRow(repository));
+      if (body.projects === "same_names") selectedRows[1] = { ...selectedRows[1], full_name: selectedRows[0].full_name, name: selectedRows[0].name };
+      projectRows = selectedRows.map((row, index) => ({ id: index === 0 ? "16666666-6666-4666-8666-666666666661" : "16666666-6666-4666-8666-666666666662", user_id: authUserId, selected_repository_id: row.id, core_goal: null, current_stage_goal: null, status: null, current_blocker: null, created_at: fixtureTimestamp, updated_at: fixtureTimestamp }));
+      installationStatus = body.installation ?? "active";
+      t06WorkspaceReadFailed = body.projectReadFailed === true;
+      writeJson(response, 200, { registered: true, projects: projectRows.map(row => ({ id: row.id, selected_repository_id: row.selected_repository_id })), source_type: "synthetic", real_database_write: false });
+      return;
+    }
+    if (request.method === "POST" && requestUrl.pathname === "/__fixture/t06/end") {
+      if (!t06SavedState) return writeJson(response, 409, { error: "fixture_t06_not_registered" });
+      ({ selectedRows, projectRows, installationStatus, t06WorkspaceReadFailed } = t06SavedState);
+      t06SavedState = null;
+      writeJson(response, 200, { restored: true, real_database_write: false });
+      return;
+    }
+    if (request.method === "POST" && requestUrl.pathname === "/__fixture/unconfirmed-project") {
+      const body = JSON.parse(await readBody(request));
+      const existing = projectRows.find(row => row.id === body.project_id && row.user_id === authUserId);
+      if (!existing) return writeJson(response, 404, { error: "fixture_project_not_found" });
+      Object.assign(existing, { core_goal: null, current_stage_goal: null, status: null });
+      writeJson(response, 200, { project_id: existing.id, core_goal: null, current_stage_goal: null, status: null });
+      return;
+    }
     if (
       request.method === "POST" &&
       requestUrl.pathname === "/__fixture/remove-repository"
@@ -594,6 +667,7 @@ function runPlaywright() {
           ? "playwright.project-calibration-fixture.config.ts"
           : "playwright.repository-selection-fixture.config.ts"
       }`,
+      ...process.argv.slice(2),
     ],
     {
       cwd: projectRoot,
@@ -633,6 +707,7 @@ const syntheticKeyPair = generateKeyPairSync("rsa", {
   privateKeyEncoding: { type: "pkcs8", format: "pem" },
 });
 
+process.env.PROJECT_CONTEXT_WRITES_ENABLED = "";
 process.env.APP_ORIGIN = `http://${hostname}:${appPort}`;
 process.env.NEXT_PUBLIC_SUPABASE_URL = `http://${hostname}:${fixturePort}`;
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "fixture-only-anon-key";

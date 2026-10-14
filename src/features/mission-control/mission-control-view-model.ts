@@ -1,4 +1,5 @@
 import type { PanelMode } from "@/shared/panel-query";
+import type { ConnectedReadState } from "@/shared/connected-read-state";
 
 export const missionSuggestionStatuses = [
   "suggested",
@@ -20,6 +21,9 @@ export type RecordedTaskType =
 export type RecordedTaskState = "open" | "pending" | "failed" | "unknown";
 
 export interface RecordedTask {
+  readonly occurredAt?: string;
+  readonly sourceVersion?: string;
+  readonly sourceState?: string;
   readonly id: string;
   readonly taskType: RecordedTaskType;
   readonly title: string;
@@ -47,12 +51,14 @@ export interface MissionSuggestion {
 }
 
 export interface MissionControlSource {
+  readonly readState?: ConnectedReadState;
   readonly provenanceLabel: string;
   readonly recordedTasks: readonly RecordedTask[];
   readonly suggestions: readonly MissionSuggestion[];
 }
 
 export interface MissionControlViewModel {
+  readonly readState?: ConnectedReadState;
   readonly mode: PanelMode;
   readonly provenanceLabel: string;
   readonly recordedTasks: readonly RecordedTask[];
@@ -99,6 +105,7 @@ export function createMissionControlViewModel(
 ): MissionControlViewModel {
   return {
     mode,
+    ...(source.readState ? { readState: { ...source.readState } } : {}),
     provenanceLabel: source.provenanceLabel,
     recordedTasks: source.recordedTasks
       .map((task) => ({

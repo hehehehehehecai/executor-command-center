@@ -7,7 +7,6 @@ import {
 } from "@/application/project-brief-evidence/validate-stored-project-brief-evidence";
 import type { ProjectBriefRecord } from "@/domain/project-brief/project-brief";
 import type { ProjectBrief } from "@/domain/project-brief/project-brief-contract";
-import { projectBriefSchemaVersion } from "@/domain/project-brief/project-brief-contract";
 import { parseProjectBrief } from "@/domain/project-brief/project-brief-schema";
 
 export const projectBriefDisplayContractVersion =
@@ -74,7 +73,6 @@ function matchesRow(brief: ProjectBrief, row: ProjectBriefRecord) {
   return brief.projectId === row.projectId
     && brief.rangeStart === row.rangeStart
     && brief.rangeEnd === row.rangeEnd
-    && brief.schemaVersion === projectBriefSchemaVersion
     && brief.promptVersion === row.promptVersion
     && brief.schemaVersion === row.schemaVersion
     && brief.evidenceFingerprint === row.evidenceFingerprint;

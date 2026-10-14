@@ -16,11 +16,12 @@ export type CopilotWorkspaceTransitionReason =
   | CopilotContextTransitionReason;
 
 export interface CopilotWorkspaceSource {
+  readonly availableEnergy?: number | null;
   readonly provenanceLabel: string;
   readonly context: CopilotContext;
   readonly lastTransitionReason: CopilotWorkspaceTransitionReason;
   readonly projectBrief?:
-    | { readonly status: "ready"; readonly briefId: string; readonly brief: ProjectBrief }
+    | { readonly status: "ready"; readonly briefId: string; readonly brief: ProjectBrief; readonly generatedAt?: string; readonly evidenceDetails?: readonly import("./copilot-project-brief-view-model").CopilotEvidenceViewModel[] }
     | { readonly status: "not_found" | "expired" | "invalid" | "evidence_validation_failed" | "unavailable" };
   readonly followUp?: {
     readonly status: "preview" | "unavailable";
@@ -33,6 +34,7 @@ export type CopilotProjectBriefState =
   | { readonly status: "not_found" | "expired" | "invalid" | "evidence_validation_failed" | "unavailable" };
 
 export interface CopilotWorkspaceViewModel {
+  readonly availableEnergy?: number | null;
   readonly mode: PanelMode;
   readonly provenanceLabel: string;
   readonly context: CopilotContext;
@@ -56,10 +58,13 @@ export function createCopilotWorkspaceViewModel(
           briefId: source.projectBrief.briefId,
           mode,
           selectedEvidence,
+          generatedAt: source.projectBrief.generatedAt,
+          evidenceDetails: source.projectBrief.evidenceDetails,
         }),
       }
     : { status: source.projectBrief?.status ?? "not_found" };
   return {
+    availableEnergy: source.availableEnergy,
     mode,
     provenanceLabel: source.provenanceLabel,
     context: createCopilotContext(source.context),

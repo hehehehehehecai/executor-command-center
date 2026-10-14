@@ -6,11 +6,12 @@ import type {
 } from "@/application/project-calibration/project-calibration-use-cases";
 import {
   projectStatuses,
-  type ProjectCalibration,
+  type ProjectCalibrationRead,
   type ProjectCalibrationView,
   type ProjectRepositoryFacts,
 } from "@/domain/project-calibration/project-calibration";
 import { z } from "zod";
+import { confirmedProjectGoalSchema } from "@/domain/project-calibration/project-calibration-read";
 
 export const projectCalibrationStorageContract =
   "project-calibration-storage.v1" as const;
@@ -31,14 +32,17 @@ const projectRowSchema = z.object({
   id: z.string().uuid(),
   user_id: z.string().uuid(),
   selected_repository_id: z.string().uuid(),
-  core_goal: z.string().min(1).max(2000),
-  current_stage_goal: z.string().min(1).max(2000),
-  status: z.enum(projectStatuses),
+  core_goal: confirmedProjectGoalSchema.nullable(),
+  current_stage_goal: confirmedProjectGoalSchema.nullable(),
+  status: z.enum(projectStatuses).nullable(),
   current_blocker: z.string().min(1).max(2000).nullable(),
   created_at: z.iso.datetime({ offset: true }),
   updated_at: z.iso.datetime({ offset: true }),
 }).strict();
 const writeProjectRowSchema = projectRowSchema.extend({
+  core_goal: confirmedProjectGoalSchema,
+  current_stage_goal: confirmedProjectGoalSchema,
+  status: z.enum(projectStatuses),
   repository_data_state: z.enum(["connected", "removing", "removed"]),
   repository_data_version: z.number().int().positive(),
   repository_removed_at: z.iso.datetime({ offset: true }).nullable(),
@@ -70,7 +74,7 @@ function repositoryFacts(row: z.infer<typeof repositoryFactsSchema>): ProjectRep
   };
 }
 
-function calibration(row: z.infer<typeof projectRowSchema>): ProjectCalibration {
+function calibration(row: z.infer<typeof projectRowSchema>): ProjectCalibrationRead {
   return {
     id: row.id,
     selectedRepositoryId: row.selected_repository_id,

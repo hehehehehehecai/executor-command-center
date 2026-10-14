@@ -36,6 +36,7 @@ let repositoryApiCalls = 0;
 let accessTokenCalls = 0;
 let installationRecord = null;
 let githubSnapshotAccountType = "User";
+let managementMode = "active";
 
 function base64Url(value) {
   return Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -301,8 +302,34 @@ function createFixtureServer() {
       writeJson(
         response,
         200,
-        installationRecord ? [{ status: installationRecord.status }] : [],
+        installationRecord ? [{ id: installationRecordId, user_id: authUserId, installation_id: installationId, github_account_id: githubUserId, status: installationRecord.status, last_verified_at: fixtureTimestamp, suspended_at: null, revoked_at: null }] : [],
       );
+      return;
+    }
+
+    if (request.method === "GET" && requestUrl.pathname === "/rest/v1/projects") {
+      writeJson(response, 200, []);
+      return;
+    }
+
+    if (request.method === "GET" && requestUrl.pathname === "/rest/v1/selected_repositories") {
+      writeJson(response, 200, []);
+      return;
+    }
+    if (request.method === "GET" && requestUrl.pathname === "/rest/v1/github_identities") {
+      writeJson(response, 200, [{ user_id: authUserId, github_user_id: githubUserId, github_login: "synthetic-installation-user", avatar_url: null }]);
+      return;
+    }
+    if (request.method === "POST" && requestUrl.pathname === "/rest/v1/rpc/read_current_github_installation") {
+      const body = JSON.parse(await readBody(request));
+      writeJson(response, 200, body.p_user_id === authUserId && installationRecord ? [{ installation_id: installationId, repository_selection: "selected", status: installationRecord.status }] : []);
+      return;
+    }
+    if (request.method === "POST" && requestUrl.pathname === "/__fixture/management-mode") {
+      const body = JSON.parse(await readBody(request));
+      if (!["active", "suspended", "missing", "bad_url", "failure"].includes(body.mode)) { writeJson(response, 400, {}); return; }
+      managementMode = body.mode;
+      writeJson(response, 200, { mode: managementMode });
       return;
     }
 
@@ -367,6 +394,7 @@ globalThis.fetch = async (input, init) => {
       url.pathname === `/app/installations/${installationId}`
     ) {
       githubApiCalls += 1;
+      if (managementMode === "missing" || managementMode === "failure") return Response.json({ message: "synthetic upstream failure" }, { status: managementMode === "missing" ? 404 : 500 });
       return new Response(
         JSON.stringify({
           id: installationId,
@@ -377,13 +405,24 @@ globalThis.fetch = async (input, init) => {
             type: githubSnapshotAccountType,
           },
           repository_selection: "selected",
-          suspended_at: null,
+          suspended_at: managementMode === "suspended" ? fixtureTimestamp : null,
+          html_url: managementMode === "bad_url" ? "https://github.com.evil.invalid/settings/installations/81001" : `https://github.com/settings/installations/${installationId}`,
         }),
         {
           status: 200,
           headers: { "content-type": "application/json" },
         },
       );
+    }
+
+    if (init?.method === "POST" && url.pathname === `/app/installations/${installationId}/access_tokens`) {
+      accessTokenCalls += 1;
+      return Response.json({ token: "fixture-opaque-installation-token", expires_at: new Date(Date.now() + 3600_000).toISOString(), repository_selection: "selected", permissions: { metadata: "read" } }, { status: 201 });
+    }
+    if (init?.method === "DELETE" && url.pathname === "/installation/token") return new Response(null, { status: 204 });
+    if (init?.method === "GET" && url.pathname === "/installation/repositories") {
+      repositoryApiCalls += 1;
+      return Response.json({ total_count: 0, repositories: [] });
     }
 
     if (url.pathname.includes("repositories")) {

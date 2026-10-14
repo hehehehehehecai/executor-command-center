@@ -45,7 +45,7 @@ from generate_series(1,5) n;
 
 create function app_private.test_phase3_connect(p_name text)
 returns text language sql security definer set search_path=''
-as $$select extensions.dblink_connect(p_name,'dbname=postgres host=host.docker.internal port=54322 user=postgres password=postgres')$$;
+as $$select extensions.dblink_connect(p_name,current_setting('executor.test_dblink_connection'))$$;
 create function app_private.test_phase3_wait_for_lock(p_pid integer,p_timeout interval default interval '2 seconds')
 returns boolean language plpgsql set search_path=''
 as $$

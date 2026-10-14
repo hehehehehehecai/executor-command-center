@@ -24,3 +24,7 @@ supabase/.env
 
 *.pem
 *.key
+
+# Local handoff receipts and package cache
+work/execution/
+.pnpm-store/

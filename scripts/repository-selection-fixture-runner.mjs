@@ -30,6 +30,8 @@ let tokenCreateCalls = 0;
 let repositoryPageCalls = 0;
 let tokenRevokeCalls = 0;
 let forbiddenEndpointCalls = 0;
+let addedAuthorization = false;
+let secondSelectionAttempts = 0;
 
 function base64Url(value) {
   return Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -132,13 +134,12 @@ const githubRepositories = [
     default_branch: "main",
   },
 ];
+for (const [id, name] of [[704, "new-first"], [705, "new-second"]]) githubRepositories.push({ ...githubRepositories[1], id, name, full_name: `synthetic-owner/${name}` });
 
 function selectionRow(repository, timestamps = {}) {
   return {
     id:
-      repository.id === 701
-        ? "15444444-4444-4444-8444-444444444441"
-        : "15444444-4444-4444-8444-444444444442",
+      `15444444-4444-4444-8444-44444444444${repository.id - 700}`,
     user_id: authUserId,
     github_installation_id: githubInstallationId,
     github_repository_id: repository.id,
@@ -196,6 +197,8 @@ function readBody(request) {
 }
 
 function installationResponse(select) {
+  if (select.includes("github_account_id")) return [{ id: githubInstallationId, user_id: authUserId, installation_id: installationId, github_account_id: githubUserId, status: installationStatus, last_verified_at: fixtureTimestamp, suspended_at: null, revoked_at: null }];
+  if (select === "user_id,status") return [{ user_id: authUserId, status: installationStatus }];
   if (select === "status") {
     return [{ status: installationStatus }];
   }
@@ -308,6 +311,14 @@ function createFixtureServer() {
       return;
     }
 
+    if (request.method === "GET" && requestUrl.pathname === "/rest/v1/projects") {
+      writeJson(response, 200, []);
+      return;
+    }
+    if (request.method === "GET" && requestUrl.pathname === "/rest/v1/github_identities") {
+      writeJson(response, 200, [{ user_id: authUserId, github_user_id: githubUserId, github_login: "synthetic-selection-user", avatar_url: null }]); return;
+    }
+
     if (
       request.method === "GET" &&
       requestUrl.pathname === "/rest/v1/selected_repositories"
@@ -319,7 +330,10 @@ function createFixtureServer() {
       ) {
         selectionReadCalls += 1;
       }
-      writeJson(response, 200, selectedRows.map(selectionProjection));
+      const select = requestUrl.searchParams.get("select") ?? "";
+      writeJson(response, 200, select.includes("projects(")
+        ? selectedRows.map(row => ({ id: row.id, github_repository_id: row.github_repository_id, full_name: row.full_name, visibility: row.visibility, default_branch: row.default_branch, projects: [] }))
+        : selectedRows.map(selectionProjection));
       return;
     }
 
@@ -332,6 +346,9 @@ function createFixtureServer() {
       const repository = githubRepositories.find(
         (candidate) => candidate.id === body.p_github_repository_id,
       );
+      if (body.p_github_repository_id === 705 && ++secondSelectionAttempts === 1) {
+        writeJson(response, 503, { message: "synthetic_single_repository_failure" }); return;
+      }
       if (
         !repository ||
         body.p_user_id !== authUserId ||
@@ -399,6 +416,10 @@ function createFixtureServer() {
       writeJson(response, 200, { status: installationStatus });
       return;
     }
+    if (request.method === "POST" && requestUrl.pathname === "/__fixture/add-authorization") {
+      addedAuthorization = true; installationStatus = "active";
+      writeJson(response, 200, { repository_ids: [704, 705], source_type: "synthetic" }); return;
+    }
 
     if (
       request.method === "GET" &&
@@ -438,6 +459,7 @@ globalThis.fetch = async (input, init) => {
   if (url.origin !== "https://api.github.com") {
     return originalFetch(input, init);
   }
+  if (init?.method === "GET" && url.pathname === `/app/installations/${installationId}`) return Response.json({ id: installationId, app_id: 9150001, account: { id: githubUserId, login: "synthetic-selection-user", type: "User" }, repository_selection: "selected", suspended_at: null, html_url: `https://github.com/settings/installations/${installationId}` });
 
   if (
     init?.method === "POST" &&
@@ -464,9 +486,7 @@ globalThis.fetch = async (input, init) => {
     url.pathname === "/installation/repositories"
   ) {
     repositoryPageCalls += 1;
-    const repositories = removedAfterLoad
-      ? githubRepositories.filter((repository) => repository.id !== 703)
-      : githubRepositories;
+    const repositories = githubRepositories.filter(repository => (addedAuthorization || repository.id < 704) && (!removedAfterLoad || repository.id !== 703));
     return new Response(
       JSON.stringify({
         total_count: repositories.length,

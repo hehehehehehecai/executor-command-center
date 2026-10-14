@@ -1,3 +1,4 @@
+import { openOnboardingSection, openOptionalOnboardingBackground } from "../onboarding-ui-fixture-actions";
 import { expect, test } from "@playwright/test";
 
 const fixtureBaseUrl = "http://127.0.0.1:54335";
@@ -37,9 +38,11 @@ test("completes one isolated connected onboarding journey and rejects cross-boun
   await page.goto("/");
   await page.getByRole("link", { name: "使用 GitHub 登录" }).click();
   await expect(page).toHaveURL("http://127.0.0.1:3005/onboarding");
+  await openOptionalOnboardingBackground(page);
   await expect(
     page.getByRole("heading", { name: "GitHub 身份登录成功" }),
   ).toBeVisible();
+  await openOnboardingSection(page, "接入诊断");
   await expect(page.getByText("not_registered", { exact: true })).toBeVisible();
 
   state = await (await request.get(`${fixtureBaseUrl}/__fixture/state`)).json();
@@ -70,6 +73,8 @@ test("completes one isolated connected onboarding journey and rejects cross-boun
     `/api/github/installations/setup?state=${encodeURIComponent(installationState ?? "")}&installation_id=${primaryInstallationId}`,
   );
   await expect(page).toHaveURL("http://127.0.0.1:3005/onboarding");
+  await openOptionalOnboardingBackground(page);
+  await openOnboardingSection(page, "接入诊断");
   await expect(page.getByText("active", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "加载已授权仓库" }).click();
   const authorizedRepositories = page.getByRole("region", {
@@ -146,14 +151,22 @@ test("completes one isolated connected onboarding journey and rejects cross-boun
     page.getByText("projects", { exact: true }).locator("..").locator("dd"),
   ).toHaveText("0");
 
+  expect((await request.post(`${fixtureBaseUrl}/__fixture/project-context-flag`, { data: { value: "1" } })).ok()).toBe(true);
+  const created = await page.request.post("/api/projects/from-repository", { headers: { origin: "http://127.0.0.1:3005" }, data: { selectedRepositoryId } });
+  expect(created.status()).toBe(200);
+  await page.reload();
+  await openOptionalOnboardingBackground(page);
+  await openOnboardingSection(page, "接入诊断");
+  await openOptionalOnboardingBackground(page);
   await page.getByLabel("核心目标").fill("Ship the connected fixture MVP");
+  await openOptionalOnboardingBackground(page);
   await page
     .getByLabel("当前阶段目标")
     .fill("Complete the continuous onboarding acceptance journey");
   await page.getByLabel("正式状态").selectOption("in_development");
   await page.getByLabel("当前阻碍（可选）").fill("Fixture-only approval boundary");
-  await page.getByRole("button", { name: "保存项目校准" }).click();
-  await expect(page.getByRole("status")).toHaveText("项目校准已保存");
+  await page.getByRole("button", { name: "保存项目背景" }).click();
+  await expect(page.getByRole("region", { name: "项目背景", exact: true }).getByRole("status")).toHaveText("项目背景已保存");
   await expect(page.getByTestId("project-stable-id")).toHaveText(
     "Project ID: 17777777-7777-4777-8777-777777777777",
   );
@@ -165,6 +178,7 @@ test("completes one isolated connected onboarding journey and rejects cross-boun
   ).toHaveText("1");
 
   await page.reload();
+  await openOptionalOnboardingBackground(page);
   await expect(page.getByLabel("核心目标")).toHaveValue(
     "Ship the connected fixture MVP",
   );
@@ -201,16 +215,24 @@ test("completes one isolated connected onboarding journey and rejects cross-boun
     })).ok(),
   ).toBe(true);
   await page.reload();
+  await openOptionalOnboardingBackground(page);
   await expect(page.getByTestId("project-stable-id")).toHaveCount(0);
   await expect(page.getByLabel("核心目标")).toHaveValue("");
   await expect(page.getByLabel("当前阶段目标")).toHaveValue("");
+  const replacement = await page.request.post("/api/projects/from-repository", { headers: { origin: "http://127.0.0.1:3005" }, data: { selectedRepositoryId } });
+  expect(replacement.status()).toBe(200);
+  await page.reload();
+  await openOptionalOnboardingBackground(page);
+  await openOnboardingSection(page, "接入诊断");
+  await openOptionalOnboardingBackground(page);
   await page.getByLabel("核心目标").fill("Ship a replacement active project");
+  await openOptionalOnboardingBackground(page);
   await page
     .getByLabel("当前阶段目标")
     .fill("Prove archived calibration is not reused");
   await page.getByLabel("正式状态").selectOption("polishing");
-  await page.getByRole("button", { name: "保存项目校准" }).click();
-  await expect(page.getByRole("status")).toHaveText("项目校准已保存");
+  await page.getByRole("button", { name: "保存项目背景" }).click();
+  await expect(page.getByRole("region", { name: "项目背景", exact: true }).getByRole("status")).toHaveText("项目背景已保存");
   await expect(page.getByTestId("project-stable-id")).toHaveText(
     "Project ID: 18888888-8888-4888-8888-888888888888",
   );
@@ -261,6 +283,7 @@ test("completes one isolated connected onboarding journey and rejects cross-boun
   await secondaryPage.goto("/");
   await secondaryPage.getByRole("link", { name: "使用 GitHub 登录" }).click();
   await expect(secondaryPage).toHaveURL("http://127.0.0.1:3005/onboarding");
+  await openOnboardingSection(secondaryPage, "接入诊断");
   await expect(secondaryPage.getByText("not_registered", { exact: true })).toBeVisible();
   await expect(secondaryPage.getByText("fixture-owner/connected-target")).toHaveCount(0);
 

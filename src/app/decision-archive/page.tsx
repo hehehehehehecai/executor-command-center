@@ -1,7 +1,6 @@
-import {
-  decisionArchivePreviewFixture,
-  loadDecisionArchivePreviewFixture,
-} from "@/content/demo-data/decision-archive-preview-fixture";
+import { readWorkspaceEntry } from "@/infrastructure/workspace/workspace-entry";
+import { WorkspaceEntryStatus, WorkspacePanelFrame } from "@/features/command-deck/workspace-entry-frame";
+import { workspaceHref } from "@/shared/workspace-navigation";
 import { createDecisionArchiveProductionConnectedPort } from "@/app/connected-panel-dependencies";
 import {
   DecisionArchivePanel,
@@ -14,9 +13,6 @@ import {
   type DecisionArchiveFeedback,
   type DecisionArchiveViewModel,
 } from "@/features/decision-archive";
-import { parsePanelMode, type PanelMode } from "@/shared/panel-query";
-import { AccessibleStatusShell } from "@/shared/status-shell/AccessibleStatusShell";
-import { readConnectedPanelFixtureAccess } from "@/testing/connected-panels/connected-panel-fixture-session";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +23,7 @@ type DecisionArchiveSearchParams = {
   readonly decision?: string | string[];
   readonly mode?: string | string[];
   readonly project?: string | string[];
+  readonly projectId?: string | string[];
   readonly reason?: string | string[];
   readonly revisitCondition?: string | string[];
 };
@@ -35,28 +32,7 @@ function single(value: string | string[] | undefined) {
   return typeof value === "string" ? value : undefined;
 }
 
-function requestedMode(value: string | string[] | undefined): PanelMode | "invalid" {
-  if (value === undefined) return "preview";
-  if (typeof value !== "string") return "invalid";
 
-  try {
-    return parsePanelMode(value);
-  } catch {
-    return "invalid";
-  }
-}
-
-function statusShell(message: string) {
-  return (
-    <AccessibleStatusShell
-      kicker="Decision Archive · 决策档案"
-      title="Decision Archive"
-      state="failed"
-      reason={message}
-      nextStep="返回 Command Deck 检查入口，不要把未确认 Candidate 当作正式记录。"
-    />
-  );
-}
 
 function feedbackFor(error: unknown): DecisionArchiveFeedback {
   const code = error instanceof Error ? error.message : "unknown";
@@ -138,29 +114,26 @@ export default async function DecisionArchivePage(input: {
   readonly connectedPort?: DecisionArchiveConnectedPort;
   readonly localActionContext?: DecisionActionContext;
 }) {
-  const searchParams = await input.searchParams;
-  const mode = requestedMode(searchParams.mode);
-
-  if (mode === "invalid") {
-    return statusShell("面板模式无效。");
-  }
-
-  const fixtureAccess =
-    mode === "connected"
-      ? await readConnectedPanelFixtureAccess()
-      : ({ kind: "disabled" } as const);
-  const fixtureSession =
-    fixtureAccess.kind === "authorized" ? fixtureAccess.session : null;
+  const parameters = await input.searchParams;
+  const context = await readWorkspaceEntry("decision-archive", parameters);
+  const { entry, fixtureSession } = context;
+  if (entry.kind !== "ready" && entry.kind !== "preview") return <WorkspaceEntryStatus context={context} />;
+  const mode = entry.kind === "preview" ? "preview" : "connected";
+  const projectId = entry.kind === "ready" ? entry.project.id : null;
+  const searchParams = mode === "connected" ? { ...parameters, project: projectId ?? undefined } : parameters;
+  const previewFixture = mode === "preview" ? await import("@/content/demo-data/decision-archive-preview-fixture") : null;
+  const returnHref = workspaceHref("home", { projectId, mode: mode === "preview" ? "preview" : undefined });
+  const statusShell = (message: string) => <WorkspaceEntryStatus context={{ ...context, entry: { ...entry, kind: "unavailable", reason: message } }} />;
 
   const result = await Promise.resolve()
     .then(async () => mode === "preview"
-      ? createDecisionArchivePreviewQuery(loadDecisionArchivePreviewFixture)
+      ? createDecisionArchivePreviewQuery(previewFixture!.loadDecisionArchivePreviewFixture)
       : createDecisionArchiveConnectedQuery(
           input.connectedPort ??
             (fixtureSession
               ? { load: async () => fixtureSession.decisionArchive }
               : await createDecisionArchiveProductionConnectedPort(
-                  single(searchParams.project) ?? null,
+                  projectId,
                 )),
         ))
     .then((query) => query.load())
@@ -175,19 +148,24 @@ export default async function DecisionArchivePage(input: {
     );
   }
 
-  const actionResult = applyLocalAction(
+  const localPreview = mode === "preview" || fixtureSession !== undefined && fixtureSession !== null || input.localActionContext !== undefined;
+  const actionResult = localPreview ? applyLocalAction(
     result.viewModel,
     searchParams,
     input.localActionContext ??
       (mode === "preview"
-        ? decisionArchivePreviewFixture.localActionContext
+        ? previewFixture!.decisionArchivePreviewFixture.localActionContext
         : fixtureSession?.decisionActionContext),
-  );
+  ) : { viewModel: result.viewModel, feedback: undefined };
 
   return (
-    <DecisionArchivePanel
+    <WorkspacePanelFrame context={context}><DecisionArchivePanel
+      returnHref={returnHref}
+      projectId={projectId}
       viewModel={actionResult.viewModel}
       feedback={actionResult.feedback}
-    />
+      readOnly={!localPreview}
+      canSave={!localPreview && mode === "connected" && process.env.DECISION_RECORD_WRITES_ENABLED === "1" && ["ready", "empty"].includes(result.viewModel.readState?.kind ?? "")}
+    /></WorkspacePanelFrame>
   );
 }

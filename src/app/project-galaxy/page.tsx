@@ -1,245 +1,40 @@
-import Link from "next/link";
-
 import { createProjectGalaxyProductionConnectedPort } from "@/app/connected-panel-dependencies";
-import {
-  ProjectGalaxyPanel,
-  ProjectLifecycleActions,
-  RepositoryRemovalPanel,
-  createProjectGalaxyConnectedQuery,
-  createProjectGalaxyPreviewQuery,
-} from "@/features/project-galaxy";
-import { parsePanelMode, type PanelMode } from "@/shared/panel-query";
-import { readConnectedPanelFixtureAccess } from "@/testing/connected-panels/connected-panel-fixture-session";
+import { ProjectGalaxyPanel, ProjectLifecycleActions, RepositoryRemovalPanel, createProjectGalaxyConnectedQuery, createProjectGalaxyPreviewQuery, type ProjectGalaxyConnectedPort } from "@/features/project-galaxy";
+import { readWorkspaceEntry } from "@/infrastructure/workspace/workspace-entry";
+import { WorkspaceEntryStatus, WorkspacePanelFrame } from "@/features/command-deck/workspace-entry-frame";
+import { workspaceHref, type WorkspaceSearchParams } from "@/shared/workspace-navigation";
 
 export const dynamic = "force-dynamic";
 
-const uuid =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-
-class ProjectGalaxyNotFoundError extends Error {
-  constructor() {
-    super("project_galaxy_not_found");
-    this.name = "ProjectGalaxyNotFoundError";
-  }
-}
-
-function projectParameter(
-  value: string | string[] | undefined,
-): string | null | "invalid" {
-  if (value === undefined) return null;
-  if (typeof value !== "string" || !uuid.test(value)) return "invalid";
-  return value;
-}
-
-function requestedMode(
-  value: string | string[] | undefined,
-): PanelMode | "invalid" {
-  if (value === undefined) return "preview";
-  if (typeof value !== "string") return "invalid";
-
-  try {
-    return parsePanelMode(value);
-  } catch {
-    return "invalid";
-  }
-}
-
-function statusShell(content: React.ReactNode) {
-  return (
-    <main
-      id="main-content"
-      className="auth-status-shell"
-      tabIndex={-1}
-      data-ui-state="failed"
-    >
-      {content}
-      <div className="ui-state-message" role="alert" aria-live="assertive">
-        <p><strong>原因：</strong>当前项目页无法安全展示请求的内容。</p>
-        <p><strong>下一步：</strong>返回 Command Deck 核对项目、模式与授权状态。</p>
-      </div>
-      <Link href="/">返回 Command Deck</Link>
-    </main>
-  );
-}
-
-function projectGalaxyMain(content: React.ReactNode) {
-  return (
-    <main id="main-content" tabIndex={-1}>
-      {content}
-    </main>
-  );
-}
-
 export default async function ProjectGalaxyPage(input: {
-  readonly searchParams: Promise<{
-    readonly mode?: string | string[];
-    readonly project?: string | string[];
-  }>;
+  readonly searchParams: Promise<WorkspaceSearchParams>;
   readonly now?: () => string;
+  readonly connectedPort?: ProjectGalaxyConnectedPort;
 }) {
-  const searchParams = await input.searchParams;
-  const mode = requestedMode(searchParams.mode);
-
-  if (mode === "invalid") {
-    return statusShell(
-      <>
-        <h1>Project Galaxy</h1>
-        <p>面板模式无效。</p>
-      </>,
-    );
+  const context = await readWorkspaceEntry("project-galaxy", await input.searchParams);
+  const { entry } = context;
+  if (entry.kind !== "ready" && entry.kind !== "preview") return <WorkspaceEntryStatus context={context} />;
+  const mode = entry.kind === "preview" ? "preview" : "connected";
+  const projectId = entry.kind === "ready" ? entry.project.id : null;
+  const returnHref = workspaceHref("home", { projectId, mode: mode === "preview" ? "preview" : undefined });
+  const result = await Promise.resolve().then(async () => {
+    const query = mode === "preview"
+      ? createProjectGalaxyPreviewQuery((await import("./project-galaxy-preview-source")).loadProjectGalaxyPreviewSource)
+      : createProjectGalaxyConnectedQuery(input.connectedPort ?? (context.fixtureSession
+          ? { load: async () => context.fixtureSession!.projectGalaxy }
+          : await createProjectGalaxyProductionConnectedPort(projectId, input.now)));
+    const viewModel = await query.load();
+    if (mode === "connected" && viewModel.project.id !== projectId) throw new Error("connected_panel_not_found");
+    return { kind: "success", viewModel } as const;
+  }).catch((error: unknown) => ({ kind: "failure", error }) as const);
+  if (result.kind === "failure") {
+    const code = result.error instanceof Error ? result.error.message : "";
+    if (code === "connected_panel_unauthenticated") return <WorkspaceEntryStatus context={{ ...context, workspace: { status: "signed_out", reason: "invalid_session" }, entry: { ...entry, kind: "sign_in" } }} />;
+    return <WorkspaceEntryStatus context={{ ...context, entry: { ...entry, kind: code === "connected_panel_not_found" ? "not_found" : "unavailable", reason: code === "connected_panel_not_found" ? "没有可显示的项目" : mode === "preview" ? "演示数据暂时不可用。" : "项目数据暂时不可用。" } }} />;
   }
-
-  if (mode === "preview") {
-    const { loadProjectGalaxyPreviewSource } = await import(
-      "./project-galaxy-preview-source"
-    );
-    const previewResult = await createProjectGalaxyPreviewQuery(
-      loadProjectGalaxyPreviewSource,
-    )
-      .load()
-      .then((viewModel) => ({ kind: "success", viewModel }) as const)
-      .catch(() => ({ kind: "failure" }) as const);
-
-    if (previewResult.kind === "failure") {
-      return statusShell(
-        <>
-          <h1>Project Galaxy</h1>
-          <p>演示数据暂时不可用。</p>
-        </>,
-      );
-    }
-
-    return projectGalaxyMain(
-      <ProjectGalaxyPanel viewModel={previewResult.viewModel} />,
-    );
-  }
-
-  const projectId = projectParameter(searchParams.project);
-  if (projectId === "invalid") {
-    return statusShell(
-      <>
-        <h1>Project Galaxy</h1>
-        <p>没有可显示的项目</p>
-      </>,
-    );
-  }
-
-  const fixtureAccess = await readConnectedPanelFixtureAccess(
-    projectId ?? undefined,
-  );
-  if (fixtureAccess.kind === "denied") {
-    return statusShell(
-      <>
-        <p className="section-kicker">Project Galaxy</p>
-        <h1>Project Galaxy</h1>
-        <p>没有可显示的项目</p>
-      </>,
-    );
-  }
-
-  if (fixtureAccess.kind === "authorized") {
-    const fixtureResult = await createProjectGalaxyConnectedQuery({
-      load: async () => fixtureAccess.session.projectGalaxy,
-    })
-      .load()
-      .then((viewModel) => ({ kind: "success", viewModel }) as const)
-      .catch(() => ({ kind: "failure" }) as const);
-
-    if (fixtureResult.kind === "failure") {
-      return statusShell(
-        <>
-          <h1>Project Galaxy</h1>
-          <p>项目数据暂时不可用。</p>
-        </>,
-      );
-    }
-
-    return projectGalaxyMain(
-      <>
-        <ProjectGalaxyPanel viewModel={fixtureResult.viewModel} />
-        <ProjectLifecycleActions projectId={fixtureResult.viewModel.project.id} />
-        <RepositoryRemovalPanel projectId={fixtureResult.viewModel.project.id} />
-      </>,
-    );
-  }
-
-  let connectedPort;
-  try {
-    connectedPort = await createProjectGalaxyProductionConnectedPort(
-      projectId,
-      input.now,
-    );
-  } catch (failure) {
-    if (failure instanceof Error && failure.message === "connected_panel_unauthenticated") {
-      return statusShell(
-        <>
-          <p className="section-kicker">Project Galaxy</p>
-          <h1>需要登录</h1>
-          <p>登录后可查看你的真实项目数据。</p>
-          <Link href="/api/auth/github?returnTo=%2Fproject-galaxy%3Fmode%3Dconnected">
-            使用 GitHub 登录
-          </Link>
-        </>,
-      );
-    }
-    return statusShell(
-      <>
-        <h1>Project Galaxy</h1>
-        <p>项目数据暂时不可用。</p>
-      </>,
-    );
-  }
-
-  const query = createProjectGalaxyConnectedQuery(connectedPort);
-
-  const connectedResult = await query
-    .load()
-    .then((viewModel) => ({ kind: "success", viewModel }) as const)
-    .catch((failure: unknown) => ({ kind: "failure", failure }) as const);
-
-  if (connectedResult.kind === "failure") {
-    if (
-      connectedResult.failure instanceof ProjectGalaxyNotFoundError ||
-      (connectedResult.failure instanceof Error &&
-        connectedResult.failure.message === "connected_panel_not_found")
-    ) {
-      return statusShell(
-        <>
-          <p className="section-kicker">Project Galaxy</p>
-          <h1>Project Galaxy</h1>
-          <p>没有可显示的项目</p>
-        </>,
-      );
-    }
-
-    if (
-      connectedResult.failure instanceof Error &&
-      connectedResult.failure.message === "connected_panel_unauthenticated"
-    ) {
-      return statusShell(
-        <>
-          <p className="section-kicker">Project Galaxy</p>
-          <h1>需要登录</h1>
-          <p>登录后可查看你的真实项目数据。</p>
-          <Link href="/api/auth/github?returnTo=%2Fproject-galaxy%3Fmode%3Dconnected">
-            使用 GitHub 登录
-          </Link>
-        </>,
-      );
-    }
-    return statusShell(
-      <>
-        <h1>Project Galaxy</h1>
-        <p>项目数据暂时不可用。</p>
-      </>,
-    );
-  }
-
-  return projectGalaxyMain(
-    <>
-      <ProjectGalaxyPanel viewModel={connectedResult.viewModel} />
-      <ProjectLifecycleActions projectId={connectedResult.viewModel.project.id} />
-      <RepositoryRemovalPanel projectId={connectedResult.viewModel.project.id} />
-    </>,
-  );
+  const { viewModel } = result;
+  return <WorkspacePanelFrame context={context}><main id="main-content" tabIndex={-1}>
+    <ProjectGalaxyPanel viewModel={viewModel} returnHref={returnHref} />
+    {mode === "connected" ? <><ProjectLifecycleActions projectId={viewModel.project.id} /><RepositoryRemovalPanel projectId={viewModel.project.id} /></> : null}
+  </main></WorkspacePanelFrame>;
 }

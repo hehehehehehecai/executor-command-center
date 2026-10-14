@@ -1,3 +1,4 @@
+import { readIsolatedStatus, verifiedContainerName } from "../../../scripts/isolated-test-target.mjs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 
@@ -7,14 +8,10 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { SupabaseAuthIdentityAdmin } from "@/infrastructure/account-deletion/supabase-auth-identity-admin";
 
 const projectRoot = path.resolve(__dirname, "..", "..", "..");
-const supabaseCliPath = path.join(projectRoot, "node_modules", "supabase", "dist", "supabase.js");
-const databaseContainerName = "supabase_db_executor-command-center";
 const syntheticUserId = "b3a00000-0000-4000-8000-000000000001";
 
 function localConfiguration() {
-  const result = spawnSync(process.execPath, [supabaseCliPath, "status", "--output", "env"], {
-    cwd: projectRoot, encoding: "utf8", env: process.env,
-  });
+  const result = readIsolatedStatus();
   const values = Object.fromEntries(result.stdout.split(/\r?\n/)
     .map((line) => line.match(/^([A-Z_]+)="?(.*?)"?$/))
     .filter((match): match is RegExpMatchArray => match !== null)
@@ -26,7 +23,7 @@ function localConfiguration() {
 }
 
 function sql(statement: string) {
-  const result = spawnSync("docker", ["exec", databaseContainerName, "psql", "-U", "postgres", "-d", "postgres", "-t", "-A", "-v", "ON_ERROR_STOP=1", "-c", statement], {
+  const result = spawnSync("docker", ["exec", verifiedContainerName(), "psql", "-U", "postgres", "-d", "postgres", "-t", "-A", "-v", "ON_ERROR_STOP=1", "-c", statement], {
     cwd: projectRoot, encoding: "utf8", env: process.env,
   });
   if (result.status !== 0) throw new Error("local_auth_fixture_sql_failed");

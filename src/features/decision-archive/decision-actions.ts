@@ -91,26 +91,32 @@ export function createManualDecisionRecord(
   input: ManualDecisionInput,
   context: DecisionActionContext,
 ): DecisionArchiveViewModel {
-  const decision = normalizeRequired(input.decision, "decision_content_required");
-  const confirmationReason = normalizeRequired(
-    input.confirmationReason,
-    "decision_confirmation_reason_required",
-  );
+  const normalized = normalizeManualDecisionInput(input);
   const action = validateContext(viewModel, context);
 
   return withRecord(viewModel, {
     id: action.recordId,
-    decision,
-    confirmationReason,
-    alternatives: normalizedAlternatives(input.alternatives),
-    references: [...input.references],
+    decision: normalized.decision,
+    confirmationReason: normalized.confirmationReason,
+    alternatives: normalized.alternatives,
+    references: normalized.references,
     status: "active",
-    revisitCondition: normalizeOptional(input.revisitCondition),
+    revisitCondition: normalized.revisitCondition,
     createdVia: "manual",
     confirmedBy: action.actorId,
     confirmedAt: action.occurredAt,
     sourceCandidateId: null,
   });
+}
+
+export function normalizeManualDecisionInput(input: ManualDecisionInput): ManualDecisionInput {
+  return {
+    decision: normalizeRequired(input.decision, "decision_content_required"),
+    confirmationReason: normalizeRequired(input.confirmationReason, "decision_confirmation_reason_required"),
+    alternatives: normalizedAlternatives(input.alternatives),
+    references: [...input.references],
+    revisitCondition: normalizeOptional(input.revisitCondition),
+  };
 }
 
 export function confirmDecisionCandidate(

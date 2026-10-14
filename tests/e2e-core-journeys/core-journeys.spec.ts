@@ -1,5 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 import { createHmac, randomUUID } from "node:crypto";
+import { spawnSync } from "node:child_process";
+import { verifiedContainerName } from "../../scripts/isolated-test-target.mjs";
+import { openOnboardingSection, openOptionalOnboardingBackground } from "../onboarding-ui-fixture-actions";
 
 import {
   cleanupPhase5Identity,
@@ -89,7 +92,7 @@ test("E2E-01 explores the fictional Demo without external side effects", async (
       nonLocalRequests.push(request.url());
     }
   });
-  await page.goto("/");
+  await page.goto("/?mode=preview");
   await expect(page.getByLabel("Preview 数据说明")).toContainText(
     "演示数据 · 完全虚构",
   );
@@ -121,6 +124,7 @@ test("E2E-02 establishes a real local Supabase session and renders owned onboard
 
     await page.goto("/onboarding");
     await expect(page.getByRole("heading", { name: "GitHub 身份登录成功" })).toBeVisible();
+    await openOnboardingSection(page, "添加仓库与授权管理");
     await expect(page.getByText("GitHub App Installation 已连接")).toBeVisible();
     await expect(
       page
@@ -149,10 +153,15 @@ test("E2E-03 starts First Sync from the connected project UI and exposes the dur
     identity = await seedPhase5Identity(3);
     await signIn(page, identity);
     await page.goto(`/project-galaxy?mode=connected&project=${identity.projectId}`);
+    const syncReceipt = page.waitForResponse(response => new URL(response.url()).pathname === `/api/projects/${identity!.projectId}/first-sync` && response.request().method() === "POST");
     await page.getByRole("button", { name: "启动首次同步" }).click();
-    await expect(page.getByRole("status", { name: "同步操作结果" })).toContainText(
-      "first_sync_accepted",
-    );
+    const accepted = await syncReceipt;
+    expect(accepted.status()).toBe(202);
+    const receipt = await accepted.json();
+    expect(receipt).toMatchObject({ result: "accepted", code: "first_sync_accepted" });
+    expect(receipt.syncRunId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(receipt.jobId).toMatch(/^[0-9a-f-]{36}$/);
+    await expect(page.getByRole("region", { name: "首次同步状态", exact: true }).getByRole("status")).toContainText("首次同步已排队");
     expect(errors).toEqual({ consoleErrors: [], pageErrors: [], requestFailures: [] });
   } finally {
     await cleanupPhase5Identity(identity);
@@ -221,12 +230,14 @@ test("E2E-06 confirms and persists the official project status through Onboardin
     identity = await seedPhase5Identity(6);
     await signIn(page, identity);
     await page.goto("/onboarding");
-    const calibration = page.getByRole("region", { name: "项目校准" });
+    await openOptionalOnboardingBackground(page);
+    const calibration = page.getByRole("region", { name: "项目背景" });
     await calibration.getByLabel("正式状态").selectOption("polishing");
     await calibration.getByLabel("当前阶段目标").fill("Phase 5 E2E 可观察终态");
-    await calibration.getByRole("button", { name: "保存项目校准" }).click();
-    await expect(calibration.getByRole("status")).toContainText("项目校准已保存");
+    await calibration.getByRole("button", { name: "保存项目背景" }).click();
+    await expect(calibration.getByRole("status")).toContainText("项目背景已保存");
     await page.reload();
+    await openOptionalOnboardingBackground(page);
     await expect(calibration.getByLabel("正式状态")).toHaveValue("polishing");
     expect(errors).toEqual({ consoleErrors: [], pageErrors: [], requestFailures: [] });
   } finally {
@@ -238,7 +249,7 @@ test("E2E-07 accepts an action suggestion and exposes a local Issue Draft bounda
   page,
 }) => {
   const errors = collectBrowserErrors(page);
-  await page.goto("/mission-control");
+  await page.goto("/mission-control?mode=preview");
   await page.getByRole("button", { name: "接受建议" }).click();
   await expect(page.getByRole("status")).toContainText("建议状态已在本地更新");
   await expect(page.getByRole("textbox", { name: "Issue 草稿标题" })).toBeVisible();
@@ -250,7 +261,7 @@ test("E2E-08 creates a user-confirmed Decision Record preview without remote wri
   page,
 }) => {
   const errors = collectBrowserErrors(page);
-  await page.goto("/decision-archive");
+  await page.goto("/decision-archive?mode=preview");
   const form = page.getByRole("form", { name: "手动创建决策记录" });
   await form.getByLabel("决定内容").fill("Phase 5 使用合成边界完成验证");
   await form.getByLabel("确认原因").fill("用户明确确认本地 E2E 证据");
@@ -301,19 +312,23 @@ test("E2E-10 refunds the reservation after a synthetic Provider failure", async 
     });
     await signIn(page, identity);
     await page.goto(`/project-galaxy?mode=connected&project=${identity.projectId}`);
-    await page.getByRole("button", { name: "生成 Validated Brief" }).click();
+    await page.getByRole("button", { name: "生成项目简报" }).click();
     await expect(
-      page.getByText("Brief 生成失败：project_brief_provider_failure"),
+      page.getByRole("alert").filter({ hasText: "AI Provider 暂不可用。" }),
     ).toBeVisible();
     await fetch("http://127.0.0.1:4015/__fixture/mode", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ ai: "success" }),
     });
-    await page.getByRole("button", { name: "生成 Validated Brief" }).click();
-    await expect(page.getByRole("status", { name: "Brief 生成结果" })).toContainText(
-      "generated · energy 3",
-    );
+    const generationResponse = page.waitForResponse(response => new URL(response.url()).pathname === `/api/projects/${identity!.projectId}/briefs/generate` && response.request().method() === "POST");
+    await page.getByRole("button", { name: "生成项目简报" }).click();
+    const generated = await generationResponse;
+    expect(generated.status()).toBe(200);
+    await expect(page.getByRole("region", { name: "项目简报", exact: true })).toBeVisible();
+    const state = spawnSync("docker", ["--host", "npipe:////./pipe/dockerDesktopLinuxEngine", "exec", verifiedContainerName(), "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-t", "-A", "-c", `select json_build_object('reservationStatuses', (select json_agg(status order by status) from public.energy_reservations where user_id='${identity.userId}'::uuid), 'netCost', (select -sum(delta) from public.energy_ledger_entries where user_id='${identity.userId}'::uuid and abs(delta)=3), 'completedBriefs', (select count(*) from public.project_briefs where user_id='${identity.userId}'::uuid and status='completed'));`], { encoding: "utf8", windowsHide: true });
+    expect(state.status, state.stderr).toBe(0);
+    expect(JSON.parse(state.stdout.trim())).toEqual({ reservationStatuses: ["consumed", "released"], netCost: 3, completedBriefs: 1 });
     expect(errors.pageErrors).toEqual([]);
     expect(errors.requestFailures).toEqual([]);
     expect(errors.consoleErrors).toEqual([
@@ -341,8 +356,8 @@ test("E2E-12A removes repository-derived data through the strong-confirmation UI
     await page.getByRole("button", { name: "移除仓库数据" }).click();
     await page.getByLabel("确认文本").fill(`REMOVE ${identity.projectId}`);
     await page.getByRole("button", { name: "确认移除仓库数据" }).click();
-    await expect(page.getByRole("status")).toContainText("仓库数据已移除");
-    await expect(page.getByRole("status")).toContainText("SOURCE_REMOVED");
+    await expect(page.getByRole("region", { name: "数据移除", exact: true }).getByRole("status")).toContainText("仓库数据已移除");
+    await expect(page.getByRole("region", { name: "数据移除", exact: true }).getByRole("status")).toContainText("SOURCE_REMOVED");
     expect(errors).toEqual({ consoleErrors: [], pageErrors: [], requestFailures: [] });
   } finally {
     await cleanupPhase5Identity(identity);
@@ -374,8 +389,16 @@ test("E2E-11 applies trusted Installation revocation and blocks new Sync in the 
     ]);
     await expect(page.getByText("GitHub App Installation 已撤销")).toBeVisible();
     await page.goto(`/project-galaxy?mode=connected&project=${identity.projectId}`);
-    await page.getByRole("button", { name: "启动首次同步" }).click();
-    await expect(page.getByText("同步请求未能完成，可安全重试。")).toBeVisible();
+    await expect(page.getByRole("main").getByRole("alert")).toContainText("授权已暂停或撤销");
+    await expect(page.getByRole("link", { name: "检查 GitHub App 状态", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "启动首次同步" })).toHaveCount(0);
+    const jobsBefore = await syntheticProviderCallCount("/e/phase5-synthetic-event-key");
+    const deniedSync = await page.evaluate(async ({ projectId, requestId }) => {
+      const response = await fetch(`/api/projects/${projectId}/first-sync`, { method: "POST", cache: "no-store", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ requestId }) });
+      return response.status;
+    }, { projectId: identity.projectId, requestId: randomUUID() });
+    expect(deniedSync).toBe(409);
+    expect(await syntheticProviderCallCount("/e/phase5-synthetic-event-key")).toBe(jobsBefore);
     expect(errors.pageErrors).toEqual([]);
     expect(errors.requestFailures).toEqual([]);
     expect(errors.consoleErrors).toEqual([
@@ -398,7 +421,7 @@ test("E2E-12B deletes only the selected project subtree through the stronger UI"
     await page.getByRole("button", { name: "删除整个项目" }).click();
     await page.getByLabel("确认文本").fill(`DELETE ${identity.projectId}`);
     await page.getByRole("button", { name: "确认删除整个项目" }).click();
-    await expect(page.getByRole("status")).toContainText("项目已删除");
+    await expect(page.getByRole("region", { name: "数据移除", exact: true }).getByRole("status")).toContainText("项目已删除");
     expect(errors).toEqual({ consoleErrors: [], pageErrors: [], requestFailures: [] });
   } finally {
     await cleanupPhase5Identity(identity);
@@ -414,6 +437,7 @@ test("E2E-13 requests seven-day account deletion and immediately shows the freez
     identity = await seedPhase5Identity(13);
     await signIn(page, identity);
     await page.goto("/onboarding");
+    await openOnboardingSection(page, "账号操作");
     await page.getByRole("button", { name: "申请删除账户" }).click();
     await page.getByLabel("确认文本").fill(`DELETE ACCOUNT ${identity.userId}`);
     await page.getByRole("button", { name: "确认申请删除" }).click();
@@ -432,6 +456,7 @@ test("E2E-14 cancels account deletion inside the recovery window", async ({ page
     identity = await seedPhase5Identity(14);
     await signIn(page, identity);
     await page.goto("/onboarding");
+    await openOnboardingSection(page, "账号操作");
     await page.getByRole("button", { name: "申请删除账户" }).click();
     await page.getByLabel("确认文本").fill(`DELETE ACCOUNT ${identity.userId}`);
     await page.getByRole("button", { name: "确认申请删除" }).click();
@@ -453,6 +478,7 @@ test("E2E-15 completes due account deletion through business cleanup and local A
     identity = await seedPhase5Identity(15);
     await signIn(page, identity);
     await page.goto("/onboarding");
+    await openOnboardingSection(page, "账号操作");
     await page.getByRole("button", { name: "申请删除账户" }).click();
     await page.getByLabel("确认文本").fill(`DELETE ACCOUNT ${identity.userId}`);
     const requestReceipt = page.waitForResponse(

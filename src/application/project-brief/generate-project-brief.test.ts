@@ -8,7 +8,7 @@ import {
   projectBriefActivePromptVersion,
   projectBriefEvidenceRefContractVersion,
   projectBriefPromptVersion,
-  projectBriefSchemaVersion,
+  projectBriefActiveSchemaVersion as projectBriefSchemaVersion,
   type ProjectBrief,
 } from "@/domain/project-brief/project-brief-contract";
 import {
@@ -60,7 +60,7 @@ const evidenceRef = {
 function validBrief(overrides: Partial<ProjectBrief> = {}): ProjectBrief {
   return {
     promptVersion: projectBriefPromptVersion,
-    schemaVersion: projectBriefSchemaVersion,
+    schemaVersion: "project-brief-schema-v1",
     projectId,
     evidenceFingerprint: fingerprint,
     rangeStart,
@@ -90,12 +90,16 @@ function validBrief(overrides: Partial<ProjectBrief> = {}): ProjectBrief {
 }
 
 function activeBrief(overrides: Partial<ProjectBrief> = {}): ProjectBrief {
-  return validBrief({ promptVersion: projectBriefActivePromptVersion, ...overrides });
+  return validBrief({ promptVersion: projectBriefActivePromptVersion, schemaVersion: projectBriefSchemaVersion, summary: { text: "核心目标：Synthetic core goal.", evidenceRefs: [evidenceRef] }, unknowns: [], ...overrides });
 }
 
 function artifact(): ProjectBriefEvidenceArtifact {
-  return {
-    snapshot: {
+  const snapshot: ProjectBriefEvidenceArtifact["snapshot"] = {
+      snapshotContractVersion: "project-brief-evidence-snapshot.v2",
+      sourceRefContractVersion: "project-brief-evidence-source-ref.v1",
+      canonicalizationContractVersion: "project-brief-evidence-canonicalization.v1",
+      fingerprintContractVersion: "project-brief-evidence-fingerprint.v2",
+      freshnessContractVersion: "freshness-status.v1",
       userId,
       projectId,
       rangeStart,
@@ -135,8 +139,10 @@ function artifact(): ProjectBriefEvidenceArtifact {
         lastSuccessfulAt: now,
         coverageComplete: true,
       },
-    } as unknown as ProjectBriefEvidenceArtifact["snapshot"],
-    canonicalPayload: "{\"synthetic\":\"phase7\"}",
+    };
+  return {
+    snapshot,
+    canonicalPayload: canonicalizeEvidenceValue(snapshot),
     fingerprint,
     cacheEquivalenceFingerprint,
   };
@@ -233,7 +239,7 @@ function harness(options: {
     execute: vi.fn(async (): Promise<ProjectBriefEvidenceValidationSuccess> => {
       calls.push("evidence_validation");
       return {
-        contractVersion: "project-brief-evidence-validation.v1",
+        contractVersion: "project-brief-evidence-validation.v2",
         status: "valid",
         validatedReferenceCount: 1,
         evidenceFingerprint: fingerprint,
@@ -296,14 +302,84 @@ function harness(options: {
 }
 
 describe("GenerateProjectBriefUseCase", () => {
+  it("T13.1 schema诊断只记录合法结构路径，失败仍持久退款且不暴露模型值", async () => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const value = { ...activeBrief({ summary: { text: "", evidenceRefs: [evidenceRef] } }), providerSecretPayload: "FORBIDDEN_RAW_MODEL_VALUE" };
+      const h = harness({ provider: completedStructuredGeneration(value) });
+      await expect(h.useCase.execute(input())).rejects.toMatchObject({ stage: "schema_validation", code: "project_brief_schema_validation_failed" });
+      expect(h.persistence.fail).toHaveBeenCalledOnce();
+      expect(h.persistence.finalize).not.toHaveBeenCalled();
+      expect(warning).toHaveBeenCalledOnce();
+      expect(JSON.parse(String(warning.mock.calls[0]?.[0]))).toEqual({ event: "project_brief_validation_failed", boundary: "schema_parse", code: "project_brief_schema_invalid", path: "$.summary.text" });
+      expect(JSON.stringify(warning.mock.calls)).not.toContain("FORBIDDEN_RAW_MODEL_VALUE");
+    } finally { warning.mockRestore(); }
+  });
+
+  it("T13.1 artifact诊断区分绑定边界，仅列固定字段名而不记录实际值", async () => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const differentFingerprint = "c".repeat(64);
+      const h = harness({ provider: completedStructuredGeneration(activeBrief({ evidenceFingerprint: differentFingerprint })) });
+      await expect(h.useCase.execute(input())).rejects.toMatchObject({ stage: "schema_validation", code: "project_brief_schema_validation_failed" });
+      expect(h.persistence.fail).toHaveBeenCalledOnce();
+      expect(h.evidenceValidator.execute).not.toHaveBeenCalled();
+      expect(warning).toHaveBeenCalledOnce();
+      expect(JSON.parse(String(warning.mock.calls[0]?.[0]))).toEqual({ event: "project_brief_validation_failed", boundary: "artifact_binding", fields: ["evidenceFingerprint"] });
+      expect(JSON.stringify(warning.mock.calls)).not.toContain(differentFingerprint);
+    } finally { warning.mockRestore(); }
+  });
+
+  it("T13.1 诊断出口异常不会阻断持久失败和退款", async () => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => { throw new Error("private diagnostic transport failure"); });
+    try {
+      const h = harness({ provider: completedStructuredGeneration({ arbitrary: true }) });
+      await expect(h.useCase.execute(input())).rejects.toMatchObject({ stage: "schema_validation", code: "project_brief_schema_validation_failed" });
+      expect(warning).toHaveBeenCalledOnce();
+      expect(h.persistence.fail).toHaveBeenCalledOnce();
+      expect(h.calls.at(-1)).toBe("persist_failure_and_release");
+    } finally { warning.mockRestore(); }
+  });
+
+  it.each(["核心目标：成为全球第一", "The official status is completed."])("T05.1 幂等重放也拒绝来源不支持的背景：%s", async text => {
+    const commitRef = { ...evidenceRef, sourceKind: "github_commit" as const, sourceId: "t051-replay-commit" };
+    const brief = activeBrief({ summary: { text, evidenceRefs: [commitRef] }, evidenceRefs: [evidenceRef, commitRef] });
+    const h = harness({ reserve: { reservationId, status: "consumed", outcome: "replayed", amount: 3, availableAfter: 7, businessDate: "2026-08-24" }, waited: completedDurable(brief) });
+    const base = artifact();
+    const snapshot = { ...base.snapshot, githubActivities: [{ sourceRef: { ...base.snapshot.projectProfile.sourceRef, ...commitRef, occurredAt: rangeStart }, activityKind: "github_commit" as const, summary: "A recorded change", facts: {} }] };
+    h.evidenceBuilder.execute.mockResolvedValueOnce({ ...base, snapshot, canonicalPayload: canonicalizeEvidenceValue(snapshot) });
+    await expect(h.useCase.execute(input())).rejects.toMatchObject({ code: "project_brief_idempotency_conflict" });
+    expect(h.provider.generateStructured).not.toHaveBeenCalled();
+    expect(h.persistence.finalize).not.toHaveBeenCalled();
+  });
+  it.each([
+    ["伪造目标", "核心目标：成为全球第一，当前阶段目标：正式上线。", "generated"],
+    ["伪造状态", "The project's official status is completed.", "generated"],
+    ["明确仓库记录", '仓库记录（github_commit，摘录）："A recorded change"。该记录不代表用户确认项目背景。', "cache_hit"],
+  ] as const)("T05.1 缓存%s也必须通过来源合同", async (_name, text, status) => {
+    const commitRef = { ...evidenceRef, sourceKind: "github_commit" as const, sourceId: "t051-cache-commit" };
+    const cachedBrief = activeBrief({ summary: { text, evidenceRefs: [commitRef] }, evidenceRefs: [evidenceRef, commitRef] });
+    const h = harness({ cache: { id: briefId, userId, projectId, rangeStart, rangeEnd, promptVersion: projectBriefActivePromptVersion, schemaVersion: projectBriefSchemaVersion, evidenceFingerprint: fingerprint, cacheEquivalenceFingerprint, payloadFingerprint: "d".repeat(64), status: "completed", payload: cachedBrief, expiresAt: "2026-08-19T06:00:00.000Z" } });
+    const base = artifact();
+    const snapshot = { ...base.snapshot, githubActivities: [{ sourceRef: { ...base.snapshot.projectProfile.sourceRef, ...commitRef, occurredAt: rangeStart }, activityKind: "github_commit" as const, summary: "A recorded change", facts: {} }] };
+    h.evidenceBuilder.execute.mockResolvedValueOnce({ ...base, snapshot, canonicalPayload: canonicalizeEvidenceValue(snapshot) });
+    await expect(h.useCase.execute(input())).resolves.toMatchObject({ status });
+    if (status === "cache_hit") {
+      expect(h.provider.generateStructured).not.toHaveBeenCalled();
+      expect(h.energyReservations.reserve).not.toHaveBeenCalled();
+    } else {
+      expect(h.persistence.recordCacheHit).not.toHaveBeenCalled();
+      expect(h.provider.generateStructured).toHaveBeenCalledOnce();
+    }
+  });
   it("freezes Phase 7 versions, energy cost and provider request constants", () => {
-    expect(projectBriefGenerationContractVersion).toBe("project-brief-generation.v1");
-    expect(projectBriefCacheContractVersion).toBe("project-brief-cache.v1");
+    expect(projectBriefGenerationContractVersion).toBe("project-brief-generation.v2");
+    expect(projectBriefCacheContractVersion).toBe("project-brief-cache.v2");
     expect(projectBriefGenerationPersistenceContractVersion).toBe(
-      "project-brief-generation-persistence.v2",
+      "project-brief-generation-persistence.v3",
     );
     expect(projectBriefEnergyCost).toBe(3);
-    expect(projectBriefGenerationSchemaName).toBe("ProjectBriefV2");
+    expect(projectBriefGenerationSchemaName).toBe("ProjectBriefV3");
     expect(projectBriefGenerationMaxOutputTokens).toBe(8_192);
   });
 
@@ -330,17 +406,17 @@ describe("GenerateProjectBriefUseCase", () => {
       requestKey: "brief:phase7:synthetic",
     });
     expect(h.provider.generateStructured).toHaveBeenCalledWith(expect.objectContaining({
-      schemaName: "ProjectBriefV2",
+      schemaName: "ProjectBriefV3",
       maxOutputTokens: 8_192,
       userPrompt: expect.stringContaining(fingerprint),
     }));
     const request = vi.mocked(h.provider.generateStructured).mock.calls[0]?.[0];
-    expect(request?.systemPrompt).toContain("project-brief-v2");
+    expect(request?.systemPrompt).toContain("project-brief-v3");
     expect(request?.systemPrompt).toContain("completedChanges");
     expect(JSON.parse(request?.userPrompt ?? "{}")).toMatchObject({
       trustedConstants: {
-        promptVersion: "project-brief-v2",
-        schemaVersion: "project-brief-schema-v1",
+        promptVersion: "project-brief-v3",
+        schemaVersion: "project-brief-schema-v2",
         projectId,
         evidenceFingerprint: fingerprint,
         rangeStart,
@@ -350,7 +426,7 @@ describe("GenerateProjectBriefUseCase", () => {
       untrustedRepositoryData: {
         contractVersion: "untrusted-repository-prompt-input.v1",
         encoding: "json",
-        content: { synthetic: "phase7" },
+        content: artifact().snapshot,
       },
     });
   });
@@ -680,8 +756,8 @@ describe("GenerateProjectBriefUseCase", () => {
     });
     expect(h.persistence.fail).toHaveBeenCalledWith(expect.objectContaining({
       reservationId,
-      promptVersion: "project-brief-v2",
-      schemaVersion: "project-brief-schema-v1",
+      promptVersion: "project-brief-v3",
+      schemaVersion: "project-brief-schema-v2",
       evidenceFingerprint: "a".repeat(64),
       failureStage: "provider",
       errorCode: code,
@@ -701,8 +777,8 @@ describe("GenerateProjectBriefUseCase", () => {
       code: "project_brief_provider_failure",
     });
     expect(h.persistence.fail).toHaveBeenCalledWith(expect.objectContaining({
-      promptVersion: "project-brief-v2",
-      schemaVersion: "project-brief-schema-v1",
+      promptVersion: "project-brief-v3",
+      schemaVersion: "project-brief-schema-v2",
       metadata: expect.objectContaining({ latencyMs: 27.5 }),
     }));
   });
@@ -716,8 +792,8 @@ describe("GenerateProjectBriefUseCase", () => {
     expect(h.evidenceValidator.execute).not.toHaveBeenCalled();
     expect(h.persistence.fail).toHaveBeenCalledOnce();
     expect(h.persistence.fail).toHaveBeenCalledWith(expect.objectContaining({
-      promptVersion: "project-brief-v2",
-      schemaVersion: "project-brief-schema-v1",
+      promptVersion: "project-brief-v3",
+      schemaVersion: "project-brief-schema-v2",
     }));
   });
 
@@ -733,8 +809,8 @@ describe("GenerateProjectBriefUseCase", () => {
     expect(h.persistence.finalize).not.toHaveBeenCalled();
     expect(h.persistence.fail).toHaveBeenCalledOnce();
     expect(h.persistence.fail).toHaveBeenCalledWith(expect.objectContaining({
-      promptVersion: "project-brief-v2",
-      schemaVersion: "project-brief-schema-v1",
+      promptVersion: "project-brief-v3",
+      schemaVersion: "project-brief-schema-v2",
     }));
   });
 

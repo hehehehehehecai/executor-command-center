@@ -38,9 +38,15 @@ export interface ProjectRepositoryFacts {
   readonly defaultBranch: string;
 }
 
+export interface ProjectCalibrationRead extends Omit<ProjectCalibration, "coreGoal" | "currentStageGoal" | "status"> {
+  readonly coreGoal: string | null;
+  readonly currentStageGoal: string | null;
+  readonly status: ProjectStatus | null;
+}
+
 export interface ProjectCalibrationView {
   readonly repository: ProjectRepositoryFacts;
-  readonly calibration: ProjectCalibration | null;
+  readonly calibration: ProjectCalibrationRead | null;
 }
 
 const uuidPattern =

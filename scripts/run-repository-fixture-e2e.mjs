@@ -25,6 +25,7 @@ const fixtureTimestamp = "2026-07-27T00:00:00.000Z";
 const opaqueFixtureToken = "fixture::opaque::future-format";
 const originalFetch = globalThis.fetch.bind(globalThis);
 let installationQueryCalls = 0;
+let workspaceQueryCalls = 0;
 let tokenCreateCalls = 0;
 let repositoryPageCalls = 0;
 let tokenRevokeCalls = 0;
@@ -199,6 +200,7 @@ function createFixtureServer() {
     ) {
       installationQueryCalls += 1;
       const select = requestUrl.searchParams.get("select") ?? "";
+      if (select === "user_id,status") workspaceQueryCalls += 1;
       writeJson(
         response,
         200,
@@ -210,8 +212,13 @@ function createFixtureServer() {
                 status: "active",
               },
             ]
-          : [{ status: "active" }],
+          : [{ user_id: authUserId, status: "active" }],
       );
+      return;
+    }
+
+    if (request.method === "GET" && requestUrl.pathname === "/rest/v1/projects") {
+      writeJson(response, 200, []);
       return;
     }
 
@@ -229,6 +236,7 @@ function createFixtureServer() {
         real_app_jwt_used: false,
         real_installation_token_used: false,
         installation_query_calls: installationQueryCalls,
+        workspace_query_calls: workspaceQueryCalls,
         token_create_calls: tokenCreateCalls,
         repository_page_calls: repositoryPageCalls,
         token_revoke_calls: tokenRevokeCalls,

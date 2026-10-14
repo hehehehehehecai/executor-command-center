@@ -1,4 +1,7 @@
 import { canonicalizeEvidenceSnapshot } from "@/domain/project-brief-evidence/canonicalization";
+import { projectBackgroundSchema } from "@/domain/project-calibration/project-calibration-read";
+import { briefMatchesProjectBackground } from "@/domain/project-brief/project-background-brief";
+import { projectBriefActivePromptVersion } from "@/domain/project-brief/project-brief-contract";
 import {
   projectBriefEvidenceCanonicalizationContractVersion,
   projectBriefEvidenceFingerprintContractVersion,
@@ -131,14 +134,17 @@ function projectRefAlignmentKey(ref: ProjectBriefEvidenceRef) {
   return JSON.stringify([ref.sourceKind, ref.sourceId, ref.projectId]);
 }
 
-function assertArtifactVersions(snapshot: ProjectBriefEvidenceSnapshot) {
+function assertArtifactVersions(snapshot: ProjectBriefEvidenceSnapshot, allowLegacy: boolean) {
+  const current = snapshot.snapshotContractVersion === projectBriefEvidenceSnapshotContractVersion
+    && snapshot.fingerprintContractVersion === projectBriefEvidenceFingerprintContractVersion;
+  const legacy = allowLegacy
+    && snapshot.snapshotContractVersion === "project-brief-evidence-snapshot.v1"
+    && snapshot.fingerprintContractVersion === "project-brief-evidence-fingerprint.v1";
   if (
-    snapshot.snapshotContractVersion !== projectBriefEvidenceSnapshotContractVersion
+    (!current && !legacy)
     || snapshot.sourceRefContractVersion !== projectBriefEvidenceSourceRefContractVersion
     || snapshot.canonicalizationContractVersion
       !== projectBriefEvidenceCanonicalizationContractVersion
-    || snapshot.fingerprintContractVersion
-      !== projectBriefEvidenceFingerprintContractVersion
     || snapshot.freshnessContractVersion !== freshnessStatusContract
   ) {
     return evidenceValidationFailure("evidence_artifact_invalid");
@@ -223,7 +229,12 @@ function buildSourceIndex(snapshot: ProjectBriefEvidenceSnapshot) {
 }
 
 function assertSnapshotShape(snapshot: ProjectBriefEvidenceSnapshot) {
+  const profile = snapshot.projectProfile;
   if (
+    !profile || !projectBackgroundSchema.safeParse({ coreGoal: profile.coreGoal, currentStageGoal: profile.currentStageGoal, status: profile.status }).success
+    || (snapshot.snapshotContractVersion === "project-brief-evidence-snapshot.v1"
+      && (profile.coreGoal === null || profile.currentStageGoal === null || profile.status === null))
+    ||
     !lowerUuidPattern.test(snapshot.userId)
     || !lowerUuidPattern.test(snapshot.projectId)
     || !isCanonicalUtc(snapshot.rangeStart)
@@ -246,7 +257,7 @@ export class ValidateProjectBriefEvidenceUseCase {
   async execute(
     input: ValidateProjectBriefEvidenceInput,
   ): Promise<ProjectBriefEvidenceValidationSuccess> {
-    const prepared = await this.prepareArtifact(input.artifact);
+    const prepared = await this.prepareArtifact(input.artifact, input.brief.promptVersion !== projectBriefActivePromptVersion);
     const { snapshot } = prepared;
 
     if (input.actorUserId !== snapshot.userId) {
@@ -305,6 +316,9 @@ export class ValidateProjectBriefEvidenceUseCase {
       return evidenceValidationFailure("evidence_document_sha_mismatch");
     }
 
+    if (!briefMatchesProjectBackground(input.brief, snapshot)) {
+      return evidenceValidationFailure("evidence_profile_mismatch");
+    }
     return {
       contractVersion: projectBriefEvidenceValidationContractVersion,
       status: "valid",
@@ -315,6 +329,7 @@ export class ValidateProjectBriefEvidenceUseCase {
 
   private async prepareArtifact(
     artifact: ProjectBriefEvidenceArtifact,
+    allowLegacy: boolean,
   ): Promise<PreparedArtifact> {
     try {
       if (
@@ -327,7 +342,7 @@ export class ValidateProjectBriefEvidenceUseCase {
         return evidenceValidationFailure("evidence_artifact_invalid");
       }
       const snapshot = artifact.snapshot as unknown as ProjectBriefEvidenceSnapshot;
-      assertArtifactVersions(snapshot);
+      assertArtifactVersions(snapshot, allowLegacy);
       assertSnapshotShape(snapshot);
       const { refs, index } = buildSourceIndex(snapshot);
       const canonicalPayload = canonicalizeEvidenceSnapshot(snapshot);

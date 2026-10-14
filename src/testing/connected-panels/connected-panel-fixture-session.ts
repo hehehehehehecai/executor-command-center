@@ -21,6 +21,7 @@ export async function readConnectedPanelFixtureAccess(
     nodeEnvironment: process.env.NODE_ENV,
     fixtureEnabled: process.env.CONNECTED_PANEL_E2E,
     verifiedUserId: cookieStore.get("connected-panel-verified-user")?.value,
+    scenario: cookieStore.get("connected-panel-scenario")?.value,
     projectId:
       projectIdOverride ?? cookieStore.get("connected-panel-project")?.value,
   });

@@ -150,8 +150,8 @@ describe("Project Brief Schema contract", () => {
       failures: projectBriefFailureCodes,
     }).toEqual({
       prompt: "project-brief-v1",
-      activePrompt: "project-brief-v2",
-      supportedPrompts: ["project-brief-v1", "project-brief-v2"],
+      activePrompt: "project-brief-v3",
+      supportedPrompts: ["project-brief-v1", "project-brief-v2", "project-brief-v3"],
       schema: "project-brief-schema-v1",
       evidenceRef: "project-brief-evidence-source-ref.v1",
       persistence: "project-brief-persistence.v1",
@@ -174,15 +174,15 @@ describe("Project Brief Schema contract", () => {
     expect(parseProjectBrief(completeBrief())).toEqual(completeBrief());
   });
 
-  it("P10.5-A-001 reads both frozen v1 and active v2 while rejecting unknown versions", () => {
+  it("P10.5-A-001 reads both frozen v1 and v2 while rejecting unknown versions", () => {
     expect(parseProjectBrief(minimalBrief()).promptVersion).toBe("project-brief-v1");
     expect(parseProjectBrief({
       ...minimalBrief(),
-      promptVersion: projectBriefActivePromptVersion,
+      promptVersion: "project-brief-v2",
     }).promptVersion).toBe("project-brief-v2");
     expect(failure({
       ...minimalBrief(),
-      promptVersion: "project-brief-v3",
+      promptVersion: "project-brief-v4",
     })).toMatchObject({ code: "project_brief_version_invalid", path: "$.promptVersion" });
   });
 

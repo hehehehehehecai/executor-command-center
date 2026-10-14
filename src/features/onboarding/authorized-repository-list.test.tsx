@@ -108,6 +108,17 @@ function summaryValue(
 }
 
 describe("Phase 4 authorization and Phase 5 selection UI", () => {
+  it("T05 全未确认项目仍为已添加，背景完整度单列", async () => {
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>(async input => {
+      if (input === "/api/github/repository-selections") return selectedResponse([selectedRepository]);
+      if (input === "/api/projects") return projectsResponse({ ...savedCalibration, coreGoal: null, currentStageGoal: null, status: null });
+      throw new Error(`unexpected request ${String(input)}`);
+    }));
+    render(<AuthorizedRepositoryList installationStatus="active" />);
+    expect(await screen.findByText("已添加 · 背景未确认")).toBeVisible();
+    expect(summaryValue("projects")).toHaveTextContent("1");
+    expect(screen.queryByText("已选择，待建项")).toBeNull();
+  });
   it.each([
     [null, "pending", "0"],
     [savedCalibration, "saved", "1"],
@@ -299,9 +310,7 @@ describe("Phase 4 authorization and Phase 5 selection UI", () => {
       }),
     );
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "仓库选择失败，请稍后重试。",
-    );
+    expect(await screen.findByText("仓库选择失败，请稍后重试。")).toHaveAttribute("role", "alert");
     expect(screen.getByText("0", { exact: true })).toBeInTheDocument();
     expect(screen.queryByText("forbidden-internal-user")).not.toBeInTheDocument();
   });

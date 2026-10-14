@@ -160,6 +160,71 @@ function context(projectId = projectA, status: "active" | "suspended" | "revoked
   };
 }
 
+describe("T04 durable first-sync handoff", () => {
+  function fixture() {
+    const runs = new MemoryFirstSyncRunStore();
+    let time = Date.parse(queuedAt);
+    let state: "pending" | "dispatching" | "dispatched" = "pending";
+    let version = 1;
+    let lease = 0;
+    const requests = {
+      async request(input: { projectId: string; requestIdentity: string }) {
+        const existing = [...runs.runs.values()][0];
+        const run = existing ?? await runs.createQueued({ projectId: input.projectId, idempotencyKey: `sync-request:${input.requestIdentity}`, triggerSource: "first_sync" });
+        return { outcome: existing ? "coalesced" as const : "new" as const, projectId: input.projectId, syncRunId: run.id, syncRunStatus: run.status, dispatchState: state, dispatchVersion: version };
+      },
+      async claimDispatch(input: { expectedVersion: number }) {
+        if (input.expectedVersion !== version || state === "dispatched" || (state === "dispatching" && time < lease)) return { claimed: false, version };
+        state = "dispatching"; lease = time + 60_000; version += 1;
+        return { claimed: true, version };
+      },
+      async completeDispatch() { state = "dispatched"; version += 1; },
+    };
+    const jobs: BackgroundJob[] = [];
+    let fail = false;
+    const dependencies = {
+      runs, requests, contexts: { getByProjectId: async () => context() },
+      clock: { now: () => new Date(time) },
+      dispatcher: { dispatch: async (job: BackgroundJob) => { if (fail) throw new Error("synthetic_queue_failure"); jobs.push(job); return { providerJobId: "synthetic-provider-event" }; } },
+    };
+    return { runs, jobs, start: new StartFirstRepositorySync(dependencies), advance: () => { time += 61_000; }, fail: (value: boolean) => { fail = value; } };
+  }
+  it("coalesces different concurrent user requests into one durable run and dispatch", async () => {
+    const f = fixture();
+    const result = await Promise.all([f.start.execute({ projectId: projectA, requestId: "join" }), f.start.execute({ projectId: projectA, requestId: "double-click" })]);
+    expect(f.runs.runs.size).toBe(1);
+    expect(f.jobs).toHaveLength(1);
+    expect(result.map(r => r.syncRunId)).toEqual([runA, runA]);
+    expect([...f.runs.runs.values()][0].idempotencyKey).toBe("sync-request:first-join");
+  });
+  it("retries a failed dispatch after its lease without another run or invented provider receipt", async () => {
+    const f = fixture(); f.fail(true);
+    await expect(f.start.execute({ projectId: projectA, requestId: "join" })).rejects.toThrow();
+    f.fail(false);
+    const waiting = await f.start.execute({ projectId: projectA, requestId: "retry-before-lease" });
+    expect(waiting.providerJobId).toBeNull();
+    expect(f.jobs).toHaveLength(0);
+    f.advance();
+    await f.start.execute({ projectId: projectA, requestId: "retry-after-lease" });
+    expect(f.runs.runs.size).toBe(1);
+    expect(f.jobs).toHaveLength(1);
+    expect(f.jobs[0].idempotencyKey).toBe("sync-request:first-join");
+    const cursor = parseFirstSyncCursor([...f.runs.runs.values()][0].progressCursor!);
+    expect(cursor.requestId).toBe("join");
+  });
+  it("recovers an acknowledged queue receipt from the stored cursor without dispatching twice", async () => {
+    const f = fixture();
+    const checkpoint = f.runs.checkpoint.bind(f.runs);
+    let lost = true;
+    f.runs.checkpoint = async input => { const result = await checkpoint(input); if (lost) { lost = false; throw new Error("synthetic_response_lost"); } return result; };
+    await expect(f.start.execute({ projectId: projectA, requestId: "join" })).rejects.toThrow("synthetic_response_lost");
+    f.advance();
+    await f.start.execute({ projectId: projectA, requestId: "another-click" });
+    expect(f.runs.runs.size).toBe(1);
+    expect(f.jobs).toHaveLength(1);
+  });
+});
+
 function commit(id: string, sourceUpdatedAt = windowStart): GitHubCommitReadModel {
   return {
     repositoryFullName: context().repository.fullName,

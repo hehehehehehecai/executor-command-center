@@ -1,5 +1,18 @@
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { render } from "@/test/async-workspace-render";
+import { installWorkspaceEntryTransport } from "@/test/workspace-entry-transport";
+
+vi.mock("@supabase/ssr", async () => ({
+  createServerClient: (await import("@/test/workspace-entry-transport")).workspaceEntryClient,
+}));
+vi.mock("next/headers", async () => ({
+  cookies: async () => (await import("@/test/workspace-entry-transport")).workspaceEntryCookies(),
+}));
+
+beforeEach(() => installWorkspaceEntryTransport());
+afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
+
 
 import type { MissionControlConnectedPort } from "@/features/mission-control";
 
@@ -28,7 +41,7 @@ afterEach(() => {
 
 describe("/mission-control Preview / Connected composition", () => {
   it("defaults explicitly to Preview and discloses fictional data", async () => {
-    render(await MissionControlPage({ searchParams: Promise.resolve({}) }));
+    await render(await MissionControlPage({ searchParams: Promise.resolve({ mode: "preview" }) }));
 
     expect(screen.getByRole("heading", { level: 1, name: "Mission Control" })).toBeVisible();
     expect(screen.getByText("Preview Mode")).toBeVisible();
@@ -44,7 +57,7 @@ describe("/mission-control Preview / Connected composition", () => {
       })),
     };
 
-    render(
+    await render(
       await MissionControlPage({
         searchParams: Promise.resolve({ mode: "connected" }),
         connectedPort,
@@ -62,7 +75,7 @@ describe("/mission-control Preview / Connected composition", () => {
       recordedTasks: [],
       suggestions: [],
     });
-    render(
+    await render(
       await MissionControlPage({
         searchParams: Promise.resolve({ mode: "connected", project: "22222222-2222-4222-8222-222222222222" }),
       }),
@@ -105,7 +118,7 @@ describe("/mission-control Preview / Connected composition", () => {
       })),
     };
 
-    render(
+    await render(
       await MissionControlPage({
         searchParams: Promise.resolve({
           mode: "connected",
@@ -129,25 +142,25 @@ describe("/mission-control Preview / Connected composition", () => {
       load: vi.fn(async () => Promise.reject(new Error("connected_read_failed"))),
     };
 
-    render(
+    await render(
       await MissionControlPage({
         searchParams: Promise.resolve({ mode: "connected" }),
         connectedPort,
       }),
     );
 
-    expect(screen.getByText("Connected 数据暂时不可用。")).toBeVisible();
+    expect(screen.getByRole("alert")).toHaveTextContent(/^原因：Connected 数据暂时不可用。$/);
     expect(screen.queryByText("演示数据 · 完全虚构")).not.toBeInTheDocument();
   });
 
   it("rejects unknown modes rather than defaulting", async () => {
-    render(
+    await render(
       await MissionControlPage({
         searchParams: Promise.resolve({ mode: "surprise" }),
       }),
     );
 
-    expect(screen.getByText("面板模式无效。")).toBeVisible();
+    expect(screen.getByRole("alert")).toHaveTextContent(/^原因：面板模式无效。$/);
     expect(screen.queryByText("Preview Mode")).not.toBeInTheDocument();
   });
 });

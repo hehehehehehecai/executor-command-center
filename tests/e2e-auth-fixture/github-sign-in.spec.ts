@@ -1,3 +1,4 @@
+import { openOnboardingSection } from "../onboarding-ui-fixture-actions";
 import { expect, test } from "@playwright/test";
 
 test("completes synthetic GitHub sign-in, restores the session, and grants no repository access", async ({
@@ -19,6 +20,7 @@ test("completes synthetic GitHub sign-in, restores the session, and grants no re
   await expect(
     page.getByRole("heading", { name: "GitHub 身份登录成功" }),
   ).toBeVisible();
+  await openOnboardingSection(page, "接入诊断");
   await expect(page.getByText("not_registered", { exact: true })).toBeVisible();
   await expect(
     page

@@ -1,0 +1,28 @@
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { GitHubInstallationStatus } from "./github-installation-status";
+import { AccountIdentity } from "./account-identity";
+const userId="11111111-1111-4111-8111-111111111111";
+const view={version:"github-installation-management.v1",subjectId:userId,status:"active",canSelectRepositories:true,reconnectRequired:false,managementUrl:"https://github.com/settings/installations/81001",managementError:null};
+afterEach(()=>{cleanup();vi.unstubAllGlobals();});
+function network(current:()=>Promise<Response>=async()=>Response.json(view)){
+ const f=vi.fn<typeof fetch>(async(input)=>{
+  if(input==="/api/github/installations/current") return current();
+  if(input==="/api/github/repository-selections") return Response.json({selectedRepositories:[]});
+  if(input==="/api/projects") return Response.json({projects:[]});
+  if(input==="/api/github/repositories") return Response.json({repositorySelection:"selected",totalCount:0,repositories:[],loadedAt:"2026-09-28T00:00:00Z"});
+  throw new Error("unexpected request");
+ });vi.stubGlobal("fetch",f);return f;
+}
+describe("持续管理授权与返回刷新",()=>{
+ it("切换账号后旧刷新响应不能覆盖新主体",async()=>{let finish!:(r:Response)=>void;network(()=>new Promise(resolve=>{finish=resolve;}));const ui=render(<GitHubInstallationStatus authenticated userId={userId} installationStatus="active"/>);fireEvent.click(screen.getByRole("button",{name:"已返回，刷新授权和仓库"}));ui.rerender(<GitHubInstallationStatus authenticated userId="22222222-2222-4222-8222-222222222222" installationStatus="not_registered"/>);finish(Response.json(view));await waitFor(()=>expect(screen.getByText("尚未连接 GitHub App",{exact:true})).toBeVisible());expect(screen.queryByText("GitHub App Installation 已连接")).not.toBeInTheDocument();});
+ it.each(["active","suspended"] as const)("%s安装仍能打开服务端管理入口",(installationStatus)=>{network();render(<GitHubInstallationStatus authenticated userId={userId} installationStatus={installationStatus}/>);expect(screen.getByRole("link",{name:"管理 GitHub 仓库授权"})).toHaveAttribute("href","/api/github/installations/manage");});
+ it("撤销提供重新安装，组织限制可理解",()=>{network();render(<GitHubInstallationStatus authenticated userId={userId} installationStatus="revoked"/>);expect(screen.getByRole("link",{name:"重新安装 GitHub App"})).toHaveAttribute("href","/api/github/installations/start?returnTo=%2Fonboarding");expect(screen.getByText(/当前仅支持个人 GitHub 账号/)).toBeVisible();});
+ it("明确返回刷新先核验安装，再刷新空授权列表，不自动选择",async()=>{const f=network();render(<GitHubInstallationStatus authenticated userId={userId} installationStatus="active"/>);fireEvent.click(screen.getByRole("button",{name:"已返回，刷新授权和仓库"}));expect(await screen.findByText("当前授权范围内没有仓库。")).toBeVisible();const urls=f.mock.calls.map(([url])=>url);expect(urls.indexOf("/api/github/installations/current")).toBeLessThan(urls.indexOf("/api/github/repositories"));expect(f.mock.calls.every(([,init])=>!init?.method||init.method==="GET")).toBe(true);});
+ it("读取失败不把旧active继续当作授权或空列表",async()=>{network(async()=>Response.json({error:{code:"github_api_timeout"}},{status:504}));render(<GitHubInstallationStatus authenticated userId={userId} installationStatus="active"/>);fireEvent.click(screen.getByRole("button",{name:"已返回，刷新授权和仓库"}));expect(await screen.findByText("GitHub 响应超时，请重试。")).toBeVisible();expect(screen.queryByRole("button",{name:"加载已授权仓库"})).not.toBeInTheDocument();expect(screen.queryByText("当前授权范围内没有仓库。")).not.toBeInTheDocument();});
+ it("返回其他主体的数据安全丢弃",async()=>{const f=network(async()=>Response.json({...view,subjectId:"22222222-2222-4222-8222-222222222222"}));render(<GitHubInstallationStatus authenticated userId={userId} installationStatus="active"/>);fireEvent.click(screen.getByRole("button",{name:"已返回，刷新授权和仓库"}));expect(await screen.findByText("账号状态已变化，请刷新页面重新确认。")).toBeVisible();expect(f.mock.calls.some(([u])=>u==="/api/github/repositories")).toBe(false);});
+ it("远端恢复但本地未确认时不开放新选择",async()=>{const f=network(async()=>Response.json({...view,canSelectRepositories:false,reconnectRequired:true}));render(<GitHubInstallationStatus authenticated userId={userId} installationStatus="suspended"/>);fireEvent.click(screen.getByRole("button",{name:"已返回，刷新授权和仓库"}));expect(await screen.findByRole("link",{name:"重新确认 GitHub 连接"})).toBeVisible();expect(f.mock.calls.some(([u])=>u==="/api/github/repositories")).toBe(false);});
+ it("登录前也保留添加入口并沿用登录",()=>{network();render(<AccountIdentity workspace={{status:"signed_out",reason:"missing_session"}}/>);expect(screen.getByRole("link",{name:"添加仓库"})).toHaveAttribute("href","/api/auth/github?returnTo=%2Fonboarding");});
+ it("真实项目列表有项目时添加入口仍在",()=>{network();render(<AccountIdentity workspace={{status:"authenticated",userId,identity:{status:"ready",data:{login:"synthetic",avatarUrl:null}},installation:{status:"ready",data:{status:"active"}},projects:{status:"ready",data:[{id:"22222222-2222-4222-8222-222222222222",name:"synthetic/repo",status:"in_planning"}]}}}/>);expect(screen.getByRole("link",{name:"添加仓库"})).toHaveAttribute("href","/onboarding#repositories");});
+ it("刷新正在进行时重复点击不并发发起",async()=>{let finish!:(r:Response)=>void;const f=network(()=>new Promise(resolve=>{finish=resolve;}));render(<GitHubInstallationStatus authenticated userId={userId} installationStatus="active"/>);const button=screen.getByRole("button",{name:"已返回，刷新授权和仓库"});fireEvent.click(button);fireEvent.click(button);await waitFor(()=>expect(f.mock.calls.filter(([u])=>u==="/api/github/installations/current")).toHaveLength(1));finish(Response.json(view));expect(await screen.findByText("当前授权范围内没有仓库。")).toBeVisible();});
+});

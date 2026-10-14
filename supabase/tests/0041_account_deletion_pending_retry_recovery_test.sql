@@ -115,7 +115,7 @@ select results_eq(
 
 create function app_private.test_phase32_recovery_connect(p_name text)
 returns text language sql security definer set search_path=''
-as $$select extensions.dblink_connect(p_name,'dbname=postgres host=host.docker.internal port=54322 user=postgres password=postgres')$$;
+as $$select extensions.dblink_connect(p_name,current_setting('executor.test_dblink_connection'))$$;
 select app_private.test_phase32_recovery_connect('phase32_recovery_a');
 select app_private.test_phase32_recovery_connect('phase32_recovery_b');
 select extensions.dblink_exec('phase32_recovery_a','begin');

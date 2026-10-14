@@ -1,5 +1,6 @@
 import type { ProjectStatus } from "@/domain/project-calibration/project-calibration";
 import type { PanelMode } from "@/shared/panel-query";
+import type { ConnectedReadState } from "@/shared/connected-read-state";
 
 import type { ProjectFreshnessPresentationInput } from "./freshness-presentation";
 
@@ -27,6 +28,7 @@ export interface ProjectGalaxySuggestedStatus {
 }
 
 export interface ProjectGalaxySource {
+  readonly readState?: ConnectedReadState;
   readonly project: {
     readonly id: string;
     readonly name: string | null;
@@ -43,6 +45,7 @@ export interface ProjectGalaxySource {
 }
 
 export interface ProjectGalaxyViewModel {
+  readonly readState?: ConnectedReadState;
   readonly mode: PanelMode;
   readonly provenanceLabel: string;
   readonly project: ProjectGalaxySource["project"];
@@ -88,6 +91,7 @@ export function mapProjectGalaxyViewModel(
 
   return {
     mode,
+    ...(source.readState ? { readState: { ...source.readState } } : {}),
     provenanceLabel: source.provenanceLabel,
     project: { ...source.project },
     officialStatus: source.officialStatus,

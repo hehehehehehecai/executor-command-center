@@ -532,6 +532,29 @@ describe("runtime schema, nullable and enum policy", () => {
 });
 
 describe("Link-header pagination", () => {
+  it.each(resources)("reads $method from GitHub's numeric repository Link while keeping requests on the original repository", async (resource) => {
+    const namedLink = linkFor(resource, 2);
+    const numericLink = namedLink.replace("/repos/synthetic-owner/synthetic-repository/", "/repositories/1303716118/");
+    const fetcher = fetchSequence(
+      response(resource.wrap([resource.first]), { headers: { link: numericLink } }),
+      response(resource.wrap([resource.second])),
+    );
+    const result = await createReader(fetcher)[resource.method](resource.request ?? baseRequest);
+    expect(result.map((item) => item.githubObjectId)).toEqual([resource.firstId, resource.secondId]);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    assertRequest(fetcher, 1, resource, 2);
+  });
+
+  it.each([
+    ["changed resource", "/repositories/1303716118/issues"],
+    ["invalid numeric ID", "/repositories/not-a-number/commits"],
+  ])("rejects invalid numeric repository Link: %s", async (_name, path) => {
+    const link = linkFor(resources[0]!, 2).replace("/repos/synthetic-owner/synthetic-repository/commits", path);
+    const fetcher = fetchSequence(response([commit("1")], { headers: { link } }));
+    await expect(createReader(fetcher).listCommits(baseRequest)).rejects.toThrow("github_activity_pagination_invalid");
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
   it.each(resources)("reads $method across a validated next Link", async (resource) => {
     const fetcher = fetchSequence(
       response(resource.wrap([resource.first]), {

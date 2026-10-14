@@ -18,7 +18,7 @@ test("shows the fictional Project Galaxy in a readable 360px flow", async ({
   });
 
   await page.setViewportSize({ width: 360, height: 800 });
-  await page.goto("/project-galaxy");
+  await page.goto("/project-galaxy?mode=preview");
   await page.waitForLoadState("networkidle");
 
   await expect(
@@ -92,7 +92,7 @@ test("shows the fictional Project Galaxy in a readable 360px flow", async ({
 
 test("uses the wider two-column status layout at 768px", async ({ page }) => {
   await page.setViewportSize({ width: 768, height: 900 });
-  await page.goto("/project-galaxy");
+  await page.goto("/project-galaxy?mode=preview");
 
   const statusAlignment = await page.evaluate(() => {
     const factElement = document.querySelector<HTMLElement>(

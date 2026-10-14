@@ -118,11 +118,11 @@ alter function app_private.test_phase7_dblink_connect(text, text) owner to postg
 
 select app_private.test_phase7_dblink_connect(
   'phase7_c1',
-  'dbname=postgres host=host.docker.internal port=54322 user=postgres password=postgres'
+  current_setting('executor.test_dblink_connection')
 );
 select app_private.test_phase7_dblink_connect(
   'phase7_c2',
-  'dbname=postgres host=host.docker.internal port=54322 user=postgres password=postgres'
+  current_setting('executor.test_dblink_connection')
 );
 
 select is(
@@ -211,11 +211,11 @@ select extensions.dblink_disconnect('phase7_c1');
 select extensions.dblink_disconnect('phase7_c2');
 select app_private.test_phase7_dblink_connect(
   'phase7_c1',
-  'dbname=postgres host=host.docker.internal port=54322 user=postgres password=postgres'
+  current_setting('executor.test_dblink_connection')
 );
 select app_private.test_phase7_dblink_connect(
   'phase7_c2',
-  'dbname=postgres host=host.docker.internal port=54322 user=postgres password=postgres'
+  current_setting('executor.test_dblink_connection')
 );
 
 insert into public.energy_ledger_entries (

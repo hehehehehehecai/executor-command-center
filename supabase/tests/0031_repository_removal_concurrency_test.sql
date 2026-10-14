@@ -140,11 +140,11 @@ alter function app_private.test_phase6_dblink_connect(text, text) owner to postg
 
 select app_private.test_phase6_dblink_connect(
   'phase6_removal_c1',
-  'dbname=postgres host=host.docker.internal port=54322 user=postgres password=postgres'
+  current_setting('executor.test_dblink_connection')
 );
 select app_private.test_phase6_dblink_connect(
   'phase6_removal_c2',
-  'dbname=postgres host=host.docker.internal port=54322 user=postgres password=postgres'
+  current_setting('executor.test_dblink_connection')
 );
 
 select is(

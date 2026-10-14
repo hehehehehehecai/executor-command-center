@@ -1,3 +1,4 @@
+import { readIsolatedStatus, verifiedContainerName } from "../../../scripts/isolated-test-target.mjs";
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
@@ -12,21 +13,9 @@ type LocalSupabaseConfiguration = {
 };
 
 const projectRoot = path.resolve(__dirname, "..", "..", "..");
-const supabaseCliPath = path.join(
-  projectRoot,
-  "node_modules",
-  "supabase",
-  "dist",
-  "supabase.js",
-);
-const databaseContainerName = "supabase_db_executor-command-center";
 
 function readLocalSupabaseConfiguration(): LocalSupabaseConfiguration {
-  const result = spawnSync(
-    process.execPath,
-    [supabaseCliPath, "status", "--output", "env"],
-    { cwd: projectRoot, encoding: "utf8", env: process.env },
-  );
+  const result = readIsolatedStatus();
   const values = Object.fromEntries(
     result.stdout
       .split(/\r?\n/)
@@ -50,7 +39,7 @@ function executeLocalSql(sql: string) {
     "docker",
     [
       "exec",
-      databaseContainerName,
+      verifiedContainerName(),
       "psql",
       "-U",
       "postgres",

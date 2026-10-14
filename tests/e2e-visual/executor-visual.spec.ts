@@ -7,12 +7,12 @@ import { chromium, expect, test, type Page } from "@playwright/test";
 // These cases catch missing, clipped, displaced or restyled real page content.
 // Baselines are reviewed separately; matching pixels never grants art approval.
 const pages = [
-  { id: "command-deck", route: "/", heading: "EXECUTOR", content: "Helios Archive" },
-  { id: "project-galaxy", route: "/project-galaxy", heading: "Project Galaxy", content: "Aurora Cartography" },
-  { id: "flight-log", route: "/flight-log", heading: "Flight Log", content: "Flight Log 时间线" },
-  { id: "mission-control", route: "/mission-control", heading: "Mission Control", content: "已记录任务" },
-  { id: "decision-archive", route: "/decision-archive", heading: "Decision Archive", content: "Candidate" },
-  { id: "copilot", route: "/copilot", heading: "Copilot Workspace", content: "项目简报" },
+  { id: "command-deck", route: "/?mode=preview", heading: "EXECUTOR", content: "Helios Archive" },
+  { id: "project-galaxy", route: "/project-galaxy?mode=preview", heading: "Project Galaxy", content: "Aurora Cartography" },
+  { id: "flight-log", route: "/flight-log?mode=preview", heading: "Flight Log", content: "Flight Log 时间线" },
+  { id: "mission-control", route: "/mission-control?mode=preview", heading: "Mission Control", content: "已记录任务" },
+  { id: "decision-archive", route: "/decision-archive?mode=preview", heading: "Decision Archive", content: "Candidate" },
+  { id: "copilot", route: "/copilot?mode=preview", heading: "Copilot Workspace", content: "项目简报" },
 ] as const;
 
 const viewports = [
@@ -109,7 +109,7 @@ for (const viewport of viewports) {
           else await expect(page.getByRole("navigation", { name: "桌面主导航" })).toBeVisible();
         } else {
           await expect(page.locator('[data-panel-mode="preview"]')).toContainText("完全虚构");
-          await expect(page.getByRole("link", { name: "返回 Command Deck", exact: true })).toHaveAttribute("href", "/");
+          await expect(page.getByRole("link", { name: "返回 Command Deck", exact: true })).toHaveAttribute("href", "/?mode=preview");
         }
         await page.waitForLoadState("networkidle");
         await page.evaluate(async () => {

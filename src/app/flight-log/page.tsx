@@ -1,4 +1,6 @@
-import { flightLogPreviewFixture, loadFlightLogPreviewFixture } from "@/content/demo-data/flight-log-preview-fixture";
+import { readWorkspaceEntry } from "@/infrastructure/workspace/workspace-entry";
+import { WorkspaceEntryStatus, WorkspacePanelFrame } from "@/features/command-deck/workspace-entry-frame";
+import { workspaceHref } from "@/shared/workspace-navigation";
 import { createFlightLogProductionConnectedPort } from "@/app/connected-panel-dependencies";
 import {
   FlightLogPanel,
@@ -11,9 +13,6 @@ import {
   type FlightLogFilterSelection,
   type FlightLogTimeRange,
 } from "@/features/flight-log";
-import { parsePanelMode, type PanelMode } from "@/shared/panel-query";
-import { AccessibleStatusShell } from "@/shared/status-shell/AccessibleStatusShell";
-import { readConnectedPanelFixtureAccess } from "@/testing/connected-panels/connected-panel-fixture-session";
 
 export const dynamic = "force-dynamic";
 
@@ -21,20 +20,11 @@ type FlightLogSearchParams = {
   readonly apply?: string | string[];
   readonly mode?: string | string[];
   readonly project?: string | string[];
+  readonly projectId?: string | string[];
   readonly range?: string | string[];
   readonly type?: string | string[];
 };
 
-function requestedMode(value: string | string[] | undefined): PanelMode | "invalid" {
-  if (value === undefined) return "preview";
-  if (typeof value !== "string") return "invalid";
-
-  try {
-    return parsePanelMode(value);
-  } catch {
-    return "invalid";
-  }
-}
 
 function values(value: string | string[] | undefined) {
   if (value === undefined) return [];
@@ -76,41 +66,27 @@ function requestedFilters(
   };
 }
 
-function statusShell(message: string) {
-  return (
-    <AccessibleStatusShell
-      kicker="Flight Log · 航行日志"
-      title="Flight Log"
-      state="failed"
-      reason={message}
-      nextStep="返回 Command Deck 检查筛选条件，或稍后重新读取。"
-    />
-  );
-}
 
 export default async function FlightLogPage(input: {
   readonly searchParams: Promise<FlightLogSearchParams>;
   readonly connectedPort?: FlightLogConnectedPort;
   readonly now?: () => string;
 }) {
-  const searchParams = await input.searchParams;
-  const mode = requestedMode(searchParams.mode);
-
-  if (mode === "invalid") {
-    return statusShell("面板模式无效。");
-  }
-
-  const fixtureAccess =
-    mode === "connected"
-      ? await readConnectedPanelFixtureAccess()
-      : ({ kind: "disabled" } as const);
-  const fixtureSession =
-    fixtureAccess.kind === "authorized" ? fixtureAccess.session : null;
+  const parameters = await input.searchParams;
+  const context = await readWorkspaceEntry("flight-log", parameters);
+  const { entry, fixtureSession } = context;
+  if (entry.kind !== "ready" && entry.kind !== "preview") return <WorkspaceEntryStatus context={context} />;
+  const mode = entry.kind === "preview" ? "preview" : "connected";
+  const projectId = entry.kind === "ready" ? entry.project.id : null;
+  const searchParams = mode === "connected" ? { ...parameters, project: projectId ?? undefined } : parameters;
+  const previewFixture = mode === "preview" ? await import("@/content/demo-data/flight-log-preview-fixture") : null;
+  const returnHref = workspaceHref("home", { projectId, mode: mode === "preview" ? "preview" : undefined });
+  const statusShell = (message: string) => <WorkspaceEntryStatus context={{ ...context, entry: { ...entry, kind: "unavailable", reason: message } }} />;
   const now =
     input.now?.() ??
     fixtureSession?.now ??
     (mode === "preview"
-      ? flightLogPreviewFixture.now
+      ? previewFixture!.flightLogPreviewFixture.now
       : new Date().toISOString());
   const filters = requestedFilters(searchParams, now);
 
@@ -120,13 +96,13 @@ export default async function FlightLogPage(input: {
 
   const result = await Promise.resolve()
     .then(async () => mode === "preview"
-      ? createFlightLogPreviewQuery(loadFlightLogPreviewFixture, filters)
+      ? createFlightLogPreviewQuery(previewFixture!.loadFlightLogPreviewFixture, filters)
       : createFlightLogConnectedQuery(
           input.connectedPort ??
             (fixtureSession
               ? { load: async () => fixtureSession.flightLog }
               : await createFlightLogProductionConnectedPort(
-                  values(searchParams.project)[0] ?? null,
+                  projectId,
                 )),
           filters,
         ))
@@ -142,5 +118,5 @@ export default async function FlightLogPage(input: {
     );
   }
 
-  return <FlightLogPanel viewModel={result.viewModel} />;
+  return <WorkspacePanelFrame context={context}><FlightLogPanel viewModel={result.viewModel} projectId={projectId} returnHref={returnHref} /></WorkspacePanelFrame>;
 }

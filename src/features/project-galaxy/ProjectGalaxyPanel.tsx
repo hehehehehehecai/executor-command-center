@@ -1,3 +1,4 @@
+import { ConnectedReadNote } from "@/shared/connected-read-note";
 import Link from "next/link";
 
 import type { ProjectStatus } from "@/domain/project-calibration/project-calibration";
@@ -17,7 +18,7 @@ const statusLabels = {
 } as const satisfies Readonly<Record<ProjectStatus, string>>;
 
 function statusLabel(status: ProjectStatus | null) {
-  return status === null ? "尚未提供" : statusLabels[status];
+  return status === null ? "未确认" : statusLabels[status];
 }
 
 function formatUtc(value: string) {
@@ -31,10 +32,11 @@ function formatUtc(value: string) {
 }
 
 export interface ProjectGalaxyPanelProps {
+  readonly returnHref?: string;
   readonly viewModel: ProjectGalaxyViewModel;
 }
 
-export function ProjectGalaxyPanel({ viewModel }: ProjectGalaxyPanelProps) {
+export function ProjectGalaxyPanel({ viewModel, returnHref = "/" }: ProjectGalaxyPanelProps) {
   return (
     <div
       className={styles.shell}
@@ -56,6 +58,7 @@ export function ProjectGalaxyPanel({ viewModel }: ProjectGalaxyPanelProps) {
           provenanceLabel={viewModel.provenanceLabel}
         />
       </header>
+      {viewModel.mode === "connected" ? <ConnectedReadNote state={viewModel.readState} /> : null}
 
       <section className={styles.identity} aria-label="项目身份">
         <div>
@@ -122,7 +125,7 @@ export function ProjectGalaxyPanel({ viewModel }: ProjectGalaxyPanelProps) {
           aria-labelledby="project-core-goal-title"
         >
           <h2 id="project-core-goal-title">核心目标</h2>
-          <p>{viewModel.coreGoal ?? "尚未记录核心目标"}</p>
+          <p>{viewModel.coreGoal ?? "核心目标未确认"}</p>
         </section>
 
         <section
@@ -130,7 +133,7 @@ export function ProjectGalaxyPanel({ viewModel }: ProjectGalaxyPanelProps) {
           aria-labelledby="project-stage-goal-title"
         >
           <h2 id="project-stage-goal-title">当前阶段目标</h2>
-          <p>{viewModel.currentStageGoal ?? "尚未记录当前阶段目标"}</p>
+          <p>{viewModel.currentStageGoal ?? "当前阶段目标未确认"}</p>
         </section>
 
         <section
@@ -197,7 +200,7 @@ export function ProjectGalaxyPanel({ viewModel }: ProjectGalaxyPanelProps) {
       )}
 
       <footer className={styles.footer}>
-        <Link href="/">返回 Command Deck</Link>
+        <Link href={returnHref}>返回 Command Deck</Link>
       </footer>
     </div>
   );

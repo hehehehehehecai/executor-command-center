@@ -101,11 +101,11 @@ owner to postgres;
 
 select app_private.test_phase6_1_dblink_connect(
   'phase6_1_race_c1',
-  'dbname=postgres host=host.docker.internal port=54322 user=postgres password=postgres'
+  current_setting('executor.test_dblink_connection')
 );
 select app_private.test_phase6_1_dblink_connect(
   'phase6_1_race_c2',
-  'dbname=postgres host=host.docker.internal port=54322 user=postgres password=postgres'
+  current_setting('executor.test_dblink_connection')
 );
 
 select is(

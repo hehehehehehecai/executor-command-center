@@ -1,3 +1,4 @@
+import { openOnboardingSection } from "../onboarding-ui-fixture-actions";
 import { expect, test } from "@playwright/test";
 
 test("loads authorized repositories with one opaque token and immediate revocation", async ({
@@ -27,6 +28,8 @@ test("loads authorized repositories with one opaque token and immediate revocati
   await page.goto("/");
   await page.getByRole("link", { name: "使用 GitHub 登录" }).click();
   await expect(page).toHaveURL("http://127.0.0.1:3003/onboarding");
+  await openOnboardingSection(page, "接入诊断");
+  await openOnboardingSection(page, "仓库诊断");
   await expect(page.getByText("active", { exact: true })).toBeVisible();
   await expect(page.getByText("not_loaded", { exact: true })).toBeVisible();
 
@@ -68,7 +71,11 @@ test("loads authorized repositories with one opaque token and immediate revocati
     "http://127.0.0.1:54333/__fixture/state",
   );
   expect(fixtureStateResponse.ok()).toBe(true);
-  expect(await fixtureStateResponse.json()).toEqual({
+  const fixtureState = await fixtureStateResponse.json();
+  // Workspace restoration adds read-only installation queries. The repository
+  // action must still perform exactly one additional installation lookup.
+  expect(fixtureState.workspace_query_calls).toBeGreaterThan(0);
+  expect(fixtureState).toEqual({
     fixture_id: "active_private_repository",
     fixture_version: "1.0.0",
     source_type: "synthetic",
@@ -77,7 +84,8 @@ test("loads authorized repositories with one opaque token and immediate revocati
     real_private_key_used: false,
     real_app_jwt_used: false,
     real_installation_token_used: false,
-    installation_query_calls: 2,
+    installation_query_calls: fixtureState.workspace_query_calls + 1,
+    workspace_query_calls: expect.any(Number),
     token_create_calls: 1,
     repository_page_calls: 1,
     token_revoke_calls: 1,

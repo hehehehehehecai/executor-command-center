@@ -2,12 +2,14 @@ export const defaultAuthSuccessRedirect = "/onboarding";
 export const defaultAuthErrorRedirect = "/auth/error";
 
 function isUnsafePath(value: string) {
-  return (
+  if (
     !value.startsWith("/") ||
     value.startsWith("//") ||
     value.includes("\\") ||
     /[\u0000-\u001f\u007f]/.test(value)
-  );
+  ) return true;
+  const normalized = new URL(value, "https://return-to.invalid");
+  return normalized.origin !== "https://return-to.invalid" || normalized.pathname.startsWith("//");
 }
 
 export function safeReturnTo(value: string | null | undefined) {
@@ -18,15 +20,17 @@ export function safeReturnTo(value: string | null | undefined) {
   let decoded = value;
 
   try {
-    for (let depth = 0; depth < 2; depth += 1) {
+    for (let depth = 0; depth < 16; depth += 1) {
       const next = decodeURIComponent(decoded);
 
-      if (next === decoded) break;
+      if (isUnsafePath(next)) return defaultAuthSuccessRedirect;
+      if (next === decoded) return value;
       decoded = next;
     }
   } catch {
     return defaultAuthSuccessRedirect;
   }
 
-  return isUnsafePath(decoded) ? defaultAuthSuccessRedirect : value;
+  // An input still changing after this bound has not been fully validated.
+  return defaultAuthSuccessRedirect;
 }

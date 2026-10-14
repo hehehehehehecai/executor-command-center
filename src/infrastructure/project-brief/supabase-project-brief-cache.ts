@@ -19,7 +19,7 @@ type QueryResult = { readonly data: unknown; readonly error: unknown };
 type CacheQuery = {
   match(values: Readonly<Record<string, unknown>>): CacheQuery;
   gt(column: "expires_at", value: string): CacheQuery;
-  order(column: "expires_at", options: { readonly ascending: false }): CacheQuery;
+  order(column: "expires_at" | "completed_at" | "id", options: { readonly ascending: false }): CacheQuery;
   limit(count: 1): CacheQuery;
   maybeSingle(): PromiseLike<QueryResult>;
 };
@@ -86,6 +86,8 @@ export class SupabaseProjectBriefCache implements ProjectBriefCache {
         status: "completed",
       }).gt("expires_at", key.now)
         .order("expires_at", { ascending: false })
+        .order("completed_at", { ascending: false })
+        .order("id", { ascending: false })
         .limit(1)
         .maybeSingle();
     } catch (error) {

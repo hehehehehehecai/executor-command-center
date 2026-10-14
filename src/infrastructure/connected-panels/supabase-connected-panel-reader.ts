@@ -2,6 +2,7 @@ import "server-only";
 
 import { projectStatuses, type ProjectStatus } from "@/domain/project-calibration/project-calibration";
 import { z } from "zod";
+import { confirmedProjectGoalSchema } from "@/domain/project-calibration/project-calibration-read";
 
 export const connectedPanelReaderContract = "connected-panel-reader.v1" as const;
 
@@ -41,15 +42,23 @@ export interface ConnectedPanelBrief {
 }
 
 export interface ConnectedPanelData {
+  readonly readContext?: {
+    readonly userId: string;
+    readonly projectId: string;
+    readonly repositoryId: string;
+    readonly installationId: string;
+    readonly installationStatus: "active" | "suspended" | "revoked";
+    readonly maximumRowsPerSource: 100;
+  };
   readonly project: {
     readonly id: string;
     readonly name: string;
     readonly repositoryFullName: string;
     readonly repositoryVisibility: "public" | "private" | "internal";
     readonly defaultBranch: string;
-    readonly status: ProjectStatus;
-    readonly coreGoal: string;
-    readonly currentStageGoal: string;
+    readonly status: ProjectStatus | null;
+    readonly coreGoal: string | null;
+    readonly currentStageGoal: string | null;
     readonly currentBlocker: string | null;
     readonly updatedAt: string;
   };
@@ -61,7 +70,7 @@ export interface ConnectedPanelData {
 type QueryResult = { readonly data: unknown; readonly error: unknown };
 type FilterQuery = {
   eq(column: string, value: unknown): FilterQuery;
-  neq(column: string, value: unknown): FilterQuery;
+  or(filters: string): FilterQuery;
   order(column: string, options: { readonly ascending: boolean }): FilterQuery;
   limit(value: number): FilterQuery & PromiseLike<QueryResult>;
 } & PromiseLike<QueryResult>;
@@ -79,9 +88,9 @@ const nullableText = z.string().nullable();
 const projectRows = z.array(z.object({
   id: uuid,
   user_id: uuid,
-  core_goal: nonempty,
-  current_stage_goal: nonempty,
-  status: z.enum(projectStatuses),
+  core_goal: confirmedProjectGoalSchema.nullable(),
+  current_stage_goal: confirmedProjectGoalSchema.nullable(),
+  status: z.enum(projectStatuses).nullable(),
   current_blocker: nullableText,
   updated_at: timestamp,
   selected_repositories: z.object({
@@ -218,7 +227,7 @@ function projectQuery(
 ) {
   let query = client.from("projects").select(
     "id,user_id,core_goal,current_stage_goal,status,current_blocker,updated_at,selected_repositories!inner(id,user_id,full_name,owner_login,name,visibility,default_branch,github_installations!inner(id,user_id,installation_id,status))",
-  ).eq("user_id", userId).neq("status", "archived");
+  ).eq("user_id", userId).or("status.neq.archived,status.is.null");
   if (projectId !== null) query = query.eq("id", projectId);
   return query.order("updated_at", { ascending: false }).limit(1);
 }
@@ -256,7 +265,8 @@ export class SupabaseConnectedPanelReader {
     if (!project) return null;
     const repository = project.selected_repositories;
     const installation = repository.github_installations;
-    if (project.user_id !== input.userId || repository.user_id !== input.userId ||
+    if ((input.projectId !== null && project.id !== input.projectId) ||
+        project.user_id !== input.userId || repository.user_id !== input.userId ||
         installation.user_id !== input.userId) {
       throw safeFailure();
     }
@@ -280,7 +290,19 @@ export class SupabaseConnectedPanelReader {
     const syncRuns = parse(syncRows, syncData);
     const briefs = parse(briefRows, briefData);
 
+    for (const rows of [commits, issues, pullRequests, releases, workflowRuns, syncRuns, briefs]) {
+      if (rows.some(row => row.project_id !== project.id)) throw safeFailure();
+    }
+
     return {
+      readContext: {
+        userId: input.userId,
+        projectId: project.id,
+        repositoryId: repository.id,
+        installationId: installation.id,
+        installationStatus: installation.status,
+        maximumRowsPerSource: 100,
+      },
       project: {
         id: project.id,
         name: repository.name,

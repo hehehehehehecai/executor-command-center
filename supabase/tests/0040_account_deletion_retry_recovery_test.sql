@@ -55,7 +55,7 @@ select is((select recovery_generation from public.account_deletion_operations wh
 
 create function app_private.test_phase31_recovery_connect(p_name text)
 returns text language sql security definer set search_path=''
-as $$select extensions.dblink_connect(p_name,'dbname=postgres host=host.docker.internal port=54322 user=postgres password=postgres')$$;
+as $$select extensions.dblink_connect(p_name,current_setting('executor.test_dblink_connection'))$$;
 select app_private.test_phase31_recovery_connect('phase31_recovery_a');
 select app_private.test_phase31_recovery_connect('phase31_recovery_b');
 select extensions.dblink_exec('phase31_recovery_a','begin');

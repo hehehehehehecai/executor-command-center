@@ -28,6 +28,18 @@ function request(body: unknown, headers: Record<string, string> = {
 }
 
 describe("first-sync-http.v1", () => {
+  it.each(["GET", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"])("T04 rejects %s without starting a job", async method => {
+    const execute = vi.fn(async () => receipt);
+    const response = await handleFirstSyncRequest({ request: new Request(`https://executor.example.test/api/projects/${projectId}/first-sync`, { method, headers: { origin: "https://executor.example.test", "content-type": "application/json" }, ...(["GET", "HEAD"].includes(method) ? {} : { body: JSON.stringify({ requestId: "join" }) }) }), appOrigin: "https://executor.example.test", projectId, execute });
+    expect(response.status).toBe(405);
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    expect(execute).not.toHaveBeenCalled();
+  });
+  it("T04 rejects a cross-site request even with a matching Origin", async () => {
+    const execute = vi.fn(async () => receipt);
+    const response = await handleFirstSyncRequest({ request: request({ requestId: "join" }, { origin: "https://executor.example.test", "content-type": "application/json", "sec-fetch-site": "cross-site" }), appOrigin: "https://executor.example.test", projectId, execute });
+    expect(response.status).toBe(403); expect(execute).not.toHaveBeenCalled();
+  });
   it.each([
     ["missing Origin", { "content-type": "application/json" }, { requestId: "request-001" }, 403],
     ["foreign Origin", { origin: "https://attacker.example.test", "content-type": "application/json" }, { requestId: "request-001" }, 403],

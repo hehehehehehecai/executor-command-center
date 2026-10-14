@@ -13,15 +13,17 @@ import type {
 import {
   projectBriefActivePromptVersion,
   projectBriefEvidenceRefContractVersion,
-  projectBriefSchemaVersion,
+  projectBriefActiveSchemaVersion as projectBriefSchemaVersion,
 } from "@/domain/project-brief/project-brief-contract";
 import {
   parseProjectBrief,
   ProjectBriefSchemaError,
 } from "@/domain/project-brief/project-brief-schema";
 import { buildProjectBriefGenerationPrompt } from "@/domain/project-brief/project-brief-prompt";
+import { briefMatchesProjectBackground } from "@/domain/project-brief/project-background-brief";
 import type { AIProvider } from "@/shared/ai/ai-provider";
 import { createStructuredGenerationRequest } from "@/shared/ai/structured-generation-request";
+import { writeSafeSecurityWarning } from "@/shared/security/safe-log-redaction";
 import {
   createStructuredGenerationMetadata,
   type StructuredGenerationMetadata,
@@ -37,13 +39,13 @@ import type {
 } from "./project-brief-generation-ports";
 
 export const projectBriefGenerationContractVersion =
-  "project-brief-generation.v1" as const;
-export const projectBriefCacheContractVersion = "project-brief-cache.v1" as const;
+  "project-brief-generation.v2" as const;
+export const projectBriefCacheContractVersion = "project-brief-cache.v2" as const;
 export const projectBriefGenerationPersistenceContractVersion =
-  "project-brief-generation-persistence.v2" as const;
+  "project-brief-generation-persistence.v3" as const;
 export const projectBriefEnergyCost = 3 as const;
 export const projectBriefCacheTtlMs = 86_400_000 as const;
-export const projectBriefGenerationSchemaName = "ProjectBriefV2" as const;
+export const projectBriefGenerationSchemaName = "ProjectBriefV3" as const;
 export const projectBriefGenerationMaxOutputTokens = 8_192 as const;
 
 export const projectBriefGenerationFailureStages = [
@@ -255,6 +257,7 @@ function briefMatchesArtifact(
     && brief.rangeEnd === input.rangeEnd
     && brief.promptVersion === projectBriefActivePromptVersion
     && brief.schemaVersion === projectBriefSchemaVersion
+    && briefMatchesProjectBackground(brief, artifact.snapshot)
     && brief.evidenceFingerprint === artifact.fingerprint;
 }
 
@@ -270,6 +273,7 @@ function briefMatchesEquivalentArtifact(
     || brief.rangeEnd !== input.rangeEnd
     || brief.promptVersion !== projectBriefActivePromptVersion
     || brief.schemaVersion !== projectBriefSchemaVersion
+    || !briefMatchesProjectBackground(brief, artifact.snapshot)
     || brief.evidenceFingerprint !== record.evidenceFingerprint
     || record.cacheEquivalenceFingerprint !== artifact.cacheEquivalenceFingerprint
   ) return false;
@@ -562,6 +566,16 @@ export class GenerateProjectBriefUseCase {
     try {
       brief = parseProjectBrief(result.value);
     } catch (error) {
+      try {
+        writeSafeSecurityWarning({
+          event: "project_brief_validation_failed",
+          boundary: "schema_parse",
+          code: error instanceof ProjectBriefSchemaError ? error.code : "unknown_schema_error",
+          path: error instanceof ProjectBriefSchemaError ? error.path : null,
+        });
+      } catch {
+        // 诊断出口异常不得阻断原持久失败和退款。
+      }
       const code = error instanceof ProjectBriefSchemaError
         ? "project_brief_schema_validation_failed"
         : "project_brief_schema_validation_failed";
@@ -575,6 +589,20 @@ export class GenerateProjectBriefUseCase {
       );
     }
     if (!briefMatchesArtifact(brief, input, artifact)) {
+      try {
+        const fields = [
+          brief.projectId !== input.projectId ? "projectId" : null,
+          brief.rangeStart !== input.rangeStart ? "rangeStart" : null,
+          brief.rangeEnd !== input.rangeEnd ? "rangeEnd" : null,
+          brief.promptVersion !== projectBriefActivePromptVersion ? "promptVersion" : null,
+          brief.schemaVersion !== projectBriefSchemaVersion ? "schemaVersion" : null,
+          !briefMatchesProjectBackground(brief, artifact.snapshot) ? "projectBackground" : null,
+          brief.evidenceFingerprint !== artifact.fingerprint ? "evidenceFingerprint" : null,
+        ].filter((field): field is string => field !== null);
+        writeSafeSecurityWarning({ event: "project_brief_validation_failed", boundary: "artifact_binding", fields });
+      } catch {
+        // 只记录固定字段名；诊断异常仍走原持久失败和退款。
+      }
       return this.failAndThrow(
         reservationId,
         artifact.fingerprint,

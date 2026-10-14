@@ -110,13 +110,18 @@ export async function handleFirstSyncRequest(input: {
   readonly responseHeaders?: Headers;
   readonly onFailure?: (failure: FirstSyncSafeFailure) => void;
 }) {
+  if (input.request.method !== "POST") {
+    const headers = secureHeaders(input.responseHeaders);
+    headers.set("allow", "POST");
+    return Response.json({ result: "rejected", code: "first_sync_method_not_allowed", syncRunId: null, jobId: null }, { status: 405, headers });
+  }
   let origin: string;
   try {
     origin = canonicalOrigin(input.appOrigin);
   } catch (error) {
     return failureResponse({ ...input, error });
   }
-  if (input.request.headers.get("origin") !== origin) {
+  if (input.request.headers.get("origin") !== origin || ![null, "same-origin"].includes(input.request.headers.get("sec-fetch-site"))) {
     return json(
       { result: "rejected", code: "first_sync_origin_forbidden", syncRunId: null, jobId: null },
       403,

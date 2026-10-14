@@ -2,7 +2,8 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { FeatureId } from "@/shared/features/feature-definition";
 import { featureRegistry } from "@/shared/features/feature-registry";
-import { CommandDeckPage } from ".";
+import { CommandDeckPreviewPage as CommandDeckPage } from "./command-deck-preview-page";
+import { CommandDeckPage as AuthenticatedCommandDeckPage } from "./command-deck-page";
 
 const expectedPanelContent: Readonly<
   Record<FeatureId, { status: string; summary: string; detail: string }>
@@ -63,7 +64,7 @@ describe("CommandDeckPage", () => {
   });
 
   it("keeps an authenticated identity distinct from GitHub App authorization", () => {
-    render(<CommandDeckPage authenticated />);
+    render(<AuthenticatedCommandDeckPage workspace={{ status: "authenticated", userId: "11111111-1111-4111-8111-111111111111", identity: { status: "ready", data: { login: "fixture", avatarUrl: null } }, installation: { status: "ready", data: null }, projects: { status: "ready", data: [] } }} />);
 
     expect(screen.getByText("GitHub 身份已登录")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "查看 GitHub App 状态" }))
@@ -192,11 +193,11 @@ describe("CommandDeckPage", () => {
     const links = within(navigation).getAllByRole("link").slice(1);
 
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
-      "/project-galaxy",
-      "/flight-log",
-      "/mission-control",
-      "/decision-archive",
-      "/copilot",
+      "/project-galaxy?mode=preview",
+      "/flight-log?mode=preview",
+      "/mission-control?mode=preview",
+      "/decision-archive?mode=preview",
+      "/copilot?mode=preview",
     ]);
     expect(links.map((link) => link.getAttribute("aria-label"))).toEqual([
       "Project Galaxy 项目星图",
@@ -255,7 +256,7 @@ describe("CommandDeckPage", () => {
       name: `${firstFeature.title} ${firstFeature.subtitle}`,
     });
 
-    expect(firstFeatureLink).toHaveAttribute("href", firstFeature.route);
+    expect(firstFeatureLink).toHaveAttribute("href", `${firstFeature.route}?mode=preview`);
     firstFeatureLink.addEventListener("click", (event) => event.preventDefault(), {
       once: true,
     });
@@ -282,7 +283,7 @@ describe("CommandDeckPage", () => {
       expect(panelQueries.getByText(feature.subtitle)).toBeInTheDocument();
       expect(
         panelQueries.getByRole("link", { name: accessibleNames[index] }),
-      ).toHaveAttribute("href", feature.route);
+      ).toHaveAttribute("href", `${feature.route}?mode=preview`);
     }
 
     expect(new Set(accessibleNames).size).toBe(featureRegistry.length);

@@ -52,6 +52,7 @@ export interface ConnectedPanelFixtureAccessInput {
   readonly fixtureEnabled: string | undefined;
   readonly verifiedUserId: string | undefined;
   readonly projectId: string | undefined;
+  readonly scenario?: string;
 }
 
 function projectGalaxy(identity: ConnectedPanelFixtureIdentity): ProjectGalaxySource {
@@ -239,5 +240,36 @@ export function resolveConnectedPanelFixtureAccess(
     return { kind: "denied" };
   }
 
-  return { kind: "authorized", session: structuredClone(match) };
+  const result = structuredClone(match);
+  if (["unconfirmed", "legacy-v1", "legacy-v2"].includes(input.scenario ?? "")) {
+    const unconfirmed = input.scenario === "unconfirmed";
+    // Frozen render-only data uses the Feature's public source contract.
+    // Actual parsing, persistence, receipt and RLS are covered by local integration.
+    type FixtureBrief = Extract<NonNullable<CopilotWorkspaceSource["projectBrief"]>, { status: "ready" }>["brief"];
+    const profile = { contractVersion: "project-brief-evidence-source-ref.v1", sourceKind: "project_profile", sourceId: result.projectId, projectId: result.projectId } as const;
+    const activity = { ...profile, sourceKind: "github_issue", sourceId: "fixture-issue" } as const;
+    const freshness = { ...profile, sourceKind: "freshness", sourceId: "fixture-sync" } as const;
+    const brief: FixtureBrief = {
+      promptVersion: unconfirmed ? "project-brief-v3" : input.scenario === "legacy-v1" ? "project-brief-v1" : "project-brief-v2",
+      schemaVersion: unconfirmed ? "project-brief-schema-v2" : "project-brief-schema-v1",
+      projectId: result.projectId, evidenceFingerprint: "a".repeat(64),
+      rangeStart: "2026-08-16T00:00:00.000Z", rangeEnd: "2026-08-17T00:00:00.000Z",
+      officialStatus: { value: unconfirmed ? null : "in_development", evidenceRefs: [profile] },
+      summary: { text: unconfirmed ? '仓库记录（github_issue，摘录）："虚构项目已完成导航基线，并在验证离线简报流程。"。该记录不代表用户确认项目背景。' : "虚构项目已完成导航基线，并在验证离线简报流程。", evidenceRefs: [activity] },
+      completedChanges: [], ongoingWork: [], openItems: [], riskSignals: [],
+      unknowns: unconfirmed ? [
+        { id: "unconfirmed-core-goal", text: "核心目标未确认", missingEvidence: ["用户确认的核心目标"] },
+        { id: "unconfirmed-current-stage-goal", text: "当前阶段目标未确认", missingEvidence: ["用户确认的当前阶段目标"] },
+        { id: "unconfirmed-status", text: "正式状态未确认", missingEvidence: ["用户确认的正式状态"] },
+      ] : [],
+      evidenceRefs: [profile, activity, freshness],
+      freshness: { status: "fresh", evaluatedAt: "2026-08-17T12:00:00.000Z", lastSuccessfulAt: "2026-08-17T11:00:00.000Z", coverageComplete: true, evidenceRefs: [freshness] },
+      boundaryNote: "This brief summarizes only the bounded Evidence Snapshot. It does not recommend actions, infer motives, validate evidence references, or authorize user visibility.",
+    };
+    return { kind: "authorized", session: { ...result,
+      projectGalaxy: unconfirmed ? { ...result.projectGalaxy, coreGoal: null, currentStageGoal: null, officialStatus: null } : result.projectGalaxy,
+      copilot: { ...result.copilot, projectBrief: { status: "ready", briefId: "a5050000-0000-4000-8000-000000000005", brief } },
+    } };
+  }
+  return { kind: "authorized", session: result };
 }

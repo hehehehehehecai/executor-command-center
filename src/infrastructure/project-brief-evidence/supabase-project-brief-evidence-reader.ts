@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { ProjectBriefEvidenceSourceReader } from "@/application/project-brief-evidence/project-brief-evidence-ports";
-import { projectCalibrationContract } from "@/domain/project-calibration/project-calibration";
+import { projectBackgroundSchema, projectCalibrationReadContract } from "@/domain/project-calibration/project-calibration-read";
 import type {
   ProjectBriefEvidenceSourceData,
   RawGitHubActivitySource,
@@ -9,7 +9,7 @@ import type {
 import { z } from "zod";
 
 export const projectBriefEvidenceReaderContract =
-  "project-brief-evidence-reader.v1" as const;
+  "project-brief-evidence-reader.v2" as const;
 
 type QueryResult = { readonly data: unknown; readonly error: unknown };
 type FilterQuery = {
@@ -41,9 +41,9 @@ const projectRows = z.array(z.object({
   id: uuid,
   user_id: uuid,
   selected_repository_id: uuid,
-  core_goal: nonempty,
-  current_stage_goal: nonempty,
-  status: nonempty,
+  core_goal: projectBackgroundSchema.shape.coreGoal,
+  current_stage_goal: projectBackgroundSchema.shape.currentStageGoal,
+  status: projectBackgroundSchema.shape.status,
   current_blocker: optionalText,
   updated_at: timestamp,
 }).strict()).max(1);
@@ -208,7 +208,7 @@ implements ProjectBriefEvidenceSourceReader {
         projectId: project.id,
         sourceId: project.id,
         sourceUpdatedAt: project.updated_at,
-        sourceVersion: projectCalibrationContract,
+        sourceVersion: projectCalibrationReadContract,
         coreGoal: project.core_goal,
         currentStageGoal: project.current_stage_goal,
         status: project.status,

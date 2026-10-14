@@ -1,5 +1,18 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { render } from "@/test/async-workspace-render";
+import { installWorkspaceEntryTransport } from "@/test/workspace-entry-transport";
+
+vi.mock("@supabase/ssr", async () => ({
+  createServerClient: (await import("@/test/workspace-entry-transport")).workspaceEntryClient,
+}));
+vi.mock("next/headers", async () => ({
+  cookies: async () => (await import("@/test/workspace-entry-transport")).workspaceEntryCookies(),
+}));
+
+beforeEach(() => installWorkspaceEntryTransport());
+afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
+
 
 import type {
   FlightLogConnectedPort,
@@ -64,7 +77,7 @@ function parameters(
     readonly project?: string | string[];
     readonly range?: string | string[];
     readonly type?: string | string[];
-  } = {},
+  } = { mode: "preview" },
 ) {
   return Promise.resolve(values);
 }
@@ -82,7 +95,7 @@ afterEach(() => {
 
 describe("/flight-log Preview / Connected composition", () => {
   it("loads the fictional Preview by default", async () => {
-    render(
+    await render(
       await FlightLogPage({ searchParams: parameters(), now: () => now }),
     );
 
@@ -93,7 +106,7 @@ describe("/flight-log Preview / Connected composition", () => {
   });
 
   it("applies exact type and inclusive time filters from search params", async () => {
-    render(
+    await render(
       await FlightLogPage({
         searchParams: parameters({
           apply: "1",
@@ -116,7 +129,7 @@ describe("/flight-log Preview / Connected composition", () => {
       load: vi.fn(async () => source("Connected stub")),
     };
 
-    render(
+    await render(
       await FlightLogPage({
         searchParams: parameters({ mode: "connected" }),
         connectedPort,
@@ -136,7 +149,7 @@ describe("/flight-log Preview / Connected composition", () => {
       lastSuccessfulAt: null,
       events: [],
     });
-    render(
+    await render(
       await FlightLogPage({
         searchParams: parameters({ mode: "connected", project: "22222222-2222-4222-8222-222222222222" }),
         now: () => now,
@@ -150,30 +163,30 @@ describe("/flight-log Preview / Connected composition", () => {
   });
 
   it("fails an unavailable Connected mode closed without Demo fallback", async () => {
-    render(
+    await render(
       await FlightLogPage({
         searchParams: parameters({ mode: "connected" }),
         now: () => now,
       }),
     );
 
-    expect(screen.getByText("Connected 数据暂时不可用。")).toBeVisible();
+    expect(screen.getByRole("alert")).toHaveTextContent(/^原因：Connected 数据暂时不可用。$/);
     expect(screen.queryByText("演示数据 · 完全虚构")).not.toBeInTheDocument();
     expect(mocks.previewLoad).not.toHaveBeenCalled();
   });
 
   it("rejects invalid mode or filters before reading either source", async () => {
-    const { rerender } = render(
+    const { rerender } = await render(
       await FlightLogPage({
         searchParams: parameters({ mode: "demo" }),
         now: () => now,
       }),
     );
 
-    expect(screen.getByText("面板模式无效。")).toBeVisible();
+    expect(screen.getByRole("alert")).toHaveTextContent(/^原因：面板模式无效。$/);
     expect(mocks.previewLoad).not.toHaveBeenCalled();
 
-    rerender(
+    await rerender(
       await FlightLogPage({
         searchParams: parameters({
           apply: "1",
@@ -185,7 +198,7 @@ describe("/flight-log Preview / Connected composition", () => {
       }),
     );
 
-    expect(screen.getByText("筛选条件无效。")).toBeVisible();
+    expect(screen.getByRole("alert")).toHaveTextContent(/^原因：筛选条件无效。$/);
     expect(mocks.previewLoad).not.toHaveBeenCalled();
   });
 });

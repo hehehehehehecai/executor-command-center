@@ -1,0 +1,12 @@
+.shell { max-width: 760px; overflow-wrap: anywhere; }
+.shell h2 { margin-top: 1.25rem; }
+.shell details { margin: 1rem 0; }
+.shell summary { min-height: 44px; padding: .65rem 0; cursor: pointer; }
+.shell :global(.onboarding-project-entry) { padding: 1.25rem; border: 1px solid var(--color-border, #62748a); border-radius: .75rem; }
+.shell :global(.onboarding-project-entry) label { display: grid; gap: .6rem; margin: 1rem 0; }
+.shell select { width: 100%; min-height: 44px; color: inherit; background: var(--color-surface, #152333); border: 1px solid currentColor; border-radius: .4rem; padding: .6rem; }
+.shell [data-onboarding-primary="true"], .shell :global(#repositories) [data-onboarding-primary="true"] { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; max-width: 100%; padding: .75rem 1.25rem; margin: .5rem 0; border: 2px solid var(--color-accent, #82d6ff); border-radius: .6rem; background: #16364b; color: #f4fbff; font-weight: 700; text-decoration: none; }
+.shell :is(a, button, select, summary):focus-visible { outline: 3px solid #b5e7ff; outline-offset: 4px; }
+.shell [role="alert"] { border-inline-start: 3px solid #e8a678; padding-inline-start: .75rem; }
+.shell :global(.auth-state-list) { font-size: .85rem; }
+@media (max-width: 600px) { .shell { padding: 1rem; } .shell :global(.onboarding-project-entry) { padding: 1rem; } .shell [data-onboarding-primary="true"] { width: 100%; } }

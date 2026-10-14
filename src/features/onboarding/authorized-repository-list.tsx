@@ -1,4 +1,7 @@
 "use client";
+import Link from "next/link";
+import { workspaceHref } from "@/shared/workspace-navigation";
+import { FirstSyncStatusPanel, readProjectSyncStatus, requestFirstSync } from "@/features/project-galaxy";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
@@ -7,7 +10,7 @@ import type {
   AuthorizedGitHubRepository,
   AuthorizedRepositoryList,
 } from "@/domain/github-repository/authorized-github-repository";
-import { projectStatuses } from "@/domain/project-calibration/project-calibration";
+import { hasUnconfirmedProjectBackground, projectCalibrationReadSchema } from "@/domain/project-calibration/project-calibration-read";
 import type { SelectedGitHubRepository } from "@/domain/selected-repository/selected-github-repository";
 import {
   projectCalibrationSavedEvent,
@@ -44,7 +47,8 @@ type DeselectionMutationState = "removing" | "failed";
 type ProjectSummaryState =
   | { readonly kind: "loading" }
   | { readonly kind: "failed" }
-  | { readonly kind: "loaded"; readonly projectCount: number };
+  | { readonly kind: "loaded"; readonly projectCount: number; readonly repositoryIds: readonly number[]; readonly unconfirmedRepositoryIds: readonly number[]; readonly projects: z.infer<typeof projectSummaryListSchema>["projects"] };
+type HandoffState = { readonly phase: "working" | "ready" | "failed"; readonly projectId: string | null; readonly message: string | null };
 
 const authorizedRepositorySchema = z
   .object({
@@ -77,6 +81,17 @@ const authorizedRepositoryListSchema = z
       });
     }
   });
+
+const creationResponseSchema = z.object({
+  project: z.object({
+    contractVersion: z.literal("project-context.v1"),
+    id: z.string().uuid(),
+    selectedRepositoryId: z.string().uuid(),
+    context: projectCalibrationReadSchema.pick({ coreGoal: true, currentStageGoal: true, status: true, currentBlocker: true }),
+    completeness: z.object({ complete: z.boolean(), missingFields: z.array(z.string()) }).strict(),
+    syncPreparation: z.object({ state: z.enum(["ready", "blocked"]), requested: z.literal(false) }).strict(),
+  }).strict(),
+}).strict();
 
 const selectedRepositorySchema = z
   .object({
@@ -139,19 +154,7 @@ const projectSummaryListSchema = z
               defaultBranch: z.string().min(1),
             })
             .strict(),
-          calibration: z
-            .object({
-              id: z.string().uuid(),
-              selectedRepositoryId: z.string().uuid(),
-              coreGoal: z.string(),
-              currentStageGoal: z.string(),
-              status: z.enum(projectStatuses),
-              currentBlocker: z.string().nullable(),
-              createdAt: z.iso.datetime({ offset: true }),
-              updatedAt: z.iso.datetime({ offset: true }),
-            })
-            .strict()
-            .nullable(),
+          calibration: projectCalibrationReadSchema.nullable(),
         })
         .strict(),
     ),
@@ -196,10 +199,23 @@ async function fetchSelectedRepositories() {
   return parsed.data.selectedRepositories;
 }
 
-export function AuthorizedRepositoryList(input: {
+type RepositoryListProps = {
   readonly installationStatus: InstallationStatus;
-}) {
+  readonly autoLoad?: boolean;
+  readonly userId?: string | null;
+  readonly onboarding?: boolean;
+  readonly primaryActions?: boolean;
+};
+
+export function AuthorizedRepositoryList(input: RepositoryListProps) {
+  return <RepositoryList key={`${input.userId ?? "unknown"}:${input.installationStatus}`} {...input} />;
+}
+
+function RepositoryList(input: RepositoryListProps) {
+  const primary = input.onboarding && input.primaryActions !== false;
   const mounted = useRef(false);
+  const busyRepositoryIds = useRef(new Set<number>());
+  const [handoffs, setHandoffs] = useState<ReadonlyMap<number, HandoffState>>(new Map());
   const selectedGeneration = useRef(0);
   const authorizedGeneration = useRef(0);
   const projectSummaryGeneration = useRef(0);
@@ -267,6 +283,9 @@ export function AuthorizedRepositoryList(input: {
           projectCount: parsed.data.projects.filter(
             (project) => project.calibration !== null,
           ).length,
+          repositoryIds: parsed.data.projects.filter(project => project.calibration !== null).map(project => project.repository.repositoryId),
+          unconfirmedRepositoryIds: parsed.data.projects.filter(project => project.calibration !== null && hasUnconfirmedProjectBackground(project.calibration)).map(project => project.repository.repositoryId),
+          projects: parsed.data.projects,
         });
       }
     } catch {
@@ -281,6 +300,8 @@ export function AuthorizedRepositoryList(input: {
 
   useEffect(() => {
     mounted.current = true;
+    const endSession = () => { mounted.current = false; selectedGeneration.current += 1; authorizedGeneration.current += 1; projectSummaryGeneration.current += 1; setHandoffs(new Map()); };
+    window.addEventListener("executor:session-ended", endSession);
     queueMicrotask(() => {
       void loadSelectedRepositories();
       void loadProjectSummary();
@@ -296,6 +317,7 @@ export function AuthorizedRepositoryList(input: {
     );
     return () => {
       mounted.current = false;
+      window.removeEventListener("executor:session-ended", endSession);
       selectedGeneration.current += 1;
       authorizedGeneration.current += 1;
       projectSummaryGeneration.current += 1;
@@ -310,8 +332,8 @@ export function AuthorizedRepositoryList(input: {
     };
   }, [loadProjectSummary, loadSelectedRepositories]);
 
-  const loadAuthorizedRepositories = async () => {
-    if (input.installationStatus !== "active") return;
+  const loadAuthorizedRepositories = useCallback(async () => {
+    if (input.installationStatus !== "active" || busyRepositoryIds.current.size) return;
     const generation = ++authorizedGeneration.current;
     setAuthorizedLoadState({ kind: "loading" });
 
@@ -342,16 +364,80 @@ export function AuthorizedRepositoryList(input: {
         setAuthorizedLoadState({ kind: "failed" });
       }
     }
-  };
+  }, [input.installationStatus]);
+
+  useEffect(() => {
+    if (input.autoLoad) queueMicrotask(() => { if (mounted.current) void loadAuthorizedRepositories(); });
+  }, [input.autoLoad, loadAuthorizedRepositories]);
 
   const repositoryIsBusy = (repositoryId: number) =>
+    handoffs.get(repositoryId)?.phase === "working" ||
     selectionMutationStateByRepositoryId.get(repositoryId) ===
       "saving" ||
     deselectionMutationStateByRepositoryId.get(repositoryId) ===
       "removing";
 
+  async function continueRepository(repositoryId: number, intent: "connect" | "view", alreadyBusy = false) {
+    if (!mounted.current || input.installationStatus !== "active" || (!alreadyBusy && busyRepositoryIds.current.has(repositoryId))) return;
+    busyRepositoryIds.current.add(repositoryId);
+    let projectId: string | null = null;
+    const update = (phase: HandoffState["phase"], message: string | null = null) => {
+      if (mounted.current) setHandoffs(current => new Map(current).set(repositoryId, { phase, projectId, message }));
+    };
+    const readMapping = async () => {
+      const response = await fetch("/api/projects", { cache: "no-store", credentials: "same-origin" });
+      if (!response.ok) throw new Error("mapping_unavailable");
+      const result = projectSummaryListSchema.parse(await response.json());
+      const mapping = result.projects.find(item => item.repository.repositoryId === repositoryId);
+      if (!mapping || (mapping.calibration && mapping.calibration.selectedRepositoryId !== mapping.repository.id)) throw new Error("mapping_unavailable");
+      if (mapping.calibration?.status === "archived") throw new Error("project_archived");
+      return mapping;
+    };
+    update("working");
+    try {
+      const mapping = await readMapping();
+      if (!mounted.current) return;
+      projectId = mapping.calibration?.id ?? null;
+      if (!projectId) {
+        if (intent === "view") throw new Error("mapping_unavailable");
+        try {
+          const response = await fetch("/api/projects/from-repository", { method: "POST", cache: "no-store", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ selectedRepositoryId: mapping.repository.id }) });
+          if (!response.ok) throw new Error("creation_unavailable");
+          const created = creationResponseSchema.parse(await response.json()).project;
+          if (created.selectedRepositoryId !== mapping.repository.id || created.context.status === "archived") throw new Error("creation_mismatch");
+          projectId = created.id;
+        } catch {
+          if (!mounted.current) return;
+          // A committed creation can outlive a lost HTTP response. Re-read before retrying a write.
+          const recovered = await readMapping();
+          if (recovered.repository.id !== mapping.repository.id || !recovered.calibration) throw new Error("creation_unavailable");
+          projectId = recovered.calibration.id;
+        }
+      }
+      if (!mounted.current) return;
+      update("working");
+      const current = await readProjectSyncStatus(projectId);
+      if (!mounted.current) return;
+      if (intent === "connect" && current.retryRequestId && ["not_started", "dispatch_pending", "partial", "failed", "cancelled"].includes(current.state)) {
+        try { await requestFirstSync(projectId, current.retryRequestId); }
+        catch { /* Read the stored run below before deciding whether the result is unknown. */ }
+        if (!mounted.current) return;
+        const confirmed = await readProjectSyncStatus(projectId);
+        if (confirmed.state === "not_started") throw new Error("start_unavailable");
+      }
+      if (!mounted.current) return;
+      update("ready");
+      window.dispatchEvent(new Event(selectedRepositoriesChangedEvent));
+    } catch {
+      update("failed", intent === "view" ? "同步状态暂未确认，请重新查看。已有项目资料不会因此修改。" : projectId ? "项目已建立，同步状态暂未确认。请刷新状态或重试同步。" : "项目接入未完成，已选择的仓库仍然保留。请继续接入重试。");
+    } finally {
+      busyRepositoryIds.current.delete(repositoryId);
+    }
+  }
+
   const selectRepository = async (repositoryId: number) => {
-    if (repositoryIsBusy(repositoryId)) return;
+    if (input.installationStatus !== "active" || busyRepositoryIds.current.has(repositoryId) || repositoryIsBusy(repositoryId)) return;
+    busyRepositoryIds.current.add(repositoryId);
     selectedGeneration.current += 1;
     setMutationError(null);
     setSelectionMutationStateByRepositoryId((current) => {
@@ -378,6 +464,7 @@ export function AuthorizedRepositoryList(input: {
         await response.json(),
       );
       if (!parsed.success) throw parsed.error;
+      if (parsed.data.selectedRepository.repositoryId !== repositoryId) throw new Error("selection_repository_mismatch");
       if (!mounted.current) return;
       setSelectedLoadState((current) => ({
         kind: "loaded",
@@ -392,6 +479,7 @@ export function AuthorizedRepositoryList(input: {
         return next;
       });
       window.dispatchEvent(new Event(selectedRepositoriesChangedEvent));
+      await continueRepository(repositoryId, "connect", true);
     } catch {
       if (!mounted.current) return;
       setSelectionMutationStateByRepositoryId((current) => {
@@ -400,11 +488,14 @@ export function AuthorizedRepositoryList(input: {
         return next;
       });
       setMutationError("selection");
+    } finally {
+      busyRepositoryIds.current.delete(repositoryId);
     }
   };
 
   const deselectRepository = async (repositoryId: number) => {
-    if (repositoryIsBusy(repositoryId)) return;
+    if (busyRepositoryIds.current.has(repositoryId) || repositoryIsBusy(repositoryId)) return;
+    busyRepositoryIds.current.add(repositoryId);
     selectedGeneration.current += 1;
     setMutationError(null);
     setDeselectionMutationStateByRepositoryId((current) => {
@@ -457,6 +548,8 @@ export function AuthorizedRepositoryList(input: {
           ? "deselection_conflict"
           : "deselection",
       );
+    } finally {
+      busyRepositoryIds.current.delete(repositoryId);
     }
   };
 
@@ -500,10 +593,14 @@ export function AuthorizedRepositoryList(input: {
     projectSummaryState.kind === "loaded"
       ? String(projectSummaryState.projectCount)
       : "unknown";
+  const selectedLabel = (repositoryId: number) => projectSummaryState.kind !== "loaded"
+    ? "已选择，项目状态待确认"
+    : projectSummaryState.unconfirmedRepositoryIds.includes(repositoryId) ? "已添加 · 背景未确认"
+    : projectSummaryState.repositoryIds.includes(repositoryId) ? "已添加" : "已选择，待建项";
 
   return (
     <div className="repository-list">
-      <dl className="auth-state-list repository-state-list">
+      <details open={input.onboarding ? undefined : true}><summary>仓库诊断</summary><dl className="auth-state-list repository-state-list">
         <div>
           <dt>repository_access</dt>
           <dd>{repositoryAccess}</dd>
@@ -528,7 +625,8 @@ export function AuthorizedRepositoryList(input: {
           <dt>repository_content</dt>
           <dd>none</dd>
         </div>
-      </dl>
+      </dl></details>
+      {input.onboarding && projectSummaryState.kind === "failed" ? <div role="alert"><p>项目状态读取失败，无法确认是否已建项。已有资料会保留。</p><button type="button" onClick={() => void loadProjectSummary()}>重新读取项目状态</button></div> : null}
 
       <section aria-label="已选择仓库">
         <h2>已选择仓库</h2>
@@ -553,6 +651,9 @@ export function AuthorizedRepositoryList(input: {
         {selectedRepositories.length > 0 ? (
           <ul className="repository-items">
             {selectedRepositories.map((repository) => {
+              const handoff = handoffs.get(repository.repositoryId);
+              const savedProjectId = projectSummaryState.kind === "loaded" ? projectSummaryState.projects.find(item => item.repository.repositoryId === repository.repositoryId && item.calibration?.status !== "archived")?.calibration?.id ?? null : null;
+              const connectedProjectId = handoff?.projectId ?? savedProjectId;
               const removing =
                 deselectionMutationStateByRepositoryId.get(
                   repository.repositoryId,
@@ -560,7 +661,14 @@ export function AuthorizedRepositoryList(input: {
               return (
                 <li key={repository.repositoryId}>
                   <strong>{repository.fullName}</strong>
+                  <span>{selectedLabel(repository.repositoryId)}</span>
                   <span>{visibilityLabel(repository.visibility)}</span>
+                  {connectedProjectId ? <Link data-onboarding-primary={primary && selectedRepositories[0]?.repositoryId === repository.repositoryId ? "true" : undefined} prefetch={false} href={workspaceHref("project-galaxy", { projectId: connectedProjectId, mode: "connected" })}>进入项目</Link> : null}
+                  {handoff?.phase === "working" ? <p role="status">正在确认项目与同步状态，项目资料会保留</p> : null}
+                  {handoff?.message ? <p role="alert">{handoff.message}</p> : null}
+                  {handoff?.projectId && handoff.phase !== "working" ? <FirstSyncStatusPanel projectId={handoff.projectId} /> : (
+                    <button data-onboarding-primary={primary && !savedProjectId && selectedRepositories[0]?.repositoryId === repository.repositoryId ? "true" : undefined} type="button" disabled={input.installationStatus !== "active" || repositoryIsBusy(repository.repositoryId)} onClick={() => void continueRepository(repository.repositoryId, savedProjectId ? "view" : "connect")}>{savedProjectId ? `查看同步状态 ${repository.fullName}` : `继续接入 ${repository.fullName}`}</button>
+                  )}
                   <span>
                     {authorizedIds.has(repository.repositoryId)
                       ? "当前授权已确认"
@@ -600,6 +708,8 @@ export function AuthorizedRepositoryList(input: {
         {input.installationStatus === "active" ? (
           <button
             type="button"
+            data-onboarding-primary={primary && selectedRepositories.length === 0 ? "true" : undefined}
+            disabled={[...selectionMutationStateByRepositoryId.values()].includes("saving") || [...deselectionMutationStateByRepositoryId.values()].includes("removing")}
             onClick={() => void loadAuthorizedRepositories()}
           >
             {authorizedLoadState.kind === "idle"
@@ -637,7 +747,7 @@ export function AuthorizedRepositoryList(input: {
                   {repository.isDisabled ? <span>Disabled</span> : null}
                   <span>默认分支：{repository.defaultBranch}</span>
                   {selected ? (
-                    <span>已选择</span>
+                    <span>{selectedLabel(repository.id)}</span>
                   ) : selectedLoadState.kind !== "loaded" ? (
                     <span>选择状态不可用</span>
                   ) : (
@@ -649,9 +759,10 @@ export function AuthorizedRepositoryList(input: {
                     >
                       {saving
                         ? "保存中"
-                        : `选择 ${repository.fullName}`}
+                        : `${selectionMutationStateByRepositoryId.get(repository.id) === "failed" ? "重试选择" : "选择"} ${repository.fullName}`}
                     </button>
                   )}
+                  {selectionMutationStateByRepositoryId.get(repository.id) === "failed" ? <span role="alert">{repository.fullName} 添加失败，可单独重试。</span> : null}
                 </li>
               );
             })}

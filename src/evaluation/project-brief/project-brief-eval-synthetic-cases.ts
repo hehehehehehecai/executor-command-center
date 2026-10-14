@@ -70,7 +70,7 @@ function evidenceReferenceId(
 }
 
 function baseSnapshot(): ProjectBriefEvidenceSnapshot {
-  return buildProjectBriefEvidenceSnapshot({
+  const snapshot = buildProjectBriefEvidenceSnapshot({
     userId,
     projectId,
     rangeStart,
@@ -140,6 +140,14 @@ function baseSnapshot(): ProjectBriefEvidenceSnapshot {
       },
     },
   });
+  // This registered evaluation corpus is pinned to its original v1 evidence.
+  // Preserve its original canonical bytes and gold fingerprints when current
+  // generation moves to a new snapshot contract.
+  return {
+    ...snapshot,
+    snapshotContractVersion: "project-brief-evidence-snapshot.v1",
+    fingerprintContractVersion: "project-brief-evidence-fingerprint.v1",
+  };
 }
 
 function artifactFromSnapshot(snapshot: ProjectBriefEvidenceSnapshot) {

@@ -1,14 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
 
 import {
-  parseProjectCalibrationInput,
   projectStatuses,
   type ProjectCalibrationView,
   type ProjectStatus,
 } from "@/domain/project-calibration/project-calibration";
+import { hasUnconfirmedProjectBackground, projectCalibrationReadSchema } from "@/domain/project-calibration/project-calibration-read";
+import { parseProjectContextPatch, type ProjectContext, type ProjectContextPatch } from "@/domain/project-calibration/project-context";
+import { workspaceHref } from "@/shared/workspace-navigation";
 import {
   projectCalibrationSavedEvent,
   selectedRepositoriesChangedEvent,
@@ -21,22 +24,11 @@ const repositorySchema = z.object({
   visibility: z.enum(["public", "private", "internal"]),
   defaultBranch: z.string().min(1),
 }).strict();
-const calibrationSchema = z.object({
-  id: z.string().uuid(),
-  selectedRepositoryId: z.string().uuid(),
-  coreGoal: z.string(),
-  currentStageGoal: z.string(),
-  status: z.enum(projectStatuses),
-  currentBlocker: z.string().nullable(),
-  createdAt: z.iso.datetime({ offset: true }),
-  updatedAt: z.iso.datetime({ offset: true }),
-}).strict();
 const viewSchema = z.object({
   repository: repositorySchema,
-  calibration: calibrationSchema.nullable(),
+  calibration: projectCalibrationReadSchema.nullable(),
 }).strict();
 const listSchema = z.object({ projects: z.array(viewSchema) }).strict();
-const saveSchema = z.object({ project: viewSchema }).strict();
 
 type LoadState =
   | { readonly kind: "loading" }
@@ -60,9 +52,11 @@ export function ProjectCalibrationPanel() {
   const [selectedId, setSelectedId] = useState("");
   const [coreGoal, setCoreGoal] = useState("");
   const [currentStageGoal, setCurrentStageGoal] = useState("");
-  const [status, setStatus] = useState<ProjectStatus>("in_planning");
+  const [status, setStatus] = useState<ProjectStatus | "">("");
   const [currentBlocker, setCurrentBlocker] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("idle");
+  const editedFields = useRef(new Set<keyof ProjectContext>());
+  const saving = useRef(false);
 
   const loadProjects = useCallback(async () => {
     const generation = ++loadGeneration.current;
@@ -81,8 +75,9 @@ export function ProjectCalibrationPanel() {
       setSelectedId(first?.repository.id ?? "");
       setCoreGoal(first?.calibration?.coreGoal ?? "");
       setCurrentStageGoal(first?.calibration?.currentStageGoal ?? "");
-      setStatus(first?.calibration?.status ?? "in_planning");
+      setStatus(first?.calibration?.status ?? "");
       setCurrentBlocker(first?.calibration?.currentBlocker ?? "");
+      editedFields.current.clear();
       setSaveState("idle");
     } catch {
       if (mounted.current && loadGeneration.current === generation) {
@@ -118,30 +113,31 @@ export function ProjectCalibrationPanel() {
     setSelectedId(id);
     setCoreGoal(next.calibration?.coreGoal ?? "");
     setCurrentStageGoal(next.calibration?.currentStageGoal ?? "");
-    setStatus(next.calibration?.status ?? "in_planning");
+    setStatus(next.calibration?.status ?? "");
     setCurrentBlocker(next.calibration?.currentBlocker ?? "");
+    editedFields.current.clear();
     setSaveState("idle");
   };
 
   const save = async () => {
-    if (saveState === "saving") return;
-    let command;
+    const project = selectedProject?.calibration;
+    if (saving.current || !project) return;
+    let command: ProjectContextPatch;
     try {
-      command = parseProjectCalibrationInput({
-        selectedRepositoryId: selectedId,
-        coreGoal,
-        currentStageGoal,
-        status,
-        currentBlocker: currentBlocker === "" ? null : currentBlocker,
-      });
+      const values: ProjectContext = { coreGoal: coreGoal.trim() || null, currentStageGoal: currentStageGoal.trim() || null, status: status || null, currentBlocker: currentBlocker.trim() || null };
+      const patch = Object.fromEntries([...editedFields.current].filter(field => values[field] !== project[field]).map(field => [field, values[field]]));
+      if (Object.keys(patch).length === 0) return;
+      command = parseProjectContextPatch(patch);
     } catch {
       setSaveState("validation");
       return;
     }
+    const generation = loadGeneration.current;
+    saving.current = true;
     setSaveState("saving");
     try {
-      const response = await fetch("/api/projects", {
-        method: "POST",
+      const response = await fetch(`/api/projects/${project.id}/context`, {
+        method: "PATCH",
         cache: "no-store",
         credentials: "same-origin",
         headers: { "content-type": "application/json" },
@@ -156,37 +152,35 @@ export function ProjectCalibrationPanel() {
         return;
       }
       if (!response.ok) throw new Error("save_failed");
-      const parsed = saveSchema.safeParse(await response.json());
+      await response.arrayBuffer();
+      const readback = await fetch("/api/projects", { cache: "no-store", credentials: "same-origin" });
+      if (!readback.ok) throw new Error("readback_failed");
+      const parsed = listSchema.safeParse(await readback.json());
       if (!parsed.success) throw parsed.error;
-      if (!mounted.current) return;
-      setLoadState((current) => ({
-        kind: "loaded",
-        projects:
-          current.kind === "loaded"
-            ? current.projects.map((entry) =>
-                entry.repository.id === parsed.data.project.repository.id
-                  ? parsed.data.project
-                  : entry,
-              )
-            : [parsed.data.project],
-      }));
-      setCoreGoal(parsed.data.project.calibration?.coreGoal ?? "");
-      setCurrentStageGoal(parsed.data.project.calibration?.currentStageGoal ?? "");
-      setStatus(parsed.data.project.calibration?.status ?? "in_planning");
-      setCurrentBlocker(parsed.data.project.calibration?.currentBlocker ?? "");
+      const saved = parsed.data.projects.find(entry => entry.repository.id === selectedId && entry.calibration?.id === project.id)?.calibration;
+      if (!saved || Object.entries(command).some(([field, value]) => saved[field as keyof ProjectContext] !== value)) throw new Error("readback_mismatch");
+      if (!mounted.current || generation !== loadGeneration.current) return;
+      setLoadState({ kind: "loaded", projects: parsed.data.projects });
+      setCoreGoal(saved.coreGoal ?? "");
+      setCurrentStageGoal(saved.currentStageGoal ?? "");
+      setStatus(saved.status ?? "");
+      setCurrentBlocker(saved.currentBlocker ?? "");
+      editedFields.current.clear();
       setSaveState("success");
       window.dispatchEvent(new Event(projectCalibrationSavedEvent));
     } catch {
-      if (mounted.current) setSaveState("failed");
+      if (mounted.current && generation === loadGeneration.current) setSaveState("failed");
+    } finally {
+      saving.current = false;
     }
   };
 
   return (
-    <section className="calibration-shell" aria-label="项目校准工作区">
-      <p className="section-kicker">Project Calibration</p>
-      <h2 id="project-calibration-heading">项目校准</h2>
-      {loadState.kind === "loading" ? <p>项目校准正在加载</p> : null}
-      {loadState.kind === "failed" ? <p role="alert">项目校准读取失败。</p> : null}
+    <section className="calibration-shell" aria-label="项目背景工作区">
+      <p className="section-kicker">项目背景</p>
+      <h2 id="project-calibration-heading">补充项目背景</h2>
+      {loadState.kind === "loading" ? <p>项目背景正在加载</p> : null}
+      {loadState.kind === "failed" ? <p role="alert">项目背景读取失败。</p> : null}
       {loadState.kind === "loaded" && loadState.projects.length === 0 ? (
         <p>请先选择一个 GitHub 仓库。</p>
       ) : null}
@@ -215,37 +209,46 @@ export function ProjectCalibrationPanel() {
               <div><dt>默认分支</dt><dd>{selectedProject.repository.defaultBranch}</dd></div>
             </dl>
           </section>
-          <section aria-label="项目校准" className="calibration-section">
+          <section aria-label="项目背景" className="calibration-section">
             <h3>用户陈述</h3>
+            <p>背景资料可稍后补充；仓库事实不会自动成为你的目标或项目状态。</p>
             {selectedProject.calibration ? (
               <p data-testid="project-stable-id">
                 Project ID: {selectedProject.calibration.id}
               </p>
             ) : null}
+            {selectedProject.calibration && hasUnconfirmedProjectBackground(selectedProject.calibration) ? <p>已添加 · 背景未确认</p> : null}
             <label>
               核心目标
               <textarea
-                required
                 maxLength={2000}
+                disabled={saveState === "saving"}
                 value={coreGoal}
-                onChange={(event) => setCoreGoal(event.target.value)}
+                onChange={(event) => { editedFields.current.add("coreGoal"); setSaveState("idle"); setCoreGoal(event.target.value); }}
               />
             </label>
+            <details key={selectedId}>
+              <summary>按需补充阶段目标、状态与阻碍</summary>
             <label>
               当前阶段目标
               <textarea
-                required
                 maxLength={2000}
+                disabled={saveState === "saving"}
                 value={currentStageGoal}
-                onChange={(event) => setCurrentStageGoal(event.target.value)}
+                onChange={(event) => { editedFields.current.add("currentStageGoal"); setSaveState("idle"); setCurrentStageGoal(event.target.value); }}
               />
             </label>
             <label>
               正式状态
               <select
                 value={status}
-                onChange={(event) => setStatus(event.target.value as ProjectStatus)}
+                disabled={saveState === "saving"}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  if (next === "" || projectStatuses.some(value => value === next)) { editedFields.current.add("status"); setSaveState("idle"); setStatus(next as ProjectStatus | ""); }
+                }}
               >
+                <option value="">未确认</option>
                 {projectStatuses.map((value) => (
                   <option key={value} value={value}>{statusLabels[value]}</option>
                 ))}
@@ -255,22 +258,25 @@ export function ProjectCalibrationPanel() {
               当前阻碍（可选）
               <textarea
                 maxLength={2000}
+                disabled={saveState === "saving"}
                 value={currentBlocker}
-                onChange={(event) => setCurrentBlocker(event.target.value)}
+                onChange={(event) => { editedFields.current.add("currentBlocker"); setSaveState("idle"); setCurrentBlocker(event.target.value); }}
               />
             </label>
+            </details>
             <button
               type="button"
-              disabled={saveState === "saving"}
+              disabled={saveState === "saving" || !selectedProject.calibration}
               aria-busy={saveState === "saving"}
               onClick={() => void save()}
             >
-              {saveState === "saving" ? "保存中" : "保存项目校准"}
+              {saveState === "saving" ? "保存中" : "保存项目背景"}
             </button>
-            {saveState === "success" ? <p role="status">项目校准已保存</p> : null}
+            {selectedProject.calibration ? <Link prefetch={false} href={workspaceHref("project-galaxy", { projectId: selectedProject.calibration.id, mode: "connected" })}>稍后补充并进入项目</Link> : <p>请先完成仓库接入，再补充项目背景。</p>}
+            {saveState === "success" ? <p role="status">项目背景已保存</p> : null}
             {saveState === "validation" ? <p role="alert">请检查字段格式和长度。</p> : null}
-            {saveState === "conflict" ? <p role="alert">项目校准发生并发冲突，请刷新后重试。</p> : null}
-            {saveState === "failed" ? <p role="alert">项目校准保存失败。</p> : null}
+            {saveState === "conflict" ? <p role="alert">项目背景发生并发冲突，请刷新后重试。</p> : null}
+            {saveState === "failed" ? <p role="alert">项目背景保存或回读失败。</p> : null}
           </section>
         </>
       ) : null}

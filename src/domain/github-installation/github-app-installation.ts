@@ -13,6 +13,7 @@ export interface GitHubAppInstallationSnapshot {
   readonly accountType: string;
   readonly repositorySelection: GitHubRepositorySelection;
   readonly suspendedAt: string | null;
+  readonly managementUrl?: string;
 }
 
 export interface GitHubAppInstallationReader {

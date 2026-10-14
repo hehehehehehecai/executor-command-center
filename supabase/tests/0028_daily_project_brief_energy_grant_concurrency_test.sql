@@ -74,11 +74,11 @@ alter function app_private.test_daily_grant_dblink_connect(text, text) owner to 
 
 select app_private.test_daily_grant_dblink_connect(
   'daily_grant_c1',
-  'dbname=postgres host=host.docker.internal port=54322 user=postgres password=postgres'
+  current_setting('executor.test_dblink_connection')
 );
 select app_private.test_daily_grant_dblink_connect(
   'daily_grant_c2',
-  'dbname=postgres host=host.docker.internal port=54322 user=postgres password=postgres'
+  current_setting('executor.test_dblink_connection')
 );
 
 select is(

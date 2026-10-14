@@ -61,6 +61,32 @@ async function expectNoHorizontalOverflow(page: Page) {
   ).toBe(true);
 }
 
+for (const scenario of ["unconfirmed", "legacy-v1", "legacy-v2"] as const) {
+  test(`T05 ${scenario} 项目背景与当前或历史简报可读`, async ({ context, page }) => {
+    const nonLocalRequests = observeNonLocalRequests(page);
+    await useIdentity(context, identities.beta);
+    await context.addCookies([{ name: "connected-panel-scenario", value: scenario, url: "http://127.0.0.1:3006", httpOnly: true, sameSite: "Strict" }]);
+    if (scenario === "unconfirmed") {
+      await page.goto(`/project-galaxy?mode=connected&project=${identities.beta.projectId}`);
+      await expect(page.getByRole("main").getByText("Beta Connected Project", { exact: true })).toBeVisible();
+      await expect(page.getByText("核心目标未确认", { exact: true })).toBeVisible();
+      await expect(page.getByText("当前阶段目标未确认", { exact: true })).toBeVisible();
+      await expect(page.getByText("Beta 用户的确定性 Connected 活动")).toBeVisible();
+    }
+    await page.goto(`/copilot?mode=connected&projectId=${identities.beta.projectId}`);
+    const brief = page.getByRole("region", { name: "项目简报", exact: true });
+    await expect(brief).toBeVisible();
+    await expect(brief).toContainText("虚构项目已完成导航基线");
+    if (scenario === "unconfirmed") {
+      await expect(brief).toContainText("仓库记录（github_issue，摘录）");
+      await expect(brief).toContainText("该记录不代表用户确认项目背景。");
+      for (const text of ["核心目标未确认", "当前阶段目标未确认", "正式状态未确认"]) await expect(brief.getByText(text, { exact: true })).toBeVisible();
+      await expect(brief.getByRole("region", { name: "官方状态" })).toContainText("未确认");
+    } else await expect(brief.getByRole("region", { name: "官方状态" })).toContainText("in_development");
+    expect(nonLocalRequests).toEqual([]);
+  });
+}
+
 test("selects an authorized Project Galaxy project and denies both cross-user directions", async ({
   context,
   page,
@@ -73,7 +99,7 @@ test("selects an authorized Project Galaxy project and denies both cross-user di
     `/project-galaxy?mode=connected&project=${identities.alpha.projectId}`,
   );
   await expect(page.getByLabel("数据来源")).toContainText("Connected Mode");
-  await expect(page.getByText("Alpha Connected Project")).toBeVisible();
+  await expect(page.getByRole("main").getByText("Alpha Connected Project", { exact: true })).toBeVisible();
   await expect(page.getByText("Beta Connected Project")).not.toBeVisible();
   await expect(page.getByText("Authorization revoked")).toBeVisible();
   await expect(page.getByText("GitHub 授权已撤销，同步已停止。")).toBeVisible();
@@ -89,7 +115,7 @@ test("selects an authorized Project Galaxy project and denies both cross-user di
   await page.goto(
     `/project-galaxy?mode=connected&project=${identities.beta.projectId}`,
   );
-  await expect(page.getByText("Beta Connected Project")).toBeVisible();
+  await expect(page.getByRole("main").getByText("Beta Connected Project", { exact: true })).toBeVisible();
   await expect(page.getByText("Alpha Connected Project")).not.toBeVisible();
 
   await page.goto(
@@ -305,7 +331,16 @@ test("fails Connected routes closed without an authorized fixture session or Pre
     "/copilot?mode=connected",
   ]) {
     await page.goto(route);
-    await expect(page.getByText(/Connected 数据暂时不可用。|没有可显示的项目/)).toBeVisible();
+    await expect(page.getByRole("complementary", { name: "当前账号" }).getByRole("alert")).toContainText("账号服务尚未配置");
+    const main = page.getByRole("main");
+    await expect(main).toHaveAttribute("data-ui-state", "failed");
+    await expect(main.getByRole("alert")).toContainText("暂时无法确认当前账号");
+    await expect(main.getByText(/下一步/)).toBeVisible();
+    await expect(main.getByRole("link", { name: "重试读取", exact: true })).toHaveAttribute("href", route);
+    await expect(page.getByRole("link", { name: "使用 GitHub 登录", exact: true })).toHaveCount(0);
+    await expect(main).not.toContainText("Alpha Connected Project");
+    await expect(main).not.toContainText("Beta Connected Project");
+    await expect(page.getByRole("navigation", { name: "桌面主导航" })).toHaveCount(0);
     await expect(page.getByText("Demo · 演示数据 · 完全虚构")).not.toBeVisible();
   }
 

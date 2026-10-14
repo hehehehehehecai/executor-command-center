@@ -1,3 +1,4 @@
+import { ConnectedReadNote } from "@/shared/connected-read-note";
 import Link from "next/link";
 
 import { PanelDemoDisclosure } from "@/shared/demo-disclosure";
@@ -71,10 +72,12 @@ function IssueDraftFields({ suggestion }: { readonly suggestion: MissionSuggesti
 }
 
 function SuggestionActions({
+  projectId,
   mode,
   suggestion,
 }: {
   readonly mode: MissionControlViewModel["mode"];
+  readonly projectId?: string | null;
   readonly suggestion: MissionSuggestion;
 }) {
   if (suggestion.status !== "suggested") return null;
@@ -82,6 +85,7 @@ function SuggestionActions({
   return (
     <form className={styles.suggestionAction} method="get">
       <input type="hidden" name="mode" value={mode} />
+      {projectId ? <input type="hidden" name="project" value={projectId} /> : null}
       <input type="hidden" name="action" value="transition" />
       <input type="hidden" name="suggestionId" value={suggestion.id} />
       <input type="hidden" name="nextStatus" value="accepted" />
@@ -97,11 +101,15 @@ export interface MissionControlFeedback {
 }
 
 export interface MissionControlPanelProps {
+  readonly returnHref?: string;
+  readonly projectId?: string | null;
   readonly viewModel: MissionControlViewModel;
   readonly feedback?: MissionControlFeedback;
 }
 
 export function MissionControlPanel({
+  returnHref = "/",
+  projectId,
   feedback,
   viewModel,
 }: MissionControlPanelProps) {
@@ -128,6 +136,7 @@ export function MissionControlPanel({
           provenanceLabel={viewModel.provenanceLabel}
         />
       </header>
+      {viewModel.mode === "connected" ? <ConnectedReadNote state={viewModel.readState} /> : null}
 
       {feedback ? (
         <p
@@ -153,7 +162,7 @@ export function MissionControlPanel({
           </p>
 
           {viewModel.recordedTasks.length === 0 ? (
-            <p className={styles.emptyState}>暂无 GitHub 已记录任务</p>
+            <p className={styles.emptyState}>{viewModel.readState && viewModel.readState.kind !== "empty" ? viewModel.readState.label : "暂无 GitHub 已记录任务"}</p>
           ) : (
             <ul className={styles.taskList}>
               {viewModel.recordedTasks.map((task) => (
@@ -169,6 +178,8 @@ export function MissionControlPanel({
                     </div>
                     <h3>{task.title}</h3>
                     <p>{task.sourceLabel}</p>
+                    {task.occurredAt ? <time dateTime={task.occurredAt}>{task.occurredAt}</time> : null}
+                    {task.sourceState ? <p>来源状态：{task.sourceState}</p> : null}
                     {task.originalUrl === null ? (
                       <span className={styles.unavailableLink}>原始链接不可用</span>
                     ) : (
@@ -250,7 +261,7 @@ export function MissionControlPanel({
                       </ul>
                     )}
                   </div>
-                  <SuggestionActions mode={viewModel.mode} suggestion={suggestion} />
+                  <SuggestionActions mode={viewModel.mode} suggestion={suggestion} projectId={projectId} />
                   <IssueDraftFields suggestion={suggestion} />
                 </article>
               ))}
@@ -260,7 +271,7 @@ export function MissionControlPanel({
       </div>
 
       <footer className={styles.footer}>
-        <Link href="/">返回 Command Deck</Link>
+        <Link href={returnHref}>返回 Command Deck</Link>
       </footer>
     </main>
   );

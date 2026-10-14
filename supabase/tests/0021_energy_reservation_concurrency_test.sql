@@ -86,11 +86,11 @@ alter function app_private.test_dblink_connect(text, text) owner to postgres;
 
 select app_private.test_dblink_connect(
   'energy_c1',
-  'dbname=postgres host=host.docker.internal port=54322 user=postgres password=postgres'
+  current_setting('executor.test_dblink_connection')
 );
 select app_private.test_dblink_connect(
   'energy_c2',
-  'dbname=postgres host=host.docker.internal port=54322 user=postgres password=postgres'
+  current_setting('executor.test_dblink_connection')
 );
 
 select is(

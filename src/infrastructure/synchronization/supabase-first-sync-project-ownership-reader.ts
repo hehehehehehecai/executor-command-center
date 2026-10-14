@@ -12,7 +12,7 @@ type SessionClient = {
     select(columns: "id"): {
       eq(column: "id", value: string): {
         eq(column: "user_id", value: string): {
-          maybeSingle(): Promise<QueryResult>;
+          or(filter: "status.neq.archived,status.is.null"): { maybeSingle(): Promise<QueryResult> };
         };
       };
     };
@@ -31,6 +31,7 @@ implements FirstSyncProjectOwnershipReader {
         .select("id")
         .eq("id", input.projectId)
         .eq("user_id", input.userId)
+        .or("status.neq.archived,status.is.null")
         .maybeSingle();
     } catch {
       throw new Error("first_sync_ownership_read_failed");

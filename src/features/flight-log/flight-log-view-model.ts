@@ -1,4 +1,5 @@
 import type { PanelMode } from "@/shared/panel-query";
+import type { ConnectedReadState } from "@/shared/connected-read-state";
 
 export const flightLogEventTypes = [
   "commit",
@@ -24,6 +25,7 @@ export interface FlightLogEvent {
 }
 
 export interface FlightLogSource {
+  readonly readState?: ConnectedReadState;
   readonly events: readonly FlightLogEvent[];
   readonly lastSuccessfulAt: string | null;
   readonly provenanceLabel: string;
@@ -43,6 +45,7 @@ export interface FlightLogFreshness {
 }
 
 export interface FlightLogViewModel {
+  readonly readState?: ConnectedReadState;
   readonly mode: PanelMode;
   readonly provenanceLabel: string;
   readonly filters: FlightLogFilterSelection;
@@ -166,6 +169,7 @@ export function createFlightLogViewModel(
 
   return {
     mode,
+    ...(source.readState ? { readState: { ...source.readState } } : {}),
     provenanceLabel: source.provenanceLabel,
     filters: {
       eventTypes,

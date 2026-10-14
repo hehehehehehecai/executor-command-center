@@ -1,4 +1,6 @@
 import type { FirstSyncDispatchReceipt } from "@/application/synchronization/first-sync-use-cases";
+import type { SyncRunRepository } from "./sync-run-use-cases";
+import { projectOnboardingSyncContract, type ProjectSyncStatusView } from "@/domain/synchronization/project-onboarding-sync";
 
 export const firstSyncProductionEntryContract =
   "first-sync-production-entry.v1" as const;
@@ -78,5 +80,45 @@ export class StartAuthenticatedFirstRepositorySync {
       throw new Error("first_sync_authorization_revoked");
     }
     return this.dependencies.start.execute(command);
+  }
+}
+
+export class ReadAuthenticatedProjectSyncStatus {
+  constructor(private readonly dependencies: {
+    readonly session: FirstSyncVerifiedSessionReader;
+    readonly ownership: FirstSyncProjectOwnershipReader;
+    readonly contexts: FirstSyncLaunchContextReader;
+    readonly runs: Pick<SyncRunRepository, "getLatest">;
+  }) {}
+
+  async execute(projectId: string): Promise<ProjectSyncStatusView> {
+    if (!uuid.test(projectId)) throw new Error("first_sync_invalid_request");
+    const userId = await this.dependencies.session.getVerifiedUserId();
+    if (!userId || !uuid.test(userId)) throw new Error("first_sync_unauthenticated");
+    const access = async () => {
+      if (!await this.dependencies.ownership.isOwnedBy({ projectId, userId })) throw new Error("first_sync_project_not_found");
+      const context = await this.dependencies.contexts.getByProjectId(projectId);
+      if (!context || context.projectId !== projectId) throw new Error("first_sync_project_not_found");
+      return context.installation.status;
+    };
+    const empty = { contractVersion: projectOnboardingSyncContract, projectId, syncRunId: null, queuedAt: null, finishedAt: null, retryRequestId: null };
+    const before = await access();
+    if (before !== "active") return { ...empty, state: before };
+    const run = await this.dependencies.runs.getLatest(projectId);
+    const after = await access();
+    if (after !== "active") return { ...empty, state: after };
+    if (!run) return { ...empty, state: "not_started", retryRequestId: "onboarding" };
+    if (run.projectId !== projectId) throw new Error("first_sync_project_not_found");
+    let retryRequestId: string | null = null;
+    if (["failed", "cancelled", "partial"].includes(run.status)) retryRequestId = `retry-${run.id}`;
+    else if (run.status === "queued" && run.triggerSource === "first_sync") {
+      for (const prefix of ["sync-request:first-", "first-sync:"]) {
+        if (run.idempotencyKey.startsWith(prefix)) {
+          const candidate = run.idempotencyKey.slice(prefix.length);
+          if (requestId.test(candidate)) retryRequestId = candidate;
+        }
+      }
+    }
+    return { ...empty, state: run.status === "queued" && run.triggerSource === "first_sync" && run.progressCursor === null ? "dispatch_pending" : run.status, syncRunId: run.id, queuedAt: run.queuedAt, finishedAt: run.finishedAt, retryRequestId };
   }
 }

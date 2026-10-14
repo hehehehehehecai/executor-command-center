@@ -4,7 +4,7 @@ import path from "node:path";
 import { chromium, defineConfig, devices } from "@playwright/test";
 
 const repository = __dirname;
-const workspaceOutputs = path.resolve(repository, "..", "outputs");
+const workspaceOutputs = path.resolve(repository, ...(path.basename(path.dirname(repository)) === ".worktrees" ? ["..", "..", "..", "outputs"] : ["..", "outputs"]));
 
 function within(parent: string, child: string) {
   const relative = path.relative(parent, child);

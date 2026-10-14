@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const viewports = [{ width: 1440, height: 900 }, { width: 390, height: 844 }];
 const sources = [
-  { name: "base", url: "/copilot", feedback: null },
+  { name: "base", url: "/copilot?mode=preview", feedback: null },
   { name: "error", url: "/copilot?mode=preview&action=switch&featureId=unknown-feature&projectId=", feedback: "未知面板，未改变当前上下文。" },
 ] as const;
 const modes = ["skip-mouse", "skip-keyboard", "no-skip-mouse"] as const;
@@ -145,7 +145,7 @@ for (const viewport of viewports) {
   for (const route of ["/", "/project-galaxy", "/flight-log", "/mission-control", "/decision-archive", "/copilot"]) {
     test(`shared skip ${viewport.width} ${route}: hidden until focus and enters main`, async ({ page }, testInfo) => {
       await page.setViewportSize(viewport);
-      await page.goto(route);
+      await page.goto(route + "?mode=preview");
       await ready(page);
       const skip = page.locator(".skip-link");
       const initial = await skip.boundingBox();

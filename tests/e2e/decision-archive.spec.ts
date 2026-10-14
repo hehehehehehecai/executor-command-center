@@ -18,7 +18,7 @@ test("confirms a fictional Candidate with a required reason at 360px", async ({
   });
 
   await page.setViewportSize({ width: 360, height: 800 });
-  await page.goto("/decision-archive");
+  await page.goto("/decision-archive?mode=preview");
   await page.waitForLoadState("networkidle");
 
   await expect(
@@ -66,7 +66,7 @@ test("keeps manual creation, Candidates and Records readable at 768px", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 768, height: 900 });
-  await page.goto("/decision-archive");
+  await page.goto("/decision-archive?mode=preview");
 
   const layout = await page.evaluate(() => {
     const manual = document.querySelector<HTMLElement>(

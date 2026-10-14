@@ -117,8 +117,9 @@ describe("Connected panel source mappers", () => {
   });
 
   it("returns a real empty Decision Archive when no persisted decision source exists", () => {
-    expect(mapDecisionArchiveConnectedSource(data())).toEqual({
-      provenanceLabel: "Connected 数据 · 当前项目",
+    expect(mapDecisionArchiveConnectedSource(data())).toMatchObject({
+      provenanceLabel: "当前项目 · 决策记录存储尚未启用",
+      readState: { kind: "not_enabled" },
       candidates: [],
       records: [],
     });

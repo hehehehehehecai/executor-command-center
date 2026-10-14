@@ -18,7 +18,7 @@ test("shows fictional recorded tasks, five local states and a draft at 360px", a
   });
 
   await page.setViewportSize({ width: 360, height: 800 });
-  await page.goto("/mission-control");
+  await page.goto("/mission-control?mode=preview");
   await page.waitForLoadState("networkidle");
 
   await expect(
@@ -71,7 +71,7 @@ test("keeps both Mission Control regions readable in vertical order at 768px", a
   page,
 }) => {
   await page.setViewportSize({ width: 768, height: 900 });
-  await page.goto("/mission-control");
+  await page.goto("/mission-control?mode=preview");
 
   const layout = await page.evaluate(() => {
     const regions = Array.from(

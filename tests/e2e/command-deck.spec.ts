@@ -19,10 +19,10 @@ test("shows the fictional Command Deck without non-local requests at narrow widt
   });
 
   await page.setViewportSize({ width: 360, height: 800 });
-  await page.goto("/");
+  await page.goto("/?mode=preview");
   await page.waitForLoadState("networkidle");
 
-  await expect(page).toHaveURL("http://127.0.0.1:3000/");
+  await expect(page).toHaveURL("http://127.0.0.1:3000/?mode=preview");
   await expect(
     page.getByRole("heading", { level: 1, name: "EXECUTOR" }),
   ).toBeVisible();
@@ -64,7 +64,7 @@ test("shows the fictional Command Deck without non-local requests at narrow widt
       panel.getByRole("link", {
         name: `打开${feature.subtitle}演示入口`,
       }),
-    ).toHaveAttribute("href", feature.route);
+    ).toHaveAttribute("href", feature.route + "?mode=preview");
   }
 
   await navigationTrigger.click();
@@ -80,7 +80,7 @@ test("shows the fictional Command Deck without non-local requests at narrow widt
       mobileNavigation.getByRole("link", {
         name: `${feature.title} ${feature.subtitle}`,
       }),
-    ).toHaveAttribute("href", feature.route);
+    ).toHaveAttribute("href", feature.route + "?mode=preview");
   }
 
   await page.keyboard.press("Escape");
@@ -131,7 +131,7 @@ test("renders the Command Deck as a three-column workspace at desktop width", as
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto("/");
+  await page.goto("/?mode=preview");
 
   const desktopNavigation = page.getByRole("navigation", {
     name: "桌面主导航",
@@ -169,7 +169,7 @@ test("keeps overview cards in one vertical column across the drawer breakpoint",
   page,
 }) => {
   await page.setViewportSize({ width: 768, height: 900 });
-  await page.goto("/");
+  await page.goto("/?mode=preview");
 
   await expect(page.getByRole("button", { name: "打开主导航" })).toBeVisible();
 
@@ -254,7 +254,7 @@ async function expectHealthyBrowser(
 }
 
 async function openContractHome(page: Page) {
-  const response = await page.goto("/");
+  const response = await page.goto("/?mode=preview");
   expect(response?.status()).toBe(200);
   await page.waitForLoadState("networkidle");
   await expect(page.getByRole("heading", { level: 1, name: "EXECUTOR", exact: true })).toBeVisible();
@@ -333,7 +333,7 @@ test.describe("Command Deck browser contract", () => {
       const navigation = page.getByRole("navigation", { name: mobile ? "移动主导航" : "桌面主导航", exact: true });
       await expect(navigation).toBeVisible();
       expect(await navigation.getByRole("link").evaluateAll((elements) => elements.map((element) => element.getAttribute("href"))))
-        .toEqual(["/", ...frozenDestinations.map((destination) => destination.route)]);
+        .toEqual(["/?mode=preview", ...frozenDestinations.map((destination) => destination.route + "?mode=preview")]);
       await expect(navigation.locator('[aria-current="page"]')).toHaveCount(1);
       await expect(navigation.getByRole("link", { name: "舰桥总览", exact: true })).toHaveAttribute("aria-current", "page");
       if (mobile) await page.keyboard.press("Escape");
@@ -359,7 +359,7 @@ test.describe("Command Deck browser contract", () => {
           await navigation.getByRole("link", { name: destination.name, exact: true }).click();
           const response = await responsePromise;
           expect(response.status()).toBe(200);
-          await expect(page).toHaveURL(new URL(destination.route, baseURL).href);
+          await expect(page).toHaveURL(new URL(destination.route + "?mode=preview", baseURL).href);
           const heading = page.getByRole("heading", { name: destination.heading, level: 1, exact: true });
           await expect(heading).toBeVisible();
           const disclosure = page.getByLabel("数据来源", { exact: true });
@@ -370,7 +370,7 @@ test.describe("Command Deck browser contract", () => {
           await page.waitForLoadState("networkidle");
           landings.push({ route: destination.route, url: page.url(), heading: (await heading.textContent())!.trim(), status: response.status(), mode: await disclosure.getAttribute("data-panel-mode") });
           await page.goBack();
-          await expect(page).toHaveURL(new URL("/", baseURL).href);
+          await expect(page).toHaveURL(new URL("/?mode=preview", baseURL).href);
           await expect(page.getByRole("heading", { name: "EXECUTOR", level: 1, exact: true })).toBeVisible();
           await page.waitForLoadState("networkidle");
         });

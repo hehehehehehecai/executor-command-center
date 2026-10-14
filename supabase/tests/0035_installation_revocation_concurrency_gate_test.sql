@@ -72,7 +72,7 @@ returns text language sql security definer set search_path=''
 as $$
   select extensions.dblink_connect(
     p_name,
-    'dbname=postgres host=host.docker.internal port=54322 user=postgres password=postgres'
+    current_setting('executor.test_dblink_connection')
   );
 $$;
 

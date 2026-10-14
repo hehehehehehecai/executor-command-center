@@ -16,7 +16,7 @@ test("shows and filters the fictional Flight Log at 360px", async ({ page }) => 
   });
 
   await page.setViewportSize({ width: 360, height: 800 });
-  await page.goto("/flight-log");
+  await page.goto("/flight-log?mode=preview");
   await page.waitForLoadState("networkidle");
 
   await expect(
@@ -74,7 +74,7 @@ test("keeps the Flight Log controls and timeline readable at 768px", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 768, height: 900 });
-  await page.goto("/flight-log");
+  await page.goto("/flight-log?mode=preview");
 
   const layout = await page.evaluate(() => {
     const form = document.querySelector<HTMLElement>(

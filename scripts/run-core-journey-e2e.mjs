@@ -1,4 +1,5 @@
-import { spawn, spawnSync } from "node:child_process";
+import { readIsolatedStatus } from "./isolated-test-target.mjs";
+import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
@@ -12,17 +13,7 @@ const providerPort = 4015;
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 function parseSupabaseStatus() {
-  const cli = path.join(projectRoot, "node_modules", "supabase", "dist", "supabase.js");
-  const result = spawnSync(
-    process.execPath,
-    [cli, "status", "-o", "env"],
-    {
-      cwd: projectRoot,
-      encoding: "utf8",
-      env: { ...process.env, SUPABASE_TELEMETRY_DISABLED: "1" },
-      windowsHide: true,
-    },
-  );
+  const result = readIsolatedStatus();
   if (result.status !== 0) {
     throw new Error(
       `phase5_local_supabase_unavailable:${result.status}:${String(result.stderr).trim()}`,
@@ -90,7 +81,15 @@ function createSyntheticProvider() {
       );
       const promptEnvelope = JSON.parse(userMessage?.content ?? "null");
       const brief = structuredClone(promptEnvelope.outputTemplate);
-      brief.summary.text = "Synthetic evidence-bound Phase 5 summary.";
+      const profile = promptEnvelope.untrustedRepositoryData.content.projectProfile;
+      brief.summary.text = profile.coreGoal === null ? "核心目标未确认" : `核心目标：${profile.coreGoal}`;
+      if (process.env.T11_E2E === "1") {
+        const record = promptEnvelope.untrustedRepositoryData.availableSourceRecords?.find(item => item.evidenceRefs?.[0]?.sourceKind === "github_commit");
+        if (record) {
+          brief.completedChanges = [{ id: "t11-persisted-commit", text: record.text, evidenceRefs: record.evidenceRefs }];
+          brief.evidenceRefs.push(...record.evidenceRefs);
+        }
+      }
       response.writeHead(200, { "content-type": "application/json" });
       response.end(
         JSON.stringify({
@@ -115,7 +114,7 @@ function runPlaywright(environment) {
   const playwrightCli = path.join(path.dirname(playwrightPackage), "cli.js");
   const child = spawn(
     process.execPath,
-    [playwrightCli, "test", "--config=playwright.core-journeys.config.ts"],
+    [playwrightCli, "test", "--config=playwright.core-journeys.config.ts", ...process.argv.slice(2)],
     {
       cwd: projectRoot,
       env: environment,

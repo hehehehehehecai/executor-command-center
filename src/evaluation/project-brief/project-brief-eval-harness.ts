@@ -80,6 +80,7 @@ function resolveFactLocation(
     return { text: brief.summary.text, evidenceRefs: brief.summary.evidenceRefs };
   }
   if (location === "officialStatus") {
+    if (brief.officialStatus.value === null) return null;
     return {
       text: brief.officialStatus.value,
       evidenceRefs: brief.officialStatus.evidenceRefs,

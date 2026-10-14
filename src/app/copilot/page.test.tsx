@@ -1,5 +1,18 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, screen, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { render } from "@/test/async-workspace-render";
+import { installWorkspaceEntryTransport } from "@/test/workspace-entry-transport";
+
+vi.mock("@supabase/ssr", async () => ({
+  createServerClient: (await import("@/test/workspace-entry-transport")).workspaceEntryClient,
+}));
+vi.mock("next/headers", async () => ({
+  cookies: async () => (await import("@/test/workspace-entry-transport")).workspaceEntryCookies(),
+}));
+
+beforeEach(() => installWorkspaceEntryTransport(["20000000-0000-4000-8000-000000000002", "10000000-0000-4000-8000-000000000001"]));
+afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
+
 
 import { loadCopilotWorkspacePreviewFixture } from "@/content/demo-data/copilot-workspace-preview-fixture";
 
@@ -32,7 +45,7 @@ describe("Copilot route", () => {
         context: { ...source.context, projectId: targetProjectId },
       })),
     };
-    render(await CopilotPage({
+    await render(await CopilotPage({
       searchParams: Promise.resolve({
         mode: "connected",
         action: "switch",
@@ -47,7 +60,7 @@ describe("Copilot route", () => {
     expect(screen.getByText(targetProjectId)).toBeVisible();
   });
   it("loads the fictional Preview shell by default", async () => {
-    render(await CopilotPage({ searchParams: Promise.resolve({}) }));
+    await render(await CopilotPage({ searchParams: Promise.resolve({ mode: "preview" }) }));
 
     expect(
       screen.getByRole("heading", { level: 1, name: "Copilot Workspace" }),
@@ -58,9 +71,10 @@ describe("Copilot route", () => {
   });
 
   it("clears old evidence when the project changes", async () => {
-    render(
+    await render(
       await CopilotPage({
         searchParams: Promise.resolve({
+          mode: "preview",
           action: "switch",
           fromFeatureId: "project-galaxy",
           fromProjectId: "project-odyssey",
@@ -77,9 +91,10 @@ describe("Copilot route", () => {
   });
 
   it("retains same-identity evidence and deduplicates new references", async () => {
-    render(
+    await render(
       await CopilotPage({
         searchParams: Promise.resolve({
+          mode: "preview",
           action: "evidence",
           fromFeatureId: "project-galaxy",
           fromProjectId: "project-odyssey",
@@ -99,9 +114,10 @@ describe("Copilot route", () => {
   });
 
   it("fails closed for an unknown feature without changing current context", async () => {
-    render(
+    await render(
       await CopilotPage({
         searchParams: Promise.resolve({
+          mode: "preview",
           action: "switch",
           fromFeatureId: "project-galaxy",
           fromProjectId: "project-odyssey",
@@ -127,14 +143,14 @@ describe("Copilot route", () => {
       ),
     };
 
-    render(
+    await render(
       await CopilotPage({
-        searchParams: Promise.resolve({ mode: "connected" }),
+        searchParams: Promise.resolve({ mode: "connected", projectId: "20000000-0000-4000-8000-000000000002" }),
         connectedPort,
       }),
     );
 
-    expect(screen.getByText("Connected 数据暂时不可用。")).toBeVisible();
+    expect(screen.getByRole("alert")).toHaveTextContent(/^原因：Connected 数据暂时不可用。$/);
     expect(screen.queryByText("演示数据 · 完全虚构")).not.toBeInTheDocument();
     expect(connectedPort.load).toHaveBeenCalledOnce();
   });

@@ -1,6 +1,8 @@
+import { ConnectedReadNote } from "@/shared/connected-read-note";
 import Link from "next/link";
 
 import { PanelDemoDisclosure } from "@/shared/demo-disclosure";
+import { ManualDecisionSaveForm } from "./ManualDecisionSaveForm";
 
 import styles from "./decision-archive.module.css";
 import type {
@@ -44,11 +46,13 @@ function References({ references }: { readonly references: readonly DecisionRefe
 }
 
 function CandidateConfirmationForm({
+  projectId,
   candidate,
   mode,
 }: {
   readonly candidate: DecisionCandidate;
   readonly mode: DecisionArchiveViewModel["mode"];
+  readonly projectId?: string | null;
 }) {
   if (candidate.status === "confirmed") {
     return (
@@ -65,6 +69,7 @@ function CandidateConfirmationForm({
       aria-label={`确认候选：${candidate.proposedDecision}`}
     >
       <input type="hidden" name="mode" value={mode} />
+      {projectId ? <input type="hidden" name="project" value={projectId} /> : null}
       <input type="hidden" name="action" value="confirm" />
       <input type="hidden" name="candidateId" value={candidate.id} />
       <label>
@@ -83,13 +88,21 @@ export interface DecisionArchiveFeedback {
 }
 
 export interface DecisionArchivePanelProps {
+  readonly returnHref?: string;
+  readonly projectId?: string | null;
   readonly viewModel: DecisionArchiveViewModel;
   readonly feedback?: DecisionArchiveFeedback;
+  readonly canSave?: boolean;
+  readonly readOnly?: boolean;
 }
 
 export function DecisionArchivePanel({
+  returnHref = "/",
+  projectId,
   viewModel,
   feedback,
+  canSave = false,
+  readOnly = false,
 }: DecisionArchivePanelProps) {
   return (
     <main
@@ -114,6 +127,7 @@ export function DecisionArchivePanel({
           provenanceLabel={viewModel.provenanceLabel}
         />
       </header>
+      {viewModel.mode === "connected" ? <ConnectedReadNote state={viewModel.readState} /> : null}
 
       {feedback ? (
         <p
@@ -131,12 +145,15 @@ export function DecisionArchivePanel({
           <h2 id="manual-decision-title">手动创建记录</h2>
           <p>无需 Candidate；决定内容和用户确认原因均由用户明确填写。</p>
         </div>
-        <form
+        {canSave && projectId && viewModel.mode === "connected" ? <ManualDecisionSaveForm projectId={projectId} /> : readOnly ? (
+          <p>决策保存尚未启用或当前项目不可写入；已有记录仍按本人项目权限读取。</p>
+        ) : <form
           className={styles.manualForm}
           method="get"
           aria-label="手动创建决策记录"
         >
           <input type="hidden" name="mode" value={viewModel.mode} />
+      {projectId ? <input type="hidden" name="project" value={projectId} /> : null}
           <input type="hidden" name="action" value="manual" />
           <label>
             <span>决定内容</span>
@@ -156,7 +173,7 @@ export function DecisionArchivePanel({
           </label>
           <button type="submit">生成本地记录预览</button>
           <small>页面只展示本次本地结果，刷新后不会持久化。</small>
-        </form>
+        </form>}
       </section>
 
       <div className={styles.columns}>
@@ -166,7 +183,7 @@ export function DecisionArchivePanel({
               <p className={styles.metaLabel}>Unconfirmed findings</p>
               <h2 id="decision-candidates-title">决策候选</h2>
             </div>
-            <span>{viewModel.candidates.length} 项</span>
+            <span>{viewModel.readState?.kind === "not_enabled" ? "未启用" : `${viewModel.candidates.length} 项`}</span>
           </div>
           <p className={styles.boundaryNote}>
             Candidate 不代表用户动机，也不会静默成为正式记录。
@@ -212,7 +229,7 @@ export function DecisionArchivePanel({
                     <h4>关联引用</h4>
                     <References references={candidate.references} />
                   </div>
-                  <CandidateConfirmationForm candidate={candidate} mode={viewModel.mode} />
+                  {readOnly ? <p>当前没有可保存的真实候选来源。</p> : <CandidateConfirmationForm candidate={candidate} mode={viewModel.mode} projectId={projectId} />}
                 </article>
               ))}
             </div>
@@ -225,14 +242,14 @@ export function DecisionArchivePanel({
               <p className={styles.metaLabel}>User-confirmed facts</p>
               <h2 id="decision-records-title">正式决策记录</h2>
             </div>
-            <span>{viewModel.records.length} 项</span>
+            <span>{viewModel.readState?.kind === "not_enabled" ? "未启用" : `${viewModel.records.length} 项`}</span>
           </div>
           <p className={styles.boundaryNote}>
-            每条 Record 均展示用户原因与创建 lineage；本阶段不声明持久化成功。
+            {canSave || readOnly ? "每条记录均从当前本人项目读取，保留确认原因、引用和服务端确认信息。" : "每条 Record 均展示用户原因与创建 lineage；本阶段不声明持久化成功。"}
           </p>
 
           {viewModel.records.length === 0 ? (
-            <p className={styles.emptyState}>暂无正式决策记录</p>
+            <p className={styles.emptyState}>{viewModel.readState?.kind === "not_enabled" ? viewModel.readState.label : "暂无正式决策记录"}</p>
           ) : (
             <div className={styles.cardList}>
               {viewModel.records.map((record) => (
@@ -299,7 +316,7 @@ export function DecisionArchivePanel({
       </div>
 
       <footer className={styles.footer}>
-        <Link href="/">返回 Command Deck</Link>
+        <Link href={returnHref}>返回 Command Deck</Link>
       </footer>
     </main>
   );

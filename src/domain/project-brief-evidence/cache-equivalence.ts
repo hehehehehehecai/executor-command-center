@@ -2,7 +2,7 @@ import { canonicalizeEvidenceValue } from "./canonicalization";
 import type { ProjectBriefEvidenceSnapshot } from "./evidence-snapshot";
 
 export const projectBriefEvidenceCacheEquivalenceContractVersion =
-  "project-brief-evidence-cache-equivalence.v1" as const;
+  "project-brief-evidence-cache-equivalence.v2" as const;
 
 export function buildProjectBriefEvidenceCacheEquivalence(
   snapshot: ProjectBriefEvidenceSnapshot,

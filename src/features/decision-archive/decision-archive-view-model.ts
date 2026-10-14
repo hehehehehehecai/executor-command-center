@@ -1,4 +1,5 @@
 import type { PanelMode } from "@/shared/panel-query";
+import type { ConnectedReadState } from "@/shared/connected-read-state";
 
 export type DecisionCandidateStatus = "pending" | "confirmed";
 export type DecisionRecordStatus = "active" | "revisit_due" | "superseded";
@@ -45,19 +46,21 @@ export interface DecisionRecord {
 }
 
 export interface DecisionArchiveSource {
+  readonly readState?: ConnectedReadState;
   readonly provenanceLabel: string;
   readonly candidates: readonly DecisionCandidate[];
   readonly records: readonly DecisionRecord[];
 }
 
 export interface DecisionArchiveViewModel {
+  readonly readState?: ConnectedReadState;
   readonly mode: PanelMode;
   readonly provenanceLabel: string;
   readonly candidates: readonly DecisionCandidate[];
   readonly records: readonly DecisionRecord[];
 }
 
-function safeHttpsUrl(value: string | null) {
+export function safeDecisionReferenceUrl(value: string | null) {
   if (value === null) return null;
 
   try {
@@ -80,7 +83,7 @@ function safeHttpsUrl(value: string | null) {
 function safeReferences(references: readonly DecisionReference[]) {
   return references.map((reference) => ({
     ...reference,
-    originalUrl: safeHttpsUrl(reference.originalUrl),
+    originalUrl: safeDecisionReferenceUrl(reference.originalUrl),
   }));
 }
 
@@ -94,6 +97,7 @@ export function createDecisionArchiveViewModel(
 ): DecisionArchiveViewModel {
   return {
     mode,
+    ...(source.readState ? { readState: { ...source.readState } } : {}),
     provenanceLabel: source.provenanceLabel,
     candidates: source.candidates
       .map((candidate) => ({

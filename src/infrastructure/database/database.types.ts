@@ -73,6 +73,29 @@ export type Database = {
         Args: { p_business_date: string; p_user_id: string }
         Returns: number
       }
+      can_access_decision_project: {
+        Args: { p_project_id: string }
+        Returns: boolean
+      }
+      create_manual_decision_record: {
+        Args: {
+          p_actor_user_id: string
+          p_alternatives: string[]
+          p_confirmation_reason: string
+          p_decision: string
+          p_idempotency_key: string
+          p_project_id: string
+          p_references: Json
+          p_revisit_condition: string
+        }
+        Returns: Database["public"]["Tables"]["decision_records"]["Row"]
+        SetofOptions: {
+          from: "*"
+          to: "decision_records"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       first_sync_cursor_is_valid: {
         Args: {
           cursor_value: string
@@ -85,7 +108,21 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      lock_project_context_selection: {
+        Args: { p_actor_user_id: string; p_selected_repository_id: string }
+        Returns: Database["public"]["Tables"]["selected_repositories"]["Row"]
+        SetofOptions: {
+          from: "*"
+          to: "selected_repositories"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       utf16_code_units: { Args: { value: string }; Returns: number }
+      validate_project_context_patch: {
+        Args: { p_changes: Json }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
@@ -299,6 +336,75 @@ export type Database = {
           },
           {
             foreignKeyName: "ai_invocations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      decision_records: {
+        Row: {
+          alternatives: string[]
+          confirmation_reason: string
+          confirmed_at: string
+          confirmed_by: string
+          created_via: string
+          decision: string
+          id: string
+          idempotency_key: string
+          project_id: string
+          references: Json
+          revisit_condition: string | null
+          source_candidate_id: string | null
+          status: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          alternatives?: string[]
+          confirmation_reason: string
+          confirmed_at?: string
+          confirmed_by?: string
+          created_via?: string
+          decision: string
+          id?: string
+          idempotency_key: string
+          project_id: string
+          references?: Json
+          revisit_condition?: string | null
+          source_candidate_id?: string | null
+          status?: string
+          user_id?: string
+          version?: number
+        }
+        Update: {
+          alternatives?: string[]
+          confirmation_reason?: string
+          confirmed_at?: string
+          confirmed_by?: string
+          created_via?: string
+          decision?: string
+          id?: string
+          idempotency_key?: string
+          project_id?: string
+          references?: Json
+          revisit_condition?: string | null
+          source_candidate_id?: string | null
+          status?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "decision_records_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "decision_records_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -1246,44 +1352,44 @@ export type Database = {
       }
       projects: {
         Row: {
-          core_goal: string
+          core_goal: string | null
           created_at: string
           current_blocker: string | null
-          current_stage_goal: string
+          current_stage_goal: string | null
           id: string
           repository_data_state: string
           repository_data_version: number
           repository_removed_at: string | null
           selected_repository_id: string
-          status: string
+          status: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
-          core_goal: string
+          core_goal?: string | null
           created_at?: string
           current_blocker?: string | null
-          current_stage_goal: string
+          current_stage_goal?: string | null
           id?: string
           repository_data_state?: string
           repository_data_version?: number
           repository_removed_at?: string | null
           selected_repository_id: string
-          status: string
+          status?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
-          core_goal?: string
+          core_goal?: string | null
           created_at?: string
           current_blocker?: string | null
-          current_stage_goal?: string
+          current_stage_goal?: string | null
           id?: string
           repository_data_state?: string
           repository_data_version?: number
           repository_removed_at?: string | null
           selected_repository_id?: string
-          status?: string
+          status?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -1649,6 +1755,45 @@ export type Database = {
         }
         Returns: string
       }
+      create_manual_decision_record: {
+        Args: {
+          p_actor_user_id: string
+          p_alternatives: string[]
+          p_confirmation_reason: string
+          p_decision: string
+          p_idempotency_key: string
+          p_project_id: string
+          p_references: Json
+          p_revisit_condition: string
+        }
+        Returns: {
+          alternatives: string[]
+          confirmation_reason: string
+          confirmed_at: string
+          confirmed_by: string
+          created_via: string
+          decision: string
+          id: string
+          idempotency_key: string
+          project_id: string
+          references: Json
+          revisit_condition: string | null
+          source_candidate_id: string | null
+          status: string
+          user_id: string
+          version: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "decision_records"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      create_project_from_repository: {
+        Args: { p_actor_user_id: string; p_selected_repository_id: string }
+        Returns: Json
+      }
       create_sync_run: {
         Args: {
           p_idempotency_key: string
@@ -1861,6 +2006,10 @@ export type Database = {
       }
       mark_account_deletion_retry_exhausted: {
         Args: { p_generation: number; p_operation_id: string }
+        Returns: Json
+      }
+      patch_project_context: {
+        Args: { p_actor_user_id: string; p_changes: Json; p_project_id: string }
         Returns: Json
       }
       read_current_github_identity: {

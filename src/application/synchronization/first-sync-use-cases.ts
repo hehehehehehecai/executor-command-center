@@ -1,5 +1,6 @@
 import type { GitHubActivityReader } from "@/application/github-activity/github-activity-reader";
 import type { JobDispatcher } from "@/application/jobs/job-dispatcher";
+import type { SyncRequestStore } from "./reconciliation-use-cases";
 import type {
   CreateSyncRunInput,
   TransitionSyncRunInput,
@@ -137,7 +138,7 @@ export type FirstSyncDispatchReceipt = {
   readonly jobId: string;
   readonly correlationId: string;
   readonly idempotencyKey: string;
-  readonly providerJobId: string;
+  readonly providerJobId: string | null;
   readonly windowStart: string;
   readonly windowEnd: string;
   readonly reused: boolean;
@@ -216,9 +217,11 @@ function dispatchReceipt(cursor: FirstSyncCursor, reused: boolean): FirstSyncDis
 
 export class StartFirstRepositorySync {
   constructor(private readonly dependencies: {
-    readonly runs: Pick<FirstSyncRunStore, "createQueued" | "checkpoint">;
+    readonly runs: Pick<FirstSyncRunStore, "createQueued" | "checkpoint"> & Partial<Pick<FirstSyncRunStore, "getById">>;
     readonly contexts: FirstSyncProjectContextReader;
     readonly dispatcher: JobDispatcher;
+    readonly requests?: SyncRequestStore;
+    readonly clock?: { now(): Date };
   }) {}
 
   async execute(input: unknown): Promise<FirstSyncDispatchReceipt> {
@@ -231,6 +234,7 @@ export class StartFirstRepositorySync {
     if (context.installation.status !== "active") {
       throw new Error("first_sync_authorization_revoked");
     }
+    if (this.dependencies.requests) return this.startDurable(command, context);
     let run = await this.dependencies.runs.createQueued({
       projectId: command.projectId,
       idempotencyKey,
@@ -295,6 +299,50 @@ export class StartFirstRepositorySync {
       progressCursor: serializeFirstSyncCursor(cursor),
     });
     return dispatchReceipt(parseFirstSyncCursor(run.progressCursor!), false);
+  }
+
+  private async startDurable(command: { projectId: string; requestId: string }, context: FirstSyncProjectContext): Promise<FirstSyncDispatchReceipt> {
+    const requests = this.dependencies.requests!;
+    const now = () => (this.dependencies.clock?.now() ?? new Date()).toISOString();
+    const receipt = await requests.request({ projectId: command.projectId, triggerSource: "first_sync", requestIdentity: `first-${command.requestId}`, actorUserId: null, requestedAt: now() });
+    if (receipt.outcome === "authorization_revoked" || receipt.outcome === "suspended") throw new Error("first_sync_authorization_revoked");
+    if (receipt.projectId !== command.projectId || !receipt.syncRunId || receipt.outcome === "not_found" || receipt.outcome === "forbidden") throw new Error("first_sync_project_not_found");
+    let run = await this.dependencies.runs.getById?.(command.projectId, receipt.syncRunId);
+    if (!run || run.projectId !== command.projectId || run.id !== receipt.syncRunId) throw new Error("first_sync_run_not_found");
+    const window = freezeFirstSyncWindow(canonical(run.queuedAt));
+    const pending = (): FirstSyncDispatchReceipt => ({ syncRunId: run!.id, jobId: run!.id, correlationId: `first-sync:${run!.id}`, idempotencyKey: run!.idempotencyKey, providerJobId: null, ...window, reused: true });
+    // A manual/webhook run may already own this project's in-flight slot.
+    // It stays owned by its original worker; this action must not dispatch it again.
+    if (run.triggerSource !== "first_sync") return pending();
+    if (receipt.dispatchState === null) {
+      if (run.progressCursor) return dispatchReceipt(parseFirstSyncCursor(run.progressCursor), true);
+      const requestId = run.idempotencyKey.startsWith("first-sync:") ? run.idempotencyKey.slice("first-sync:".length) : "";
+      if (!requestIdPattern.test(requestId)) throw new Error("first_sync_cursor_invalid");
+      return new StartFirstRepositorySync({ ...this.dependencies, requests: undefined }).execute({ projectId: command.projectId, requestId });
+    }
+    const actualRequestId = run.idempotencyKey.startsWith("sync-request:first-") ? run.idempotencyKey.slice("sync-request:first-".length) : "";
+    if (!requestIdPattern.test(actualRequestId)) throw new Error("first_sync_cursor_invalid");
+    let cursor = run.progressCursor ? parseFirstSyncCursor(run.progressCursor) : null;
+    if (cursor && (cursor.projectId !== command.projectId || cursor.syncRunId !== run.id || cursor.requestId !== actualRequestId || cursor.job.idempotencyKey !== run.idempotencyKey)) throw new Error("first_sync_cursor_invalid");
+    if (receipt.dispatchState === "dispatched") {
+      if (!cursor) throw new Error("first_sync_cursor_invalid");
+      return dispatchReceipt(cursor, true);
+    }
+    if (run.status !== "queued") return cursor ? dispatchReceipt(cursor, true) : pending();
+    if (receipt.dispatchVersion === null) throw new Error("first_sync_cursor_invalid");
+    const claim = await requests.claimDispatch({ projectId: command.projectId, syncRunId: run.id, expectedVersion: receipt.dispatchVersion, claimedAt: now() });
+    if (!claim.claimed) return cursor ? dispatchReceipt(cursor, true) : pending();
+    const current = await this.dependencies.contexts.getByProjectId(command.projectId);
+    if (!current || current.repository.fullName !== context.repository.fullName || current.installation.installationId !== context.installation.installationId) throw new Error("first_sync_project_not_found");
+    if (current.installation.status !== "active") throw new Error("first_sync_authorization_revoked");
+    if (!cursor) {
+      const job: BackgroundJob = { version: backgroundJobContract, jobType: "project.sync.requested.v1", jobId: run.id, projectId: command.projectId, syncRunId: run.id, idempotencyKey: run.idempotencyKey, correlationId: `first-sync:${run.id}`, requestedAt: window.windowEnd, triggerSource: "first_sync", webhookDelivery: null };
+      const provider = await this.dependencies.dispatcher.dispatch(job);
+      cursor = createFirstSyncCursor({ projectId: command.projectId, syncRunId: run.id, requestId: actualRequestId, repositoryFullName: current.repository.fullName, installationId: current.installation.installationId, window, job: { jobId: job.jobId, correlationId: job.correlationId, idempotencyKey: job.idempotencyKey, providerJobId: provider.providerJobId } });
+      run = await this.dependencies.runs.checkpoint({ projectId: command.projectId, runId: run.id, expectedStatus: "queued", expectedVersion: run.version, checkpointedAt: now(), progressCursor: serializeFirstSyncCursor(cursor) });
+    }
+    await requests.completeDispatch({ projectId: command.projectId, syncRunId: run.id, expectedVersion: claim.version, providerJobId: cursor.job.providerJobId, completedAt: now() });
+    return dispatchReceipt(cursor, receipt.outcome !== "new");
   }
 }
 

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test("shows the EXECUTOR brand on the home page", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/?mode=preview");
 
   await expect(
     page.getByRole("heading", { level: 1, name: "EXECUTOR" }),

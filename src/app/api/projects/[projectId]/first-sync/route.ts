@@ -8,7 +8,7 @@ type RouteContext = {
   readonly params: Promise<{ readonly projectId: string }>;
 };
 
-export async function POST(request: Request, context: RouteContext) {
+async function handle(request: Request, context: RouteContext) {
   const responseHeaders = new Headers();
   let dependencies: Awaited<ReturnType<typeof createFirstSyncRouteDependencies>> | null = null;
   const getDependencies = async () => {
@@ -30,3 +30,4 @@ export async function POST(request: Request, context: RouteContext) {
     }),
   });
 }
+export { handle as POST, handle as GET, handle as PUT, handle as PATCH, handle as DELETE, handle as HEAD, handle as OPTIONS };

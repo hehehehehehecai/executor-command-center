@@ -1,7 +1,10 @@
+import { verifyIsolatedDatabase } from "./isolated-test-target.mjs";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+verifyIsolatedDatabase();
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outputPath = path.join(

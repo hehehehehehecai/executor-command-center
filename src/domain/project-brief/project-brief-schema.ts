@@ -9,7 +9,10 @@ import {
   projectBriefLimits,
   projectBriefItemSections,
   projectBriefOfficialStatuses,
-  projectBriefSupportedPromptVersions,
+  projectBriefPromptVersion,
+  projectBriefLegacyV2PromptVersion,
+  projectBriefActivePromptVersion,
+  projectBriefActiveSchemaVersion,
   projectBriefSchemaVersion,
   type ProjectBrief,
   type ProjectBriefEvidenceRef,
@@ -88,7 +91,7 @@ const unknownItemSchema = z.object({
 }).strict();
 
 const briefBaseSchema = z.object({
-  promptVersion: z.enum(projectBriefSupportedPromptVersions),
+  promptVersion: z.enum([projectBriefPromptVersion, projectBriefLegacyV2PromptVersion]),
   schemaVersion: z.literal(projectBriefSchemaVersion),
   projectId: projectIdSchema,
   evidenceFingerprint: z.string().regex(fingerprintPattern),
@@ -130,7 +133,13 @@ function refKeys(refs: readonly ProjectBriefEvidenceRef[]): Set<string> {
   return new Set(refs.map(projectBriefEvidenceRefAlignmentKey));
 }
 
-export const projectBriefSchema = briefBaseSchema.superRefine((brief, context) => {
+const activeBriefSchema = briefBaseSchema.extend({
+  promptVersion: z.literal(projectBriefActivePromptVersion),
+  schemaVersion: z.literal(projectBriefActiveSchemaVersion),
+  officialStatus: briefBaseSchema.shape.officialStatus.extend({ value: z.enum(projectBriefOfficialStatuses).nullable() }).strict(),
+}).strict();
+
+export const projectBriefSchema = z.discriminatedUnion("promptVersion", [briefBaseSchema, activeBriefSchema]).superRefine((brief, context) => {
   if (brief.rangeEnd <= brief.rangeStart) {
     issue(context, "project_brief_range_invalid", ["rangeEnd"]);
   }

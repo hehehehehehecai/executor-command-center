@@ -1,4 +1,6 @@
-import { loadMissionControlPreviewFixture } from "@/content/demo-data/mission-control-preview-fixture";
+import { readWorkspaceEntry } from "@/infrastructure/workspace/workspace-entry";
+import { WorkspaceEntryStatus, WorkspacePanelFrame } from "@/features/command-deck/workspace-entry-frame";
+import { workspaceHref } from "@/shared/workspace-navigation";
 import { createMissionControlProductionConnectedPort } from "@/app/connected-panel-dependencies";
 import {
   MissionControlPanel,
@@ -11,9 +13,6 @@ import {
   type MissionControlViewModel,
   type MissionSuggestionStatus,
 } from "@/features/mission-control";
-import { parsePanelMode, type PanelMode } from "@/shared/panel-query";
-import { AccessibleStatusShell } from "@/shared/status-shell/AccessibleStatusShell";
-import { readConnectedPanelFixtureAccess } from "@/testing/connected-panels/connected-panel-fixture-session";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +21,7 @@ type MissionControlSearchParams = {
   readonly mode?: string | string[];
   readonly nextStatus?: string | string[];
   readonly project?: string | string[];
+  readonly projectId?: string | string[];
   readonly suggestionId?: string | string[];
 };
 
@@ -29,28 +29,7 @@ function single(value: string | string[] | undefined) {
   return typeof value === "string" ? value : undefined;
 }
 
-function requestedMode(value: string | string[] | undefined): PanelMode | "invalid" {
-  if (value === undefined) return "preview";
-  if (typeof value !== "string") return "invalid";
 
-  try {
-    return parsePanelMode(value);
-  } catch {
-    return "invalid";
-  }
-}
-
-function statusShell(message: string) {
-  return (
-    <AccessibleStatusShell
-      kicker="Mission Control · 任务中枢"
-      title="Mission Control"
-      state="failed"
-      reason={message}
-      nextStep="返回 Command Deck 检查面板入口，或稍后安全重试。"
-    />
-  );
-}
 
 function applyLocalAction(
   viewModel: MissionControlViewModel,
@@ -99,29 +78,26 @@ export default async function MissionControlPage(input: {
   readonly searchParams: Promise<MissionControlSearchParams>;
   readonly connectedPort?: MissionControlConnectedPort;
 }) {
-  const searchParams = await input.searchParams;
-  const mode = requestedMode(searchParams.mode);
-
-  if (mode === "invalid") {
-    return statusShell("面板模式无效。");
-  }
-
-  const fixtureAccess =
-    mode === "connected"
-      ? await readConnectedPanelFixtureAccess()
-      : ({ kind: "disabled" } as const);
-  const fixtureSession =
-    fixtureAccess.kind === "authorized" ? fixtureAccess.session : null;
+  const parameters = await input.searchParams;
+  const context = await readWorkspaceEntry("mission-control", parameters);
+  const { entry, fixtureSession } = context;
+  if (entry.kind !== "ready" && entry.kind !== "preview") return <WorkspaceEntryStatus context={context} />;
+  const mode = entry.kind === "preview" ? "preview" : "connected";
+  const projectId = entry.kind === "ready" ? entry.project.id : null;
+  const searchParams = mode === "connected" ? { ...parameters, project: projectId ?? undefined } : parameters;
+  const previewFixture = mode === "preview" ? await import("@/content/demo-data/mission-control-preview-fixture") : null;
+  const returnHref = workspaceHref("home", { projectId, mode: mode === "preview" ? "preview" : undefined });
+  const statusShell = (message: string) => <WorkspaceEntryStatus context={{ ...context, entry: { ...entry, kind: "unavailable", reason: message } }} />;
 
   const result = await Promise.resolve()
     .then(async () => mode === "preview"
-      ? createMissionControlPreviewQuery(loadMissionControlPreviewFixture)
+      ? createMissionControlPreviewQuery(previewFixture!.loadMissionControlPreviewFixture)
       : createMissionControlConnectedQuery(
           input.connectedPort ??
             (fixtureSession
               ? { load: async () => fixtureSession.missionControl }
               : await createMissionControlProductionConnectedPort(
-                  single(searchParams.project) ?? null,
+                  projectId,
                 )),
         ))
     .then((query) => query.load())
@@ -139,9 +115,11 @@ export default async function MissionControlPage(input: {
   const actionResult = applyLocalAction(result.viewModel, searchParams);
 
   return (
-    <MissionControlPanel
+    <WorkspacePanelFrame context={context}><MissionControlPanel
+      returnHref={returnHref}
+      projectId={projectId}
       viewModel={actionResult.viewModel}
       feedback={actionResult.feedback}
-    />
+    /></WorkspacePanelFrame>
   );
 }

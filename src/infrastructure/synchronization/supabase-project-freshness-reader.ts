@@ -9,9 +9,9 @@ export const projectFreshnessReaderContract = "project-freshness-reader.v1" as c
 type QueryResult = { readonly data: unknown; readonly error: unknown };
 type FilterQuery = {
   eq(column: string, value: unknown): FilterQuery;
-  neq(column: string, value: unknown): FilterQuery;
+  or(filters: string): FilterQuery;
   in(column: string, value: readonly unknown[]): FilterQuery;
-  order(column: string, options: { readonly ascending: boolean }): FilterQuery;
+  order(column: string, options: { readonly ascending: boolean; readonly nullsFirst?: boolean }): FilterQuery;
   limit(value: number): FilterQuery & PromiseLike<QueryResult>;
 };
 export type ProjectFreshnessSessionClient = {
@@ -84,7 +84,7 @@ export class SupabaseProjectFreshnessReader {
     let projects = this.client.from("projects").select(
       "id,updated_at,selected_repositories!inner(github_installations!inner(status))",
     );
-    projects = projects.eq("user_id", input.userId).neq("status", "archived");
+    projects = projects.eq("user_id", input.userId).or("status.neq.archived,status.is.null");
     if (input.projectId !== null) projects = projects.eq("id", input.projectId);
     const projectResult = await result(projects.order("updated_at", { ascending: false }).limit(1));
     if (projectResult.error) throw failure();
@@ -104,7 +104,7 @@ export class SupabaseProjectFreshnessReader {
       this.client.from("sync_runs").select("id,status,finished_at,error_code")
         .eq("project_id", project.id)
         .in("status", ["completed", "partial"])
-        .order("finished_at", { ascending: false })
+        .order("finished_at", { ascending: false, nullsFirst: false })
         .limit(1),
     );
     if (successfulResult.error) throw failure();

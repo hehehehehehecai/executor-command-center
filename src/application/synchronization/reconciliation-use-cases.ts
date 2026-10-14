@@ -49,7 +49,7 @@ export type SyncRequestReceipt = {
 export interface SyncRequestStore {
   request(input: {
     readonly projectId: string;
-    readonly triggerSource: "webhook" | "reconciliation" | "manual";
+    readonly triggerSource: "first_sync" | "webhook" | "reconciliation" | "manual";
     readonly requestIdentity: string;
     readonly actorUserId: string | null;
     readonly requestedAt: string;

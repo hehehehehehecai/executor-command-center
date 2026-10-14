@@ -10,10 +10,10 @@ import type { ProjectBriefEvidenceSnapshot } from "./evidence-snapshot";
 
 function snapshot(now: string): ProjectBriefEvidenceSnapshot {
   return {
-    snapshotContractVersion: "project-brief-evidence-snapshot.v1",
+    snapshotContractVersion: "project-brief-evidence-snapshot.v2",
     sourceRefContractVersion: "project-brief-evidence-source-ref.v1",
     canonicalizationContractVersion: "project-brief-evidence-canonicalization.v1",
-    fingerprintContractVersion: "project-brief-evidence-fingerprint.v1",
+    fingerprintContractVersion: "project-brief-evidence-fingerprint.v2",
     freshnessContractVersion: "freshness-status.v1",
     userId: "10000000-0000-4000-8000-000000000001",
     projectId: "20000000-0000-4000-8000-000000000002",
@@ -64,7 +64,7 @@ function sha(value: string): string {
 describe("Project Brief evidence cache equivalence", () => {
   it("freezes the version and ignores only the pure evaluation timestamps", () => {
     expect(projectBriefEvidenceCacheEquivalenceContractVersion)
-      .toBe("project-brief-evidence-cache-equivalence.v1");
+      .toBe("project-brief-evidence-cache-equivalence.v2");
     const first = snapshot("2026-08-18T06:00:00.000Z");
     const replay = snapshot("2026-08-18T06:00:01.000Z");
 

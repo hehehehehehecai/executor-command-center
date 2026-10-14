@@ -18,7 +18,7 @@ test("clears project-scoped evidence without external requests at 360px", async 
   });
 
   await page.setViewportSize({ width: 360, height: 800 });
-  await page.goto("/copilot");
+  await page.goto("/copilot?mode=preview");
   await page.waitForLoadState("networkidle");
 
   await expect(
@@ -64,7 +64,7 @@ test("keeps evidence controls in vertical reading order at 768px", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 768, height: 900 });
-  await page.goto("/copilot");
+  await page.goto("/copilot?mode=preview");
 
   const evidenceForm = page.getByRole("form", { name: "添加证据引用" });
   await evidenceForm

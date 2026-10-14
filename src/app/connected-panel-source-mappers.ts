@@ -1,6 +1,9 @@
 import "server-only";
 
 import type { DecisionArchiveSource } from "@/features/decision-archive";
+import type { DecisionArchiveReadResult } from "@/features/decision-archive/decision-archive-read-port";
+import type { ConnectedReadState } from "@/shared/connected-read-state";
+import type { CommandDeckOverview } from "@/features/command-deck/command-deck-connected-query";
 import type { FlightLogEvent, FlightLogSource } from "@/features/flight-log";
 import type { MissionControlSource, RecordedTask } from "@/features/mission-control";
 import type {
@@ -14,6 +17,21 @@ import type {
 
 const maximumRecentActivities = 20;
 const maximumFlightEvents = 100;
+
+export function connectedReadState(data: ConnectedPanelData, recordCount: number): ConnectedReadState {
+  const scopeLabel = "当前项目 · 各来源最近 100 条，非全量统计";
+  const common = { scopeLabel, nextStep: "到项目星图查看同步状态，或刷新重试读取。" };
+  if (data.readContext && data.readContext.installationStatus !== "active") {
+    return { ...common, kind: "authorization_revoked", label: "授权已暂停或撤销", description: "以下是此前保存的数据；当前授权不可用。", nextStep: "到接入页检查 GitHub App 授权。" };
+  }
+  const latest = [...data.syncRuns].sort((a, b) => b.queuedAt.localeCompare(a.queuedAt))[0];
+  if (latest?.status === "failed") return { ...common, kind: "sync_failed", label: "最近同步失败", description: "此前保存的数据仍可查看；失败不代表没有记录。" };
+  const successful = data.syncRuns.some(run => ["completed", "partial"].includes(run.status) && run.finishedAt !== null);
+  if (!successful) return { ...common, kind: "not_synced", label: "尚无成功同步", description: "已读取此前保存的数据；尚不能确认仓库活动完整。" };
+  return recordCount > 0
+    ? { ...common, kind: "ready", label: "已读取保存的数据", description: "按下方读取范围展示当前项目记录。" }
+    : { ...common, kind: "empty", label: "读取成功，当前范围无记录", description: "查询已成功；当前读取范围没有匹配记录。" };
+}
 
 function activityKey(activity: ConnectedPanelActivity) {
   return `${activity.sourceKind}:${activity.sourceId}`;
@@ -81,6 +99,7 @@ export function mapProjectGalaxyConnectedSource(
   freshness: ProjectGalaxyFreshness,
 ): ProjectGalaxySource {
   return {
+    readState: { ...connectedReadState(data, data.activities.length), scopeLabel: "当前项目档案 · 最近 20 条活动（各 GitHub 来源读取最近 100 条）" },
     project: {
       id: data.project.id,
       name: data.project.name,
@@ -112,6 +131,9 @@ function missionTask(
     const number = factNumber(activity, "issueNumber");
     return {
       id: activityKey(activity),
+      occurredAt: activity.occurredAt,
+      sourceVersion: activity.sourceVersion,
+      sourceState: factString(activity, "state") ?? "unknown",
       taskType: "issue",
       title: activity.summary,
       state: "open",
@@ -126,6 +148,9 @@ function missionTask(
     const number = factNumber(activity, "pullRequestNumber");
     return {
       id: activityKey(activity),
+      occurredAt: activity.occurredAt,
+      sourceVersion: activity.sourceVersion,
+      sourceState: factString(activity, "state") ?? "unknown",
       taskType: "pull_request",
       title: activity.summary,
       state: "pending",
@@ -144,6 +169,9 @@ function missionTask(
     const number = factNumber(activity, "runNumber");
     return {
       id: activityKey(activity),
+      occurredAt: activity.occurredAt,
+      sourceVersion: activity.sourceVersion,
+      sourceState: conclusion,
       taskType: "workflow_failure",
       title: activity.summary,
       state: "failed",
@@ -159,23 +187,64 @@ function missionTask(
 export function mapMissionControlConnectedSource(
   data: ConnectedPanelData,
 ): MissionControlSource {
+  const recordedTasks = boundedActivities(data.activities, 500)
+    .map((item) => missionTask(data, item))
+    .filter((item): item is RecordedTask => item !== null)
+    .slice(0, maximumFlightEvents);
   return {
+    readState: { ...connectedReadState(data, recordedTasks.length), scopeLabel: "当前项目 · Issue、PR、工作流各最近 100 条中的待处理事实，最多展示 100 项" },
     provenanceLabel: "Connected 数据 · 当前项目",
-    recordedTasks: boundedActivities(data.activities, maximumFlightEvents)
-      .map((item) => missionTask(data, item))
-      .filter((item): item is RecordedTask => item !== null),
+    recordedTasks,
     suggestions: [],
   };
 }
 
 export function mapDecisionArchiveConnectedSource(
   data: ConnectedPanelData,
+  result?: DecisionArchiveReadResult,
 ): DecisionArchiveSource {
-  void data;
+  if (result && (result.projectId !== data.project.id || !data.readContext ||
+      result.userId !== data.readContext.userId)) throw new Error("connected_panel_read_failed");
+  if (result && data.readContext?.installationStatus !== "active") {
+    return {
+      provenanceLabel: "Connected 数据 · 当前项目",
+      readState: { kind: "authorization_revoked", label: "项目授权不可用", description: "当前项目授权已撤回或暂停，不能读取或保存决策。", scopeLabel: "当前本人项目", nextStep: "恢复项目授权后再读取。" },
+      candidates: [], records: [],
+    };
+  }
+  if (!result || result.kind === "not_enabled") {
+    return {
+      provenanceLabel: "当前项目 · 决策记录存储尚未启用",
+      readState: { kind: "not_enabled", label: "决策记录存储尚未启用", description: "尚不能读取正式决策记录；这不表示查询成功且记录为零。", scopeLabel: `当前项目 · ${data.project.id}`, nextStep: "记录功能启用后，在此读取本人项目的已确认记录。" },
+      candidates: [], records: [],
+    };
+  }
+  if (result.records.some(row => row.userId !== result.userId || row.projectId !== result.projectId)) {
+    throw new Error("connected_panel_read_failed");
+  }
+  const records = result.records.map(row => row.record);
   return {
     provenanceLabel: "Connected 数据 · 当前项目",
+    readState: { kind: records.length ? "ready" : "empty", label: records.length ? "已读取正式决策记录" : "读取成功，当前项目无决策记录", description: "只读展示本人项目的用户确认记录；不生成候选或自动确认。", scopeLabel: "当前项目 · 决策只读存储返回的记录", nextStep: "刷新以重新读取已确认记录。" },
     candidates: [],
-    records: [],
+    records,
+  };
+}
+
+export function mapCommandDeckConnectedSource(data: ConnectedPanelData, decisions: DecisionArchiveSource): Extract<CommandDeckOverview, { kind: "ready" }> {
+  if (!data.readContext || data.readContext.projectId !== data.project.id) throw new Error("connected_panel_read_failed");
+  const tasks = mapMissionControlConnectedSource(data).recordedTasks;
+  const count = (kind: RecordedTask["taskType"]) => tasks.filter(task => task.taskType === kind).length;
+  return {
+    kind: "ready", userId: data.readContext.userId, projectId: data.project.id,
+    readState: connectedReadState(data, data.activities.length + data.syncRuns.length + data.briefs.length),
+    cards: {
+      "project-galaxy": data.project.status ?? "项目背景可稍后填写",
+      "flight-log": `最近读取 · 活动 ${boundedActivities(data.activities, 500).length} · 同步 ${data.syncRuns.length}`,
+      "mission-control": `最近列出（最多 100 项） · 开放 Issue ${count("issue")} · PR ${count("pull_request")} · 失败工作流 ${count("workflow_failure")}`,
+      "decision-archive": decisions.readState?.kind === "not_enabled" ? "决策记录存储尚未启用" : decisions.readState?.kind === "authorization_revoked" ? decisions.readState.label : `只读存储返回 · 正式决策 ${decisions.records.length}`,
+      copilot: `最近读取 · 简报 ${data.briefs.length} · 已完成 ${data.briefs.filter(brief => brief.status === "completed").length}`,
+    },
   };
 }
 
@@ -240,6 +309,7 @@ export function mapFlightLogConnectedSource(
     .sort((left, right) => right.localeCompare(left));
   return {
     events: sorted,
+    readState: { ...connectedReadState(data, sorted.length), scopeLabel: "当前项目 · 各来源最近 100 条合并后的最近 100 个活动、同步及简报事件" },
     lastSuccessfulAt: successful[0] ?? null,
     provenanceLabel: "Connected 数据 · 当前项目",
   };

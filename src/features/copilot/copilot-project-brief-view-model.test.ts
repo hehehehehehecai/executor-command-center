@@ -10,9 +10,25 @@ import {
   createCopilotProjectBriefViewModel,
   evidenceNavigationHref,
   evidenceReferenceId,
+  safeEvidenceOriginalHref,
 } from "./copilot-project-brief-view-model";
 
 describe("Copilot Project Brief view model", () => {
+  it("T11 来源详情仅合并当前白名单，展示时间并拒绝任意外链", () => {
+    const brief = syntheticProjectBrief();
+    const ref = brief.summary.evidenceRefs[0];
+    const id = evidenceReferenceId(ref);
+    const result = createCopilotProjectBriefViewModel(brief, {
+      briefId: "30000000-0000-4000-8000-000000000003", mode: "connected", selectedEvidence: id,
+      generatedAt: "2026-10-10T09:00:00.000Z",
+      evidenceDetails: [{ ...ref, referenceId: id, href: null, summary: "已持久化的活动摘要", occurredAt: "2026-10-10T08:00:00.000Z", originalHref: "https://github.com/owner/repo/issues/42", relationship: "摘要依据" },
+        { ...ref, referenceId: "not-in-current-brief", href: null, summary: "不能显示" }],
+    });
+    expect(result.generatedAt).toBe("2026-10-10T09:00:00.000Z");
+    expect(result.selectedEvidence).toMatchObject({ summary: "已持久化的活动摘要", occurredAt: "2026-10-10T08:00:00.000Z", originalHref: "https://github.com/owner/repo/issues/42" });
+    expect(result.evidenceSources.some(item => item.summary === "不能显示")).toBe(false);
+    for (const href of ["javascript:alert(1)", "https://evil.invalid/owner/repo/issues/42", "https://user@github.com/owner/repo/issues/42", "https://github.com/owner/repo/issues/42?next=https://evil.invalid"]) expect(safeEvidenceOriginalHref(href)).toBeNull();
+  });
   it("keeps the frozen section order and explicit empty states", () => {
     const result = createCopilotProjectBriefViewModel(syntheticProjectBrief(), {
       briefId: "30000000-0000-4000-8000-000000000003",

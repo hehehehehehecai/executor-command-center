@@ -4,12 +4,12 @@ select no_plan();
 
 select extensions.dblink_connect(
   'beta_rate_' || n,
-  'dbname=postgres host=host.docker.internal port=54322 user=postgres password=postgres'
+  current_setting('executor.test_dblink_connection')
 )
 from generate_series(1,8) n;
 select extensions.dblink_connect(
   'beta_rate_cleanup',
-  'dbname=postgres host=host.docker.internal port=54322 user=postgres password=postgres'
+  current_setting('executor.test_dblink_connection')
 );
 
 -- The concurrent calls below commit in their independent dblink sessions, so

@@ -1,11 +1,11 @@
 export const projectBriefEvidenceSnapshotContractVersion =
-  "project-brief-evidence-snapshot.v1" as const;
+  "project-brief-evidence-snapshot.v2" as const;
 export const projectBriefEvidenceSourceRefContractVersion =
   "project-brief-evidence-source-ref.v1" as const;
 export const projectBriefEvidenceCanonicalizationContractVersion =
   "project-brief-evidence-canonicalization.v1" as const;
 export const projectBriefEvidenceFingerprintContractVersion =
-  "project-brief-evidence-fingerprint.v1" as const;
+  "project-brief-evidence-fingerprint.v2" as const;
 
 export const projectBriefEvidenceFailureCodes = [
   "invalid_request",

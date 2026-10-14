@@ -10,6 +10,7 @@ import { SupabaseVerifiedSessionReader } from "@/infrastructure/auth/supabase-ve
 import { InngestJobDispatcher } from "@/infrastructure/jobs/inngest-job-dispatcher";
 import { SupabaseFirstSyncProjectOwnershipReader } from "@/infrastructure/synchronization/supabase-first-sync-project-ownership-reader";
 import { SupabaseFirstSyncStore } from "@/infrastructure/synchronization/supabase-first-sync-store";
+import { SupabaseReconciliationStore } from "@/infrastructure/synchronization/supabase-reconciliation-store";
 import { parseServerEnvironment } from "@/shared/configuration/server-environment";
 
 export const firstSyncRouteCompositionContract =
@@ -51,6 +52,7 @@ export async function createFirstSyncRouteDependencies(
   const start = new StartFirstRepositorySync({
     runs: store,
     contexts: store,
+    requests: new SupabaseReconciliationStore({ supabaseUrl: environment.NEXT_PUBLIC_SUPABASE_URL, serviceRoleKey: environment.SUPABASE_SERVICE_ROLE_KEY }),
     dispatcher: new InngestJobDispatcher(new Inngest({
       id: "executor-command-center-first-sync",
       eventKey: environment.INNGEST_EVENT_KEY,

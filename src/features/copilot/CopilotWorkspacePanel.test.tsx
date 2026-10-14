@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render as renderPage, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { featureRegistry } from "@/shared/features/feature-registry";
@@ -25,9 +25,37 @@ function viewModel(
   };
 }
 
+function render(...args: Parameters<typeof renderPage>) {
+  const result = renderPage(...args);
+  result.container.querySelectorAll<HTMLDetailsElement>("[data-copilot-diagnostics]").forEach(detail => { detail.open = true; });
+  return result;
+}
+
 afterEach(cleanup);
 
+it("T12 正文按五段阅读顺序呈现，技术信息默认折叠且不编造下一步", async () => {
+  const { syntheticProjectBrief, syntheticBriefId } = await import("@/testing/project-brief/project-brief-fixture");
+  const brief = createCopilotProjectBriefViewModel(syntheticProjectBrief(), { briefId: syntheticBriefId, mode: "connected", selectedEvidence: null });
+  const { container } = renderPage(<CopilotWorkspacePanel viewModel={viewModel({ mode: "connected", projectBrief: { status: "ready", value: brief } })} />);
+  expect([...container.querySelectorAll("[data-copilot-section]")].map(node => node.getAttribute("data-copilot-section"))).toEqual(["project", "recent", "attention", "next", "sources"]);
+  expect([...container.querySelectorAll<HTMLDetailsElement>("[data-copilot-diagnostics]")].every(node => !node.open)).toBe(true);
+  expect(screen.getByText("本地 Shell 上下文已初始化")).not.toBeVisible();
+  expect(screen.getByText(brief.evidenceFingerprint)).not.toBeVisible();
+  expect(screen.getByText("仅列出简报记录的进行中工作；暂未提供额外行动建议。")).toBeVisible();
+  expect(screen.getByRole("heading", { level: 1, name: "AI 副驾驶" })).toBeVisible();
+});
+
 describe("CopilotWorkspacePanel", () => {
+  it("T05 新版未确认正式状态显示中文且保留证据", async () => {
+    const { syntheticProjectBrief } = await import("@/testing/project-brief/project-brief-fixture");
+    const legacy = syntheticProjectBrief();
+    const brief = { ...legacy, promptVersion: "project-brief-v3" as const, schemaVersion: "project-brief-schema-v2" as const, officialStatus: { ...legacy.officialStatus, value: null } };
+    const mapped = createCopilotProjectBriefViewModel(brief, { briefId: "30000000-0000-4000-8000-000000000003", mode: "connected", selectedEvidence: null });
+    render(<CopilotWorkspacePanel viewModel={viewModel({ mode: "connected", projectBrief: { status: "ready", value: mapped } })} />);
+    expect(screen.getAllByText("未确认").length).toBeGreaterThan(0);
+    expect(mapped.officialStatus.value).toBeNull();
+    expect(mapped.officialStatus.evidence).not.toHaveLength(0);
+  });
   it("renders the validated Brief structure, explicit empty states, Freshness and permanent Boundary", async () => {
     const { syntheticProjectBrief } = await import(
       "@/testing/project-brief/project-brief-fixture"
@@ -45,7 +73,7 @@ describe("CopilotWorkspacePanel", () => {
     })} />);
 
     expect(screen.getByRole("region", { name: "项目简报" })).toBeVisible();
-    expect(screen.getByRole("heading", { level: 2, name: "项目简报" })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 2, name: "最近发生什么" })).toBeVisible();
     expect(screen.getByText("暂无待处理事项")).toBeVisible();
     expect(screen.getByText("Freshness")).toBeVisible();
     expect(screen.getByRole("note", { name: "Brief 边界" })).toBeVisible();
@@ -73,7 +101,7 @@ describe("CopilotWorkspacePanel", () => {
     render(<CopilotWorkspacePanel viewModel={viewModel()} />);
 
     expect(
-      screen.getByRole("heading", { level: 1, name: "Copilot Workspace" }),
+      screen.getByRole("heading", { level: 1, name: "AI 副驾驶" }),
     ).toBeVisible();
     expect(screen.getByLabelText("数据来源")).toHaveTextContent(
       "Demo · 演示数据 · 完全虚构",
@@ -89,7 +117,7 @@ describe("CopilotWorkspacePanel", () => {
   it("uses the frozen Registry order in the keyboard-accessible context form", () => {
     render(<CopilotWorkspacePanel viewModel={viewModel()} />);
 
-    const form = screen.getByRole("form", { name: "切换 Copilot 上下文" });
+    const form = screen.getByRole("form", { name: "切换项目" });
     const featureSelect = within(form).getByRole("combobox", {
       name: "面板",
     });
@@ -103,7 +131,7 @@ describe("CopilotWorkspacePanel", () => {
       "project-odyssey",
     );
     expect(
-      within(form).getByRole("button", { name: "切换并校准上下文" }),
+      within(form).getByRole("button", { name: "切换项目" }),
     ).toBeVisible();
   });
 
@@ -182,7 +210,7 @@ describe("Copilot evidence navigation", () => {
         ["Freshness", "freshness", "freshness:odyssey"],
       ];
       for (const [name, kind, id] of expected) {
-        const link = within(screen.getByRole("region", { name })).getByRole("link", { name: `查看证据 · ${kind} · ${id}` });
+        const link = within(screen.getByRole("region", { name })).getByRole("link", { name: `查看证据 · ${kind === "github_issue" ? "问题记录" : kind === "project_profile" ? "项目背景" : "同步记录"}` });
         const selection = JSON.stringify([kind, id, "20000000-0000-4000-8000-000000000002"]);
         const href = `/copilot?mode=${mode}&projectId=20000000-0000-4000-8000-000000000002&selectedEvidence=${encodeURIComponent(selection)}#copilot-selected-evidence`;
         expect(link).toHaveAttribute("href", href);
@@ -200,7 +228,7 @@ describe("Copilot evidence navigation", () => {
       selectedEvidence: '["github_issue","issue:42","20000000-0000-4000-8000-000000000002"]',
     });
     render(<CopilotWorkspacePanel viewModel={viewModel({ projectBrief: { status: "ready", value: brief } })} />);
-    const target = screen.getByRole("complementary", { name: "已聚焦 Evidence" });
+    const target = screen.getByRole("complementary", { name: "来源详情" });
     expect(target).toHaveAttribute("id", "copilot-selected-evidence");
     expect(target).toHaveAttribute("tabindex", "-1");
     expect([...target.querySelectorAll("dd")].map((node) => node.textContent)).toEqual([
@@ -221,9 +249,9 @@ describe("Copilot evidence navigation", () => {
       ...brief, summary: { ...brief.summary, evidence: brief.summary.evidence.map((reference) => ({ ...reference, href: null })) },
     } } })} />);
     const summary = screen.getByRole("region", { name: "摘要" });
-    expect(within(summary).getByText("不可导航 · github_issue")).toBeVisible();
+    expect(within(summary).getByText("来源暂不可打开")).toBeVisible();
     expect(within(summary).queryByRole("link")).not.toBeInTheDocument();
-    expect(screen.queryByRole("complementary", { name: "已聚焦 Evidence" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("complementary", { name: "来源详情" })).not.toBeInTheDocument();
     expect(document.getElementById("copilot-selected-evidence")).toBeNull();
     expect(screen.getByRole("note", { name: "Brief 边界" })).toBeVisible();
   });
@@ -243,17 +271,31 @@ describe("Copilot Evidence fragment focus", () => {
     try {
       window.history.replaceState(null, "", "#copilot-selected-evidence");
       const first = render(<CopilotWorkspacePanel viewModel={viewModel({ projectBrief: { status: "ready", value: brief } })} />);
-      const target = screen.getByRole("complementary", { name: "已聚焦 Evidence" });
+      const target = screen.getByRole("complementary", { name: "来源详情" });
       expect(target).toHaveFocus();
       target.blur();
       expect(target).not.toHaveFocus();
       window.dispatchEvent(new Event("pageshow"));
       expect(target).toHaveFocus();
+      target.blur();
+      first.container.hidden = true;
+      window.dispatchEvent(new Event("pageshow"));
+      expect(target).not.toHaveFocus();
+      first.container.hidden = false;
+      await waitFor(() => expect(target).toHaveFocus());
+      first.container.hidden = true;
+      target.blur();
+      first.container.hidden = false;
+      await waitFor(() => expect(target).toHaveFocus());
+      target.blur();
+      first.container.hidden = true;
+      first.container.hidden = false;
+      expect(target).not.toHaveFocus();
       first.unmount();
 
       window.history.replaceState(null, "", "#main-content");
       render(<CopilotWorkspacePanel viewModel={viewModel({ projectBrief: { status: "ready", value: brief } })} />);
-      const otherFragmentTarget = screen.getByRole("complementary", { name: "已聚焦 Evidence" });
+      const otherFragmentTarget = screen.getByRole("complementary", { name: "来源详情" });
       expect(otherFragmentTarget).not.toHaveFocus();
       window.dispatchEvent(new Event("pageshow"));
       expect(otherFragmentTarget).not.toHaveFocus();
@@ -284,7 +326,7 @@ describe("CopilotWorkspacePanel theme contracts", () => {
         ["fromProjectId", "project-odyssey"],
         ["fromEvidence", "evidence-goal"], ["fromEvidence", "evidence-freshness"],
       ];
-      const switchForm = screen.getByRole<HTMLFormElement>("form", { name: "切换 Copilot 上下文" });
+      const switchForm = screen.getByRole<HTMLFormElement>("form", { name: "切换项目" });
       const evidenceForm = screen.getByRole<HTMLFormElement>("form", { name: "添加证据引用" });
       expect(switchForm).toHaveAttribute("method", "get");
       expect(evidenceForm).toHaveAttribute("method", "get");
@@ -361,7 +403,7 @@ describe("CopilotWorkspacePanel theme contracts", () => {
       expect(within(screen.getByRole("region", { name })).getByText(text)).toBeVisible();
     }
     for (const name of ["摘要", "官方状态", "Freshness", "未知项与缺失证据"]) {
-      expect(within(screen.getByRole("region", { name })).getByText("无 Evidence 引用")).toBeVisible();
+      expect(within(screen.getByRole("region", { name })).getByText("暂无可核验来源")).toBeVisible();
     }
     expect(within(screen.getByRole("region", { name: "未知项与缺失证据" })).getByText("缺失证据：已确认决策记录；里程碑验收证据")).toBeVisible();
     rerender(<CopilotWorkspacePanel viewModel={viewModel({ projectBrief: { status: "ready", value: {

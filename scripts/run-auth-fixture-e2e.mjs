@@ -147,6 +147,11 @@ function createFixtureServer() {
       return;
     }
 
+    if (request.method === "GET" && ["/rest/v1/github_installations", "/rest/v1/projects"].includes(requestUrl.pathname)) {
+      writeJson(response, 200, []);
+      return;
+    }
+
     if (request.method === "GET" && requestUrl.pathname === "/__fixture/state") {
       writeJson(response, 200, {
         fixture_id: "valid_github_auth_user",

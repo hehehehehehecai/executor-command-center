@@ -25,6 +25,7 @@ const installationResponseSchema = z.object({
   }),
   repository_selection: z.enum(["all", "selected"]),
   suspended_at: z.iso.datetime({ offset: true }).nullable(),
+  html_url: z.unknown().optional(),
 });
 
 type GitHubAppInstallationReaderOptions = {
@@ -161,6 +162,7 @@ export class GitHubAppInstallationReaderAdapter
         {
           method: "GET",
           redirect: "error",
+          cache: "no-store",
           headers: {
             accept: "application/vnd.github+json",
             authorization: `Bearer ${this.options.jwtSigner.sign()}`,
@@ -204,6 +206,7 @@ export class GitHubAppInstallationReaderAdapter
         accountType: parsed.data.account.type,
         repositorySelection: parsed.data.repository_selection,
         suspendedAt: parsed.data.suspended_at,
+        ...(typeof parsed.data.html_url === "string" ? { managementUrl: parsed.data.html_url } : {}),
       };
     } catch (error) {
       if (

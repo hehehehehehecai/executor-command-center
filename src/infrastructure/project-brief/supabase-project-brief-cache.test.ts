@@ -80,6 +80,11 @@ describe("SupabaseProjectBriefCache", () => {
     });
     expect(q.gt).toHaveBeenCalledWith("expires_at", key.now);
     expect(q.order).toHaveBeenCalledWith("expires_at", { ascending: false });
+    expect(q.order.mock.calls).toEqual([
+      ["expires_at", { ascending: false }],
+      ["completed_at", { ascending: false }],
+      ["id", { ascending: false }],
+    ]);
     expect(q.limit).toHaveBeenCalledWith(1);
   });
 

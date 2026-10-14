@@ -4,17 +4,20 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { featureRegistry } from "@/shared/features/feature-registry";
+import { workspaceHref, type WorkspaceDestination, type WorkspaceSearchParams } from "@/shared/workspace-navigation";
+import type { PanelMode } from "@/shared/panel-query";
 
 import styles from "./command-deck.module.css";
 
-function NavigationLinks({ onNavigate }: { onNavigate?: () => void }) {
+type NavigationContext = { readonly projectId?: string | null; readonly current?: WorkspaceDestination; readonly mode?: PanelMode; readonly query?: WorkspaceSearchParams };
+function NavigationLinks({ onNavigate, projectId, current = "home", mode, query }: NavigationContext & { onNavigate?: () => void }) {
   return (
     <>
       <p className="navigation-kicker">Workspace</p>
       <Link
         className="workspace-home-link"
-        href="/"
-        aria-current="page"
+        href={workspaceHref("home", { projectId, mode })}
+        aria-current={current === "home" ? "page" : undefined}
         prefetch={false}
         onClick={onNavigate}
       >
@@ -26,7 +29,8 @@ function NavigationLinks({ onNavigate }: { onNavigate?: () => void }) {
           <li key={feature.id}>
             <Link
               className="workspace-navigation-link"
-              href={feature.route}
+              href={workspaceHref(feature.id, { projectId, mode, query: current === feature.id ? query : undefined })}
+              aria-current={current === feature.id ? "page" : undefined}
               prefetch={false}
               aria-label={`${feature.title} ${feature.subtitle}`}
               onClick={onNavigate}
@@ -41,7 +45,7 @@ function NavigationLinks({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-export function CommandDeckNavigation() {
+export function CommandDeckNavigation(context: NavigationContext = {}) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLElement>(null);
@@ -110,7 +114,7 @@ export function CommandDeckNavigation() {
       </button>
 
       <nav className={`workspace-navigation ${styles.navigation}`} aria-label="桌面主导航">
-        <NavigationLinks />
+        <NavigationLinks {...context} />
       </nav>
 
       {isDrawerOpen ? (
@@ -141,7 +145,7 @@ export function CommandDeckNavigation() {
               </button>
             </div>
             <nav aria-label="移动主导航">
-              <NavigationLinks onNavigate={() => closeDrawer(false)} />
+              <NavigationLinks {...context} onNavigate={() => closeDrawer(false)} />
             </nav>
           </aside>
         </div>

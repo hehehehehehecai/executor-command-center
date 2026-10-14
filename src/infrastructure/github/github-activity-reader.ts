@@ -313,6 +313,12 @@ function validateNextUrl(input: {
   const uniqueKeys = new Set(keys);
   const expectedKeys = new Set([...Object.keys(input.query), "page"]);
   const nextPage = Number(next.searchParams.get("page"));
+  const resourcePath = input.path.match(/^\/repos\/[^/]+\/[^/]+(\/.+)$/)?.[1];
+  const numericResourcePath = next.pathname.match(/^\/repositories\/[1-9]\d*(\/.+)$/)?.[1];
+  // GitHub emits numeric repository aliases in Link headers. Never follow an
+  // unverified numeric ID: retain the caller's authorized owner/name path.
+  const scopedNext = new URL(next.toString());
+  scopedNext.pathname = input.path;
 
   if (
     next.protocol !== "https:"
@@ -321,13 +327,13 @@ function validateNextUrl(input: {
     || next.username !== ""
     || next.password !== ""
     || next.hash !== ""
-    || next.pathname !== input.path
+    || (next.pathname !== input.path && (!resourcePath || numericResourcePath !== resourcePath))
     || keys.length !== uniqueKeys.size
     || uniqueKeys.size !== expectedKeys.size
     || [...expectedKeys].some((key) => !uniqueKeys.has(key))
     || !Number.isSafeInteger(nextPage)
     || nextPage !== input.currentPage + 1
-    || input.visited.has(next.toString())
+    || input.visited.has(scopedNext.toString())
     || Object.entries(input.query).some(
       ([key, value]) => next.searchParams.get(key) !== value,
     )
@@ -335,7 +341,7 @@ function validateNextUrl(input: {
     throw stableError("github_activity_pagination_invalid");
   }
 
-  return next;
+  return scopedNext;
 }
 
 function initialUrl(path: string, query: Readonly<Record<string, string>>): URL {

@@ -200,10 +200,10 @@ describe("project brief evidence contracts", () => {
       canonicalization: projectBriefEvidenceCanonicalizationContractVersion,
       fingerprint: projectBriefEvidenceFingerprintContractVersion,
     }).toEqual({
-      snapshot: "project-brief-evidence-snapshot.v1",
+      snapshot: "project-brief-evidence-snapshot.v2",
       sourceRef: "project-brief-evidence-source-ref.v1",
       canonicalization: "project-brief-evidence-canonicalization.v1",
-      fingerprint: "project-brief-evidence-fingerprint.v1",
+      fingerprint: "project-brief-evidence-fingerprint.v2",
     });
     expect(projectBriefEvidenceFailureCodes).toEqual([
       "invalid_request",
@@ -236,10 +236,10 @@ describe("project brief evidence contracts", () => {
       ].filter((key) => key in snapshot),
     }).toEqual({
       versions: {
-        snapshot: "project-brief-evidence-snapshot.v1",
+        snapshot: "project-brief-evidence-snapshot.v2",
         sourceRef: "project-brief-evidence-source-ref.v1",
         canonicalization: "project-brief-evidence-canonicalization.v1",
-        fingerprint: "project-brief-evidence-fingerprint.v1",
+        fingerprint: "project-brief-evidence-fingerprint.v2",
         freshness: "freshness-status.v1",
       },
       contentKeys: [

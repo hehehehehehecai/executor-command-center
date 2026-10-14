@@ -5,6 +5,8 @@ import {
   type FreshnessStatus,
 } from "@/domain/synchronization/synchronization-state";
 import { normalizeEvidenceText } from "./canonicalization";
+import { projectBackgroundSchema } from "@/domain/project-calibration/project-calibration-read";
+import type { ProjectStatus } from "@/domain/project-calibration/project-calibration";
 import {
   evidenceFailure,
   projectBriefEvidenceCanonicalizationContractVersion,
@@ -54,9 +56,9 @@ export interface RawProjectProfileSource extends RawOwnedSource {
   sourceId: string;
   sourceUpdatedAt: string;
   sourceVersion: string;
-  coreGoal: string;
-  currentStageGoal: string;
-  status: string;
+  coreGoal: string | null;
+  currentStageGoal: string | null;
+  status: string | null;
   currentBlocker: string | null;
 }
 
@@ -115,9 +117,9 @@ export type ProjectBriefEvidenceSourceData = Omit<
 
 export interface ProjectBriefEvidenceProjectProfile {
   readonly sourceRef: EvidenceSourceRef;
-  readonly coreGoal: string;
-  readonly currentStageGoal: string;
-  readonly status: string;
+  readonly coreGoal: string | null;
+  readonly currentStageGoal: string | null;
+  readonly status: ProjectStatus | null;
   readonly currentBlocker: string | null;
 }
 
@@ -149,10 +151,10 @@ export interface ProjectBriefEvidenceFreshness {
 }
 
 export interface ProjectBriefEvidenceSnapshot {
-  readonly snapshotContractVersion: typeof projectBriefEvidenceSnapshotContractVersion;
+  readonly snapshotContractVersion: typeof projectBriefEvidenceSnapshotContractVersion | "project-brief-evidence-snapshot.v1";
   readonly sourceRefContractVersion: typeof projectBriefEvidenceSourceRefContractVersion;
   readonly canonicalizationContractVersion: typeof projectBriefEvidenceCanonicalizationContractVersion;
-  readonly fingerprintContractVersion: typeof projectBriefEvidenceFingerprintContractVersion;
+  readonly fingerprintContractVersion: typeof projectBriefEvidenceFingerprintContractVersion | "project-brief-evidence-fingerprint.v1";
   readonly freshnessContractVersion: typeof freshnessStatusContract;
   readonly userId: string;
   readonly projectId: string;
@@ -192,6 +194,7 @@ const forbiddenFactKeys = new Set([
 ]);
 
 function normalizedRequired(value: string): string {
+  if (typeof value !== "string") return evidenceFailure("source_invalid");
   const normalized = normalizeEvidenceText(value).trim();
   if (normalized === "") return evidenceFailure("source_invalid");
   return normalized;
@@ -313,6 +316,8 @@ export function buildProjectBriefEvidenceSnapshot(
     return evidenceFailure("authorization_revoked");
   }
 
+  const background = projectBackgroundSchema.safeParse({ coreGoal: profile.coreGoal, currentStageGoal: profile.currentStageGoal, status: profile.status });
+  if (!background.success) return evidenceFailure("source_invalid");
   const projectProfile: ProjectBriefEvidenceProjectProfile = {
     sourceRef: sourceRef({
       sourceKind: "project_profile",
@@ -323,9 +328,9 @@ export function buildProjectBriefEvidenceSnapshot(
       sourceVersion: profile.sourceVersion,
       sourceSha: null,
     }),
-    coreGoal: normalizedRequired(profile.coreGoal),
-    currentStageGoal: normalizedRequired(profile.currentStageGoal),
-    status: normalizedRequired(profile.status),
+    coreGoal: background.data.coreGoal === null ? null : normalizedRequired(background.data.coreGoal),
+    currentStageGoal: background.data.currentStageGoal === null ? null : normalizedRequired(background.data.currentStageGoal),
+    status: background.data.status,
     currentBlocker: profile.currentBlocker === null
       ? null
       : normalizedRequired(profile.currentBlocker),

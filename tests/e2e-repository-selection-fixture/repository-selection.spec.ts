@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openOnboardingSection } from "../onboarding-ui-fixture-actions";
 
 test("restores, live-authorizes, selects, refreshes, and deselects without project or sync", async ({
   page,
@@ -24,7 +25,9 @@ test("restores, live-authorizes, selects, refreshes, and deselects without proje
   const beforeAuthorization = await (
     await request.get("http://127.0.0.1:54334/__fixture/state")
   ).json();
-  expect(beforeAuthorization.selection_read_calls).toBe(1);
+  // Development StrictMode can repeat the mount read. The contract requires
+  // restoration without a GitHub authorization request, not one exact render.
+  expect(beforeAuthorization.selection_read_calls).toBeGreaterThanOrEqual(1);
   expect(beforeAuthorization.token_create_calls).toBe(0);
   expect(beforeAuthorization.repository_page_calls).toBe(0);
 
@@ -93,6 +96,7 @@ test("restores, live-authorizes, selects, refreshes, and deselects without proje
 
   await request.post("http://127.0.0.1:54334/__fixture/revoke");
   await page.reload();
+  await openOnboardingSection(page, "接入诊断");
   await expect(page.getByText("revoked", { exact: true })).toBeVisible();
   await page
     .getByRole("button", {
@@ -142,4 +146,33 @@ test("restores, live-authorizes, selects, refreshes, and deselects without proje
   await expect(
     page.getByRole("button", { name: /Project|同步|导入|Select All/i }),
   ).toHaveCount(0);
+
+  // The original full scenario and exact side-effect counts above stay intact.
+  // A separate synthetic permission event adds two repositories, with one
+  // transient storage failure. Returning does not invoke setup or bulk select.
+  await request.post("http://127.0.0.1:54334/__fixture/add-authorization");
+  await page.getByRole("button", { name: "已返回，刷新授权和仓库" }).click();
+  await expect(page.getByRole("button", { name: "选择 synthetic-owner/new-first" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "选择 synthetic-owner/new-second" })).toBeVisible();
+  await expect(page.getByText("synthetic-owner/removed-after-load", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("尚未选择仓库。", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "选择 synthetic-owner/new-first" }).click();
+  await expect(page.getByRole("button", { name: "取消选择 synthetic-owner/new-first" })).toBeVisible();
+  await page.getByRole("button", { name: "选择 synthetic-owner/new-second" }).click();
+  await expect(page.getByRole("button", { name: "重试选择 synthetic-owner/new-second" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "取消选择 synthetic-owner/new-first" })).toBeVisible();
+  await page.getByRole("button", { name: "重试选择 synthetic-owner/new-second" }).click();
+  await expect(page.getByRole("button", { name: "取消选择 synthetic-owner/new-second" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "已选择仓库", exact: true }).getByText("已选择，待建项", { exact: true })).toHaveCount(2);
+  await page.getByRole("button", { name: "已返回，刷新授权和仓库" }).click();
+  await expect(page.getByRole("button", { name: "取消选择 synthetic-owner/new-first" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "取消选择 synthetic-owner/new-second" })).toBeVisible();
+  const finalState = await (await request.get("http://127.0.0.1:54334/__fixture/state")).json();
+  await page.goto("/");
+  await expect(page.getByRole("complementary", { name: "当前账号" })).toContainText("GitHub App 已连接");
+  await expect(page.getByRole("complementary", { name: "当前账号" })).toContainText("我的项目（0）");
+  expect(finalState).toMatchObject({ selection_write_calls: 3, selected_repository_count: 2, project_created: false, sync_started: false, forbidden_endpoint_calls: 0 });
+  expect(finalState.token_create_calls).toBe(finalState.token_revoke_calls);
+  expect(externalBrowserRequests).toEqual([]);
+  await page.screenshot({ path: "test-results/repository-management-results.png", fullPage: true });
 });

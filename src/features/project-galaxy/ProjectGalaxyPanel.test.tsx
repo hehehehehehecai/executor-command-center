@@ -46,6 +46,14 @@ const viewModel: ProjectGalaxyViewModel = {
 describe("ProjectGalaxyPanel", () => {
   afterEach(cleanup);
 
+  it("T05 未确认背景与既有活动同时显示", () => {
+    render(<ProjectGalaxyPanel viewModel={{ ...viewModel, mode: "connected", officialStatus: null, coreGoal: null, currentStageGoal: null, suggestedStatus: null }} />);
+    expect(screen.getByRole("region", { name: "Official Status" })).toHaveTextContent("未确认");
+    expect(screen.getByRole("region", { name: "核心目标" })).toHaveTextContent("核心目标未确认");
+    expect(screen.getByRole("region", { name: "当前阶段目标" })).toHaveTextContent("当前阶段目标未确认");
+    expect(screen.getByRole("region", { name: "最近活动" })).toHaveTextContent(viewModel.recentActivity[0]!.summary);
+  });
+
   it("renders all eight required information groups", () => {
     render(<ProjectGalaxyPanel viewModel={viewModel} />);
 
@@ -113,10 +121,10 @@ describe("ProjectGalaxyPanel", () => {
       "暂无最近活动",
     );
     expect(screen.getByRole("region", { name: "核心目标" })).toHaveTextContent(
-      "尚未记录核心目标",
+      "核心目标未确认",
     );
     expect(screen.getByRole("region", { name: "当前阶段目标" })).toHaveTextContent(
-      "尚未记录当前阶段目标",
+      "当前阶段目标未确认",
     );
     expect(screen.getByRole("region", { name: "当前阻碍" })).toHaveTextContent(
       "当前没有记录的阻碍",
@@ -223,7 +231,7 @@ describe("ProjectGalaxyPanel theme contract", () => {
     expect(identity).toHaveTextContent("项目名称未提供");
     expect(identity).toHaveTextContent("仓库信息未提供");
     expect(identity).toHaveTextContent("project-aurora");
-    expect(screen.getByRole("region", { name: "Official Status" })).toHaveTextContent("尚未提供");
+    expect(screen.getByRole("region", { name: "Official Status" })).toHaveTextContent("未确认");
     expect(screen.getByRole("region", { name: "Suggested Status" })).toHaveTextContent("暂无状态建议");
   });
 });

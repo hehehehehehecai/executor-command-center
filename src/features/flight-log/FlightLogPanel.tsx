@@ -1,3 +1,4 @@
+import { ConnectedReadNote } from "@/shared/connected-read-note";
 import Link from "next/link";
 
 import { PanelDemoDisclosure } from "@/shared/demo-disclosure";
@@ -36,10 +37,12 @@ function formatUtc(value: string) {
 }
 
 export interface FlightLogPanelProps {
+  readonly returnHref?: string;
+  readonly projectId?: string | null;
   readonly viewModel: FlightLogViewModel;
 }
 
-export function FlightLogPanel({ viewModel }: FlightLogPanelProps) {
+export function FlightLogPanel({ viewModel, returnHref = "/", projectId }: FlightLogPanelProps) {
   const selectedTypes = new Set(viewModel.filters.eventTypes);
 
   return (
@@ -65,6 +68,7 @@ export function FlightLogPanel({ viewModel }: FlightLogPanelProps) {
           provenanceLabel={viewModel.provenanceLabel}
         />
       </header>
+      {viewModel.mode === "connected" ? <ConnectedReadNote state={viewModel.readState} /> : null}
 
       <section
         className={styles.freshness}
@@ -92,6 +96,7 @@ export function FlightLogPanel({ viewModel }: FlightLogPanelProps) {
       >
         <input type="hidden" name="apply" value="1" />
         <input type="hidden" name="mode" value={viewModel.mode} />
+        {projectId ? <input type="hidden" name="project" value={projectId} /> : null}
         <fieldset className={styles.typeFieldset}>
           <legend>事件类型</legend>
           <div className={styles.typeOptions}>
@@ -136,7 +141,7 @@ export function FlightLogPanel({ viewModel }: FlightLogPanelProps) {
         </div>
 
         {viewModel.sourceEventCount === 0 ? (
-          <p className={styles.emptyState}>尚无航行记录</p>
+          <p className={styles.emptyState}>{viewModel.readState && viewModel.readState.kind !== "empty" ? viewModel.readState.label : "尚无航行记录"}</p>
         ) : viewModel.events.length === 0 ? (
           <p className={styles.emptyState}>当前筛选没有匹配事件</p>
         ) : (
@@ -172,7 +177,7 @@ export function FlightLogPanel({ viewModel }: FlightLogPanelProps) {
       </section>
 
       <footer className={styles.footer}>
-        <Link href="/">返回 Command Deck</Link>
+        <Link href={returnHref}>返回 Command Deck</Link>
       </footer>
     </main>
   );

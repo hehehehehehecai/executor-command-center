@@ -1,10 +1,17 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { renderToStaticMarkup } from "react-dom/server";
+import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   getUser: vi.fn(),
   getAll: vi.fn(),
+}));
+
+// The session boundary has dedicated browser/cache tests. Keep this inherited
+// page test focused on the real server loader and the resulting entry content.
+vi.mock("@/features/onboarding/workspace-session-boundary", () => ({
+  WorkspaceSessionBoundary: ({ children }: { children: ReactNode }) => children,
 }));
 
 vi.mock("next/server", () => ({

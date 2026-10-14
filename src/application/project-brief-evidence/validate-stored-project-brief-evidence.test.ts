@@ -87,7 +87,7 @@ describe("ValidateStoredProjectBriefEvidenceUseCase", () => {
   it("accepts a generation-validated historical receipt after a mutable source changes", async () => {
     const h = harness();
     await expect(h.useCase.execute(input(h.brief))).resolves.toEqual({
-      contractVersion: "project-brief-evidence-validation.v1",
+      contractVersion: "project-brief-evidence-validation.v2",
       status: "valid",
       validatedReferenceCount: 3,
       evidenceFingerprint: syntheticBriefFingerprint,

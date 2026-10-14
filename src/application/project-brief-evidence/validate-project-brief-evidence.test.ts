@@ -262,7 +262,7 @@ describe("Target A: artifact binding", () => {
       brief,
       artifact,
     })).resolves.toEqual({
-      contractVersion: "project-brief-evidence-validation.v1",
+      contractVersion: "project-brief-evidence-validation.v2",
       status: "valid",
       validatedReferenceCount: 6,
       evidenceFingerprint: artifact.fingerprint,

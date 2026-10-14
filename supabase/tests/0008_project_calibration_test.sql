@@ -47,7 +47,7 @@ select results_eq(
     where pg_class.relname = 'projects_one_active_per_selected_repository_idx'
   $$,
   array[
-    'CREATE UNIQUE INDEX projects_one_active_per_selected_repository_idx ON public.projects USING btree (selected_repository_id) WHERE (status <> ''archived''::text)'
+    'CREATE UNIQUE INDEX projects_one_active_per_selected_repository_idx ON public.projects USING btree (selected_repository_id) WHERE (status IS DISTINCT FROM ''archived''::text)'
   ],
   'one non-archived project per selected repository is database-enforced'
 );

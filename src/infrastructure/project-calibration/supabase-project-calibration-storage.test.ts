@@ -31,6 +31,19 @@ const repositoryRow = {
 };
 
 describe("project-calibration-storage.v1", () => {
+  it.each(["all", "core_goal", "current_stage_goal", "status"])("T05 读取既有项目的未确认背景 %s", async field => {
+    const row = { ...projectRow, ...(field === "all" ? { core_goal: null, current_stage_goal: null, status: null } : { [field]: null }) };
+    const reader = new SupabaseProjectCalibrationReader({ from: vi.fn(() => ({ select: vi.fn().mockResolvedValue({ data: [{ ...repositoryRow, projects: [row] }], error: null }) })) });
+    await expect(reader.listOwn()).resolves.toMatchObject([{ calibration: { id: projectRow.id, coreGoal: row.core_goal, currentStageGoal: row.current_stage_goal, status: row.status } }]);
+  });
+  it.each([undefined, "", "  ", "invented"])("T05 拒绝畸形读取状态 %#", async status => {
+    const reader = new SupabaseProjectCalibrationReader({ from: vi.fn(() => ({ select: vi.fn().mockResolvedValue({ data: [{ ...repositoryRow, projects: [{ ...projectRow, status }] }], error: null }) })) });
+    await expect(reader.listOwn()).rejects.toThrow();
+  });
+  it.each(["core_goal", "current_stage_goal"])("T05 拒绝空白目标 %s", async field => {
+    const reader = new SupabaseProjectCalibrationReader({ from: vi.fn(() => ({ select: vi.fn().mockResolvedValue({ data: [{ ...repositoryRow, projects: [{ ...projectRow, [field]: "  " }] }], error: null }) })) });
+    await expect(reader.listOwn()).rejects.toThrow();
+  });
   it("reads own rows through the session/RLS client and keeps facts nested", async () => {
     const select = vi.fn().mockResolvedValue({ data: [repositoryRow], error: null });
     const from = vi.fn().mockReturnValue({ select });

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { ProjectBriefRecord } from "@/domain/project-brief/project-brief";
-import { projectBriefActivePromptVersion } from "@/domain/project-brief/project-brief-contract";
+import { projectBriefLegacyV2PromptVersion as projectBriefActivePromptVersion } from "@/domain/project-brief/project-brief-contract";
 import {
   syntheticBriefEvaluatedAt,
   syntheticBriefFingerprint,

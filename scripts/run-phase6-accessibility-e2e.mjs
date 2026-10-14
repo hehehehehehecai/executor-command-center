@@ -1,27 +1,12 @@
-import { spawnSync } from "node:child_process";
+import { readIsolatedStatus } from "./isolated-test-target.mjs";
 import { randomUUID } from "node:crypto";
-import { createRequire } from "node:module";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 if (process.env.NODE_ENV === "production") {
   console.error("phase6_accessibility_fixture_forbidden_in_production");
   process.exit(1);
 }
 
-const projectRoot = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "..",
-);
-const require = createRequire(import.meta.url);
-const supabasePackage = require.resolve("supabase/package.json");
-const supabaseCli = path.join(path.dirname(supabasePackage), "dist", "supabase.js");
-const status = spawnSync(process.execPath, [supabaseCli, "status", "-o", "env"], {
-  cwd: projectRoot,
-  encoding: "utf8",
-  env: { ...process.env, SUPABASE_TELEMETRY_DISABLED: "1" },
-  windowsHide: true,
-});
+const status = readIsolatedStatus();
 if (status.status !== 0) {
   throw new Error(`phase6_local_supabase_unavailable:${status.status}`);
 }
