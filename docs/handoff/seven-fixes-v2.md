@@ -11,7 +11,7 @@ T14仅在既有测试入口完成一次ON→兼容OFF→原ON，现有项目、�
 ## 新电脑获取源码
 
 ```powershell
-git clone --branch fix/seven-fixes-v2 --single-branch https://github.com/hehehehehehecai/executor-command-center.git
+git -c core.autocrlf=false clone --branch fix/seven-fixes-v2 --single-branch https://github.com/hehehehehehecai/executor-command-center.git
 Set-Location executor-command-center
 git log -1 --oneline
 pnpm install --frozen-lockfile
